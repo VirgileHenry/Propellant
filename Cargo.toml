@@ -1,0 +1,15 @@
+[package]
+name = "propellant"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+const-fnv1a-hash = "1.1.0"
+foundry = {path = "deps/foundry"}
+glam = "0.24.0"
+glsl-to-spirv-macros = "0.1.1"
+glsl-to-spirv-macros-impl = "0.1.0"
+vulkanalia = { version = "=0.19.0", features = ["libloading", "provisional", "window"] }
+winit = "0.28.5"
