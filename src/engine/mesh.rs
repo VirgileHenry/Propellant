@@ -1,4 +1,4 @@
-use super::vertex::Vertex;
+use self::vertex::Vertex;
 
 
 #[derive(Debug, Clone)]
@@ -25,3 +25,4 @@ impl Mesh {
 pub(crate) mod cube;
 pub(crate) mod mesh_renderer;
 pub(crate) mod mesh_renderer_builder;
+pub(crate) mod vertex;

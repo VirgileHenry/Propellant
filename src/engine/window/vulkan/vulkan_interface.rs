@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use crate::MeshRendererBuilder;
 use crate::engine::consts::ENGINE_VERSION;
 use crate::engine::errors::PropellantError;
-use crate::engine::renderable::mesh::mesh_renderer::MeshRenderer;
+use crate::engine::mesh::mesh_renderer::MeshRenderer;
+use crate::engine::mesh::mesh_renderer_builder::MeshRendererBuilder;
 use crate::engine::renderer::pipeline_lib::GraphicPipelineLib;
 use crate::engine::renderer::pipeline_lib_builder::GraphicPipelineLibBuilder;
 

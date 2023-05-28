@@ -14,14 +14,11 @@ pub use engine::{
             input_button::InputButton,
         },
     },
-    renderable::{
-        mesh::{
-            Mesh,
-            mesh_renderer::MeshRenderer,
-            mesh_renderer_builder::MeshRendererBuilder,
-        },
-        material::Material,
+    mesh::{
+        Mesh,
+        mesh_renderer_builder::MeshRendererBuilder,
     },
+    material::Material,
     window::{
         PropellantWindow,
         vulkan::vulkan_interface::VulkanInterface,

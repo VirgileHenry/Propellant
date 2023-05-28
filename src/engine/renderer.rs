@@ -1,11 +1,11 @@
 use foundry::ComponentTable;
 
-use crate::MeshRendererBuilder;
 use crate::VulkanInterface;
 
 use self::pipeline_lib::GraphicPipelineLib;
 
 use super::errors::PropellantError;
+use super::mesh::mesh_renderer_builder::MeshRendererBuilder;
 
 use vulkanalia::vk::Handle;
 use vulkanalia::vk::HasBuilder;

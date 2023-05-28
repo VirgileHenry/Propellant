@@ -1,4 +1,12 @@
-use crate::engine::{errors::PropellantError, renderable::{material::Material, vertex::Vertex}, window::vulkan::{vulkan_buffer::VulkanBuffer, transfer_command_manager::TransferCommandManager}};
+use crate::engine::{
+    errors::PropellantError,
+    material::Material,
+    mesh::vertex::Vertex, 
+    window::vulkan::{
+        vulkan_buffer::VulkanBuffer,
+        transfer_command_manager::TransferCommandManager
+    }
+};
 
 use super::{Mesh, mesh_renderer::MeshRenderer};
 
@@ -24,12 +32,13 @@ impl MeshRendererBuilder {
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
         vk_transfer_manager: &mut TransferCommandManager,
     ) -> Result<MeshRenderer, PropellantError> {
-        // VERTEX BUFFER - INDEX BUFFER
         // we will use a single buffer for both vertex and index data.
-        // create a staging buffer for the vertex buffer (on CPU / RAM)
+        // [ VERTEX BUFFER | INDEX BUFFER ]
+        // create a staging buffer for the buffer (on CPU / RAM)
+        let buffer_size = self.mesh.vertices().len() as u64 * std::mem::size_of::<Vertex>() as u64 + self.mesh.triangles().len() as u64 * std::mem::size_of::<u32>() as u64;
         let mut staging_buffer = VulkanBuffer::create(
             vk_instance, vk_device, vk_physical_device,
-            self.mesh.vertices().len() as u64 * std::mem::size_of::<Vertex>() as u64 + self.mesh.triangles().len() as u64 * std::mem::size_of::<u32>() as u64,
+            buffer_size,
             vulkanalia::vk::BufferUsageFlags::TRANSFER_SRC,
             vulkanalia::vk::MemoryPropertyFlags::HOST_COHERENT | vulkanalia::vk::MemoryPropertyFlags::HOST_VISIBLE,
         )?;
@@ -48,7 +57,8 @@ impl MeshRendererBuilder {
         // create the buffer on the graphic card itself
         let device_buffer = VulkanBuffer::create(
             vk_instance, vk_device, vk_physical_device,
-            self.mesh.vertices().len() as u64 * std::mem::size_of::<Vertex>() as u64 + self.mesh.triangles().len() as u64 * std::mem::size_of::<u32>() as u64,
+            buffer_size,
+            // we need a target buffer that can be used as a vertex buffer, index buffer and transfer destination
             vulkanalia::vk::BufferUsageFlags::TRANSFER_DST | vulkanalia::vk::BufferUsageFlags::VERTEX_BUFFER | vulkanalia::vk::BufferUsageFlags::INDEX_BUFFER,
             vulkanalia::vk::MemoryPropertyFlags::DEVICE_LOCAL,
         )?;
@@ -57,7 +67,7 @@ impl MeshRendererBuilder {
             vk_device,
             staging_buffer,
             device_buffer.buffer(),
-            self.mesh.vertices().len() as u64 * std::mem::size_of::<Vertex>() as u64 + self.mesh.triangles().len() as u64 * std::mem::size_of::<u32>() as u64,
+            buffer_size,
         )?;
 
 

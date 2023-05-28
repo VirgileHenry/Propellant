@@ -6,8 +6,8 @@ use foundry::component_iterator;
 use vulkanalia::vk::DeviceV1_0;
 use vulkanalia::vk::HasBuilder;
 
-use crate::MeshRenderer;
 use crate::engine::errors::PropellantError;
+use crate::engine::mesh::mesh_renderer::MeshRenderer;
 use crate::engine::renderer::pipeline_lib::GraphicPipelineLib;
 use crate::Transform;
 

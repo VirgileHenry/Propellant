@@ -1,4 +1,8 @@
-use crate::engine::{renderable::{material::Material, vertex::Vertex}, window::vulkan::vulkan_buffer::VulkanBuffer};
+use crate::engine::{
+    material::Material,
+    mesh::vertex::Vertex,
+    window::vulkan::vulkan_buffer::VulkanBuffer
+};
 
 
 use vulkanalia::vk::DeviceV1_0;

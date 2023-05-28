@@ -1,4 +1,4 @@
-use crate::engine::renderable::vertex::Vertex;
+use crate::engine::mesh::vertex::Vertex;
 use crate::engine::{renderer::shaders::DEFAULT_FRAG, errors::PropellantError};
 use super::rendering_pipeline::RenderingPipeline;
 use super::shaders::DEFAULT_VERT;
