@@ -17,6 +17,7 @@ pub struct PropellantWindowBuilder {
     device_prefs: Box<dyn PhysicalDevicePreferences>,
     renderer: Box<dyn VulkanRenderer>,
     pipeline_lib: GraphicPipelineLibBuilder,
+    inner_size: (usize, usize),
 }
 
 impl PropellantWindowBuilder {
@@ -24,11 +25,12 @@ impl PropellantWindowBuilder {
         // create the window from the event loop
         let window = winit::window::WindowBuilder::new()
             .with_title(&self.app_name)
+            .with_inner_size(winit::dpi::LogicalSize::new(self.inner_size.0 as u32, self.inner_size.1 as u32))
             .build(event_loop).unwrap();
         // name of the app
         let mut vk_interface = VulkanInterface::create(&window, &self.device_prefs, self.app_name)?;
         let mut renderer = self.renderer;
-        renderer.use_pipeline_lib(vk_interface.build_pipeline_lib(self.pipeline_lib)?);
+        renderer.use_pipeline_lib(vk_interface.build_pipeline_lib(self.pipeline_lib.clone())?, self.pipeline_lib);
         
         Ok(PropellantWindow {
             vk_interface,
@@ -65,6 +67,7 @@ impl Default for PropellantWindowBuilder {
             device_prefs: Box::new(DefaultPhysicalDevicePreferences),
             renderer: Box::new(DefaultVulkanRenderer::default()),
             pipeline_lib: GraphicPipelineLibBuilder::default(),
+            inner_size: (800, 450),
         }
     }
 }

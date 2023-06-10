@@ -24,6 +24,9 @@ pub use engine::{
         vulkan::vulkan_interface::VulkanInterface,
     },
     transform::Transform,
+    common_components::{
+        camera::Camera,
+    },
 };
 
 pub use utils::id::id;

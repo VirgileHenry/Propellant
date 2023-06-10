@@ -267,7 +267,7 @@ impl VulkanInterface {
 
     /// Build a rendering pipeline builder into a rendering pipeline that can be used.
     pub fn build_pipeline_lib(&mut self, pipeline_lib: GraphicPipelineLibBuilder) -> Result<GraphicPipelineLib, PropellantError> {
-        pipeline_lib.build(&self.device, self.swapchain.extent(), self.render_pass)
+        pipeline_lib.build(&self.instance, &self.device, self.physical_device, self.swapchain.extent(), &self.swapchain.images(), self.render_pass)
     }
 
     /// Operates the registered memory transfers, and wait for them to be done.
@@ -279,17 +279,17 @@ impl VulkanInterface {
         Ok(())
     }
 
-    pub fn swapchain_recreation_request(&mut self, _window: &winit::window::Window) -> Result<(), PropellantError> {
+    #[allow(unreachable_code, unused_variables)] // temp, while we make this working.
+    pub fn swapchain_recreation_request(&mut self, window: &winit::window::Window) -> Result<(), PropellantError> {
+        // ! fixme this whole thing does not work ! still out of date khr !
         return Ok(());
-        // ! fixme this whole thing does not work ! this result in a black screen.
         // first, wait for any remaining work
-        /*
         unsafe { self.device.device_wait_idle()?; }
         // destroy all previous fields
         // framebuffers
         self.framebuffers.iter().for_each(|f| unsafe { self.device.destroy_framebuffer(*f, None); });
         // command buffers
-        self.command_pool.free_command_buffers(&self.device);
+        self.rendering_manager.free_command_buffers(&self.device);
         // render pass
         unsafe {self.device.destroy_render_pass(self.render_pass, None);}
         // now recreate everything !
@@ -300,11 +300,10 @@ impl VulkanInterface {
         // framebuffers
         self.framebuffers = Self::create_framebuffers(&self.device, self.swapchain.image_views(), self.render_pass, self.swapchain.extent())?;
         // command buffers
-        self.command_pool.recreate_command_buffers(&self.device, &self.framebuffers)?;
+        self.rendering_manager.recreate_command_buffers(&self.device, &self.framebuffers)?;
         // resize in flight image
         self.rendering_sync.resize_images_in_flight(self.swapchain.images().len());
         Ok(())
-        */
     }
 
     /// Destroys all the ressources allocated by vulkan through the world.

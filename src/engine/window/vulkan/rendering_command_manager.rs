@@ -77,7 +77,7 @@ impl RenderingCommandManager {
         pipeline_lib: &GraphicPipelineLib,
     ) -> Result<(), PropellantError> {
         // loop through the command buffers, and register the commands
-        for (i, command_buffer) in self.command_buffers.iter().enumerate() {
+        for (image_index, command_buffer) in self.command_buffers.iter().enumerate() {
             let inheritance = vulkanalia::vk::CommandBufferInheritanceInfo::builder();
         
             let info = vulkanalia::vk::CommandBufferBeginInfo::builder()
@@ -98,14 +98,14 @@ impl RenderingCommandManager {
             let clear_values = &[color_clear_value];
             let info = vulkanalia::vk::RenderPassBeginInfo::builder()
                 .render_pass(render_pass)
-                .framebuffer(framebuffers[i])
+                .framebuffer(framebuffers[image_index])
                 .render_area(render_area)
                 .clear_values(clear_values);
 
             // create a map of the mesh renderers, regrouped by pipeline.
             let mut rendering_map: HashMap<u64, Vec<(&mut Transform, &MeshRenderer)>> = HashMap::new();
 
-            // todo : does not need to be mutable, but there is a buf in the foundry.
+            // todo : does not need to be mutable, but there is a bug in the foundry.
             for render_data in component_iterator!(components; mut Transform, MeshRenderer) {
                 match rendering_map.get_mut(&render_data.1.pipeline_id()) {
                     Some(rendering_list) => {
@@ -131,7 +131,7 @@ impl RenderingCommandManager {
                 // bind the pipeline
                 unsafe { vk_device.cmd_bind_pipeline(*command_buffer, vulkanalia::vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline()) };
                 // bind the descriptor sets
-                // unsafe { vk_device.cmd_bind_descriptor_sets(*command_buffer, vulkanalia::vk::PipelineBindPoint::GRAPHICS, pipeline.layout(), 0, &pipeline.descriptor_sets(), &[]) };
+                pipeline.bind_descriptor_sets(vk_device, *command_buffer, image_index);
                 // bind the vertex buffers
                 for (_transform, mesh_renderer) in mesh_renderers.into_iter() {
                     mesh_renderer.register_draw_commands(vk_device, *command_buffer);

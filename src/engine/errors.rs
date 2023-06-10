@@ -11,6 +11,7 @@ pub enum PropellantError {
     NoVulkanInterface,
     OutOfMemory,
     EventLoopClosed,
+    NoMainCamera,
 }
 
 

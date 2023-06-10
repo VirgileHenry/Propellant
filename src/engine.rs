@@ -16,6 +16,7 @@ use self::{
     errors::PropellantError,
 };
 
+pub(crate) mod common_components;
 pub(crate) mod consts;
 pub(crate) mod engine_events;
 pub(crate) mod errors;
@@ -119,7 +120,7 @@ impl PropellantEngine {
                 // redirect windows events to the window
                 winit::event::Event::WindowEvent { event, .. } => {
                     match self.world.get_system_and_world_mut(id("window")) {
-                        Some((window_system, comps)) => match window_system.try_get_updatable::<PropellantWindow>() {
+                        Some((window_system, comps)) => match window_system.try_get_updatable_mut::<PropellantWindow>() {
                             Some(window) => window.handle_event(event, control_flow, comps),
                             None => {},
                         },

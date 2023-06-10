@@ -41,6 +41,15 @@ impl Transform {
         self
     }
 
+    pub fn position(&self) -> glam::Vec3 {
+        self.position
+    }
+
+    pub fn set_position(&mut self, position: glam::Vec3) {
+        self.position = position;
+        self.invalidate_world_pos();
+    }
+
 }
 
 

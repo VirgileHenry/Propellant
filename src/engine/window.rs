@@ -18,14 +18,11 @@ impl PropellantWindow {
 
     /// handle window events. This does not need to be a self func, as the window threw the event.
     /// Further more, the window can be found in the comp table.
-    pub fn handle_event(&self, event: winit::event::WindowEvent, control_flow: &mut winit::event_loop::ControlFlow, components: &mut ComponentTable) {
+    pub fn handle_event(&mut self, event: winit::event::WindowEvent, control_flow: &mut winit::event_loop::ControlFlow, _components: &mut ComponentTable) {
         match event {
             winit::event::WindowEvent::CloseRequested => control_flow.set_exit(),
             winit::event::WindowEvent::Resized(_) => {
-                match match components.get_singleton_mut::<PropellantWindow>() {
-                    Some(window) => window.vk_swapchain_recreation_request(),
-                    None => return, // no window, no vulkan interface, no swapchain to recreate
-                } {
+                match self.vk_swapchain_recreation_request() {
                     Ok(_) => {},
                     Err(e) => println!("[PROPELLANT ERROR] Error while recreating swapchain: {:?}", e),
                 };
@@ -36,7 +33,17 @@ impl PropellantWindow {
 
     pub fn vk_swapchain_recreation_request(&mut self) -> Result<(), PropellantError> {
         // signal the vk interface to recreate the swapchain.
-        self.vk_interface.swapchain_recreation_request(&self.window)
+        self.vk_interface.swapchain_recreation_request(&self.window)?;
+        // rebuild the pipeline !
+        self.renderer.on_swapchain_recreation(
+            &self.vk_interface.instance,
+            &self.vk_interface.device,
+            self.vk_interface.physical_device,
+            self.vk_interface.swapchain.extent(),
+            &self.vk_interface.swapchain.images(),
+            self.vk_interface.render_pass,
+        )?;
+        Ok(())
     }
 
     pub fn vk_interface(&self) -> &VulkanInterface {
@@ -60,7 +67,7 @@ impl Updatable for PropellantWindow {
         // redraw the scene
         // check for invalidation of the swapchain
         match self.renderer.render(&mut self.vk_interface, components) {
-            Ok(_) => {},
+            Ok(_) => {}, // todo : handle non optimal swapchain ok value
             Err(e) => println!("[PROPELLANT ERROR] Error while rendering: {:?}", e),
         };
     }
