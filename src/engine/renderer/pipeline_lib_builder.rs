@@ -5,14 +5,14 @@ use crate::{engine::errors::PropellantError, id};
 use super::{rendering_pipeline_builder::RenderingPipelineBuilder, pipeline_lib::GraphicPipelineLib};
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct GraphicPipelineLibBuilder {
     lib: HashMap<u64, RenderingPipelineBuilder>,
 }
 
 impl GraphicPipelineLibBuilder {
     pub fn build(
-        self,
+        &self,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
@@ -22,9 +22,9 @@ impl GraphicPipelineLibBuilder {
     ) -> Result<GraphicPipelineLib, PropellantError> {
         Ok(GraphicPipelineLib::new(
             self.lib
-                .into_iter()
+                .iter()
                 .map(|(k, v)|
-                    v.build(vk_instance, vk_device, vk_physical_device, swapchain_extent, swapchain_images, render_pass).map(|p| (k, p))
+                    v.build(vk_instance, vk_device, vk_physical_device, swapchain_extent, swapchain_images, render_pass).map(|p| (*k, p))
                 ).collect::<Result<HashMap<_, _>, PropellantError>>()?
         ))
     }

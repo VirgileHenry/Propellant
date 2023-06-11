@@ -266,7 +266,7 @@ impl VulkanInterface {
     }
 
     /// Build a rendering pipeline builder into a rendering pipeline that can be used.
-    pub fn build_pipeline_lib(&mut self, pipeline_lib: GraphicPipelineLibBuilder) -> Result<GraphicPipelineLib, PropellantError> {
+    pub fn build_pipeline_lib(&mut self, pipeline_lib: &GraphicPipelineLibBuilder) -> Result<GraphicPipelineLib, PropellantError> {
         pipeline_lib.build(&self.instance, &self.device, self.physical_device, self.swapchain.extent(), &self.swapchain.images(), self.render_pass)
     }
 

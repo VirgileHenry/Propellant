@@ -1,12 +1,11 @@
-use crate::{Transform, Camera};
 use crate::engine::mesh::vertex::Vertex;
 use crate::engine::{renderer::shaders::DEFAULT_FRAG, errors::PropellantError};
 use super::rendering_pipeline::RenderingPipeline;
-use super::rendering_pipeline::camera_uniform::CameraUniformObject;
-use super::rendering_pipeline::uniform_descriptor_set::per_frame::PerFrameUniformObject;
+use super::rendering_pipeline::camera_uniform::camera_uniform_generator;
+use super::rendering_pipeline::uniform_descriptor_set::per_frame_uniform::PerFrameUniformObject;
+use super::rendering_pipeline::uniform_descriptor_set::per_frame_uniform_builder::PerFrameUniformBuilder;
 use super::shaders::DEFAULT_VERT;
 
-use foundry::component_iterator;
 use vulkanalia::vk::HasBuilder;
 use vulkanalia::vk::DeviceV1_0;
 use vulkanalia::vk::Handle;
@@ -14,15 +13,27 @@ use vulkanalia::vk::Handle;
 
 /// defines the rendering process. Must be given to the vulkan interface to be built.
 /// todo : add full shader types support.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RenderingPipelineBuilder {
-    vertex: (Vec<u32>, usize), // byte code and bytecode size
-    fragment: (Vec<u32>, usize), // byte code and bytecode size
+    /// Vertex shader byte code
+    vertex: (Vec<u32>, usize),
+    /// Fragment shader byte code
+    fragment: (Vec<u32>, usize),
+    /// per frames uniforms.
+    per_frame_uniforms: Vec<PerFrameUniformBuilder>
 }
 
 impl RenderingPipelineBuilder {
+    pub fn empty() -> RenderingPipelineBuilder {
+        RenderingPipelineBuilder {
+            vertex: (Vec::with_capacity(0), 0),
+            fragment: (Vec::with_capacity(0), 0),
+            per_frame_uniforms: Vec::with_capacity(0),
+        }
+    }
+
     pub fn build(
-        self,
+        &self,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
@@ -114,25 +125,18 @@ impl RenderingPipelineBuilder {
         // create the descriptor pool, to allocate descriptor sets.
         let descriptor_pool = self.create_descriptor_pool(vk_device, swapchain_images)?;
 
-        
-        // create the pipeline layouts
-        let cam_uniform = PerFrameUniformObject::new(
-            |components| {
-                for (tf, cam) in component_iterator!(components; mut Transform, Camera) {
-                    if cam.is_main() {
-                        return Ok(CameraUniformObject::new(tf, cam));
-                    }
-                }
-                Err(PropellantError::NoMainCamera)
-            },
-            vk_instance,
-            vk_device,
-            vk_physical_device,
-            descriptor_pool,
-            swapchain_images.len(),
-        )?;
+        let per_frame_uniforms = self.per_frame_uniforms.iter().map(|builder| {
+            PerFrameUniformObject::new(
+                builder,
+                vk_instance,
+                vk_device,
+                vk_physical_device,
+                descriptor_pool,
+                swapchain_images.len(),
+            )
+        }).collect::<Result<Vec<_>, _>>()?;
 
-        let layouts = [cam_uniform.layout()];
+        let layouts = per_frame_uniforms.iter().map(|uniform| uniform.layout()).collect::<Vec<_>>();
         
         // pipeline layout is where we set all our uniforms declaration
         let layout_info = vulkanalia::vk::PipelineLayoutCreateInfo::builder()
@@ -168,8 +172,6 @@ impl RenderingPipelineBuilder {
             vk_device.destroy_shader_module(vert_shader_module, None);
             vk_device.destroy_shader_module(frag_shader_module, None);
         }
-
-        let per_frame_uniforms = vec![cam_uniform];
 
         Ok(RenderingPipeline::new(
             pipeline,
@@ -212,25 +214,14 @@ impl RenderingPipelineBuilder {
 
 impl Default for RenderingPipelineBuilder {
     fn default() -> Self {
-        // create the vertex shader
-        let vert_source = Vec::<u8>::from(DEFAULT_VERT);
-        let (prefix, vertex, suffix) = unsafe {vert_source.align_to::<u32>()};
-        assert!(prefix.is_empty(), "Unable to align vertex default shader.");
-        assert!(suffix.is_empty(), "Unable to align vertex default shader.");
-        
-        // create the fragment shader
-        let frag_source = Vec::<u8>::from(DEFAULT_FRAG);
-        let (prefix, fragment, suffix) = unsafe {frag_source.align_to::<u32>()};
-        assert!(prefix.is_empty(), "Unable to align fragment default shader.");
-        assert!(suffix.is_empty(), "Unable to align fragment default shader.");
-        
-        // usual uniforms that are needed
-        
         
         // return the builder
         RenderingPipelineBuilder { 
-            vertex: (vertex.iter().map(|v| *v).collect(), DEFAULT_VERT.len()),
-            fragment: (fragment.iter().map(|v| *v).collect(), DEFAULT_FRAG.len()),
+            vertex: (DEFAULT_VERT.iter().map(|v| *v).collect(), DEFAULT_VERT.len() * 4),
+            fragment: (DEFAULT_FRAG.iter().map(|v| *v).collect(), DEFAULT_FRAG.len() * 4),
+            per_frame_uniforms: vec![
+                PerFrameUniformBuilder::new(|comps| camera_uniform_generator(comps)),
+            ],
         }
     }
 }

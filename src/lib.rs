@@ -1,6 +1,3 @@
-#[macro_use] extern crate glsl_to_spirv_macros;
-#[macro_use] extern crate glsl_to_spirv_macros_impl;
-
 pub(crate) mod engine;
 pub(crate) mod utils;
 
@@ -17,6 +14,8 @@ pub use engine::{
     mesh::{
         Mesh,
         mesh_renderer_builder::MeshRendererBuilder,
+        instance_renderer::InstanceRenderer,
+        instance_mesh_lib_builder::InstanceMeshLibBuilder,
     },
     material::Material,
     window::{
@@ -24,9 +23,7 @@ pub use engine::{
         vulkan::vulkan_interface::VulkanInterface,
     },
     transform::Transform,
-    common_components::{
-        camera::Camera,
-    },
+    common_components::camera::Camera,
 };
 
 pub use utils::id::id;

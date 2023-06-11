@@ -1,24 +1,36 @@
+use std::rc::Rc;
+
 use foundry::ComponentTable;
 use crate::engine::{window::vulkan::vulkan_buffer::VulkanBuffer, errors::PropellantError};
 
 use vulkanalia::vk::DeviceV1_0;
 use vulkanalia::vk::HasBuilder;
 
+use super::per_frame_uniform_builder::PerFrameUniformBuilder;
+
+/// Packs up a per-frame uniform, built from any struct.
 pub struct PerFrameUniformObject {
-    object: Box<dyn Fn(
+    /// A function to generate the object and upload it to the buffer.
+    object_getter: Rc<dyn Fn(
         &vulkanalia::Device,
         usize,
         &mut ComponentTable,
         &mut VulkanBuffer,
     ) -> Result<(), PropellantError>>,
+    /// The vulkan buffer to upload the uniform to.
     buffer: VulkanBuffer,
+    /// The descriptor set layout, a blueprint on how the descriptor set matches the shader.
     layout: vulkanalia::vk::DescriptorSetLayout,
+    /// The descriptor sets, one for each swapchain image.
     sets: Vec<vulkanalia::vk::DescriptorSet>,
 }
 
 impl PerFrameUniformObject {
-    pub fn new<T: 'static>(
-        uniform_object_creator: fn(&ComponentTable) -> Result<T, PropellantError>,
+    /// Creates a new per frame uniform object, from a function that can generate our uniform object from the components
+    /// (per frame uniforms are built from the whole comp table)
+    /// and from the vk instance, device etc (for the buffer creation)
+    pub fn new(
+        builder: &PerFrameUniformBuilder,
         instance: &vulkanalia::Instance,
         device: &vulkanalia::Device,
         physical_device: vulkanalia::vk::PhysicalDevice,
@@ -28,7 +40,7 @@ impl PerFrameUniformObject {
         // create the vulkan buffer
         let buffer = VulkanBuffer::create(
             instance, device, physical_device,
-            (std::mem::size_of::<T>() * swapchain_images_count) as u64,
+            (builder.object_size() * swapchain_images_count) as u64,
             vulkanalia::vk::BufferUsageFlags::UNIFORM_BUFFER,
             vulkanalia::vk::MemoryPropertyFlags::HOST_VISIBLE
                 | vulkanalia::vk::MemoryPropertyFlags::HOST_COHERENT,
@@ -49,19 +61,7 @@ impl PerFrameUniformObject {
         
         let layout = unsafe { device.create_descriptor_set_layout(&info, None)? };
 
-        // create the function that generate the object and upload it to the buffer.
-        let object = Box::new(move |
-            vk_device: &vulkanalia::Device,
-            image_index: usize,
-            components: &mut ComponentTable,
-            buffer: &mut VulkanBuffer,
-        | {
-            uniform_object_creator(components).and_then(
-                |object| buffer.map_data(vk_device, &[object], image_index * std::mem::size_of::<T>())
-            )
-        });
-
-        let object_size = std::mem::size_of::<T>() as u64;
+        let object_size = builder.object_size() as u64;
 
         let sets = Self::create_descriptor_set(
             device,
@@ -72,8 +72,10 @@ impl PerFrameUniformObject {
             object_size,
         )?;
 
+        let object_getter = builder.builder();
+
         Ok(PerFrameUniformObject {
-            object,
+            object_getter,
             buffer,
             layout,
             sets,
@@ -87,9 +89,12 @@ impl PerFrameUniformObject {
         image_index: usize,
         components: &mut ComponentTable,
     ) -> Result<(), PropellantError> {
-        (self.object)(vk_device, image_index, components, &mut self.buffer)
+        (self.object_getter)(vk_device, image_index, components, &mut self.buffer)
     }
 
+    /// Create our descriptor sets from the given pool.
+    /// The pool might overflow, so in the future we should look into reallocating the pool.
+    /// Creation would usually be done once at the start of the app.
     fn create_descriptor_set(
         vk_device: &vulkanalia::Device,
         descriptor_pool: vulkanalia::vk::DescriptorPool,
@@ -130,6 +135,7 @@ impl PerFrameUniformObject {
         Ok(sets)
     }
 
+    /// Get the descriptor set for the given image index.
     pub fn set(&self, image_index: usize) -> vulkanalia::vk::DescriptorSet {
         self.sets[image_index]
     }

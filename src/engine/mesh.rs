@@ -25,4 +25,7 @@ impl Mesh {
 pub(crate) mod cube;
 pub(crate) mod mesh_renderer;
 pub(crate) mod mesh_renderer_builder;
+pub(crate) mod instance_mesh_lib;
+pub(crate) mod instance_mesh_lib_builder;
+pub(crate) mod instance_renderer;
 pub(crate) mod vertex;

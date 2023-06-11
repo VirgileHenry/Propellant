@@ -1,6 +1,6 @@
 use foundry::ComponentTable;
 use crate::engine::errors::PropellantError;
-use self::uniform_descriptor_set::per_frame::PerFrameUniformObject;
+use self::uniform_descriptor_set::per_frame_uniform::PerFrameUniformObject;
 
 use vulkanalia::vk::DeviceV1_0;
 

@@ -30,8 +30,8 @@ impl PropellantWindowBuilder {
         // name of the app
         let mut vk_interface = VulkanInterface::create(&window, &self.device_prefs, self.app_name)?;
         let mut renderer = self.renderer;
-        renderer.use_pipeline_lib(vk_interface.build_pipeline_lib(self.pipeline_lib.clone())?, self.pipeline_lib);
-        
+
+        renderer.use_pipeline_lib(vk_interface.build_pipeline_lib(&self.pipeline_lib)?, self.pipeline_lib);
         Ok(PropellantWindow {
             vk_interface,
             window,
