@@ -2,7 +2,7 @@ use vulkanalia::vk::HasBuilder;
 use vulkanalia::vk::Handle;
 use vulkanalia::vk::DeviceV1_0;
 
-use crate::engine::errors::PropellantError;
+use crate::engine::errors::PResult;
 
 /// Wraps the vulkan sync objects in a struct, with all the methods to wait.
 /// This struct will manage the images in flight, the semaphores and the fences.
@@ -18,7 +18,7 @@ impl<const MAX_FRAMES_IN_FLIGHT: usize> RenderingSync<MAX_FRAMES_IN_FLIGHT> {
     pub fn create(
         vk_device: &vulkanalia::Device,
         swapchain_images: &Vec<vulkanalia::vk::Image>
-    ) -> Result<RenderingSync<MAX_FRAMES_IN_FLIGHT>, PropellantError> {
+    ) -> PResult<RenderingSync<MAX_FRAMES_IN_FLIGHT>> {
         // create the sync objects
         let mut image_available = [vulkanalia::vk::Semaphore::null(); MAX_FRAMES_IN_FLIGHT];
         let mut render_finished = [vulkanalia::vk::Semaphore::null(); MAX_FRAMES_IN_FLIGHT];
@@ -60,7 +60,7 @@ impl<const MAX_FRAMES_IN_FLIGHT: usize> RenderingSync<MAX_FRAMES_IN_FLIGHT> {
         self.frames_in_flight[self.current_frame]
     }
 
-    pub fn wait_for_frame_flight_fence(&mut self, vk_device: &vulkanalia::Device) -> Result<(), PropellantError> {
+    pub fn wait_for_frame_flight_fence(&mut self, vk_device: &vulkanalia::Device) -> PResult<()> {
         unsafe {
             // wait for the frame on this fence to finish
             vk_device.wait_for_fences(
@@ -72,7 +72,7 @@ impl<const MAX_FRAMES_IN_FLIGHT: usize> RenderingSync<MAX_FRAMES_IN_FLIGHT> {
         Ok(())
     }
 
-    pub fn wait_for_in_flight_image(&mut self, image_index: usize, vk_device: &vulkanalia::Device) -> Result<(), PropellantError> {
+    pub fn wait_for_in_flight_image(&mut self, image_index: usize, vk_device: &vulkanalia::Device) -> PResult<()> {
         unsafe {
             // wait for any in flight image
             if !self.images_in_flight[image_index as usize].is_null() {
@@ -89,7 +89,7 @@ impl<const MAX_FRAMES_IN_FLIGHT: usize> RenderingSync<MAX_FRAMES_IN_FLIGHT> {
         Ok(())
     }
 
-    pub fn reset_in_flight_frame_fence(&self, vk_device: &vulkanalia::Device) -> Result<(), PropellantError> {
+    pub fn reset_in_flight_frame_fence(&self, vk_device: &vulkanalia::Device) -> PResult<()> {
         unsafe {
             vk_device.reset_fences(&[self.frames_in_flight[self.current_frame]])?;
         }

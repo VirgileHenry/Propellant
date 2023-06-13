@@ -1,6 +1,6 @@
 use crate::engine::consts::ENGINE_VERSION;
 use crate::engine::engine_events::PropellantEvent;
-use crate::engine::errors::PropellantError;
+use crate::engine::errors::PResult;
 use crate::engine::renderer::pipeline_lib_builder::GraphicPipelineLibBuilder;
 use crate::engine::renderer::rendering_pipeline_builder::RenderingPipelineBuilder;
 use crate::engine::renderer::{DefaultVulkanRenderer, VulkanRenderer};
@@ -21,7 +21,7 @@ pub struct PropellantWindowBuilder {
 }
 
 impl PropellantWindowBuilder {
-    pub fn build(self, event_loop: &winit::event_loop::EventLoop<PropellantEvent>) -> Result<PropellantWindow, PropellantError> {
+    pub fn build(self, event_loop: &winit::event_loop::EventLoop<PropellantEvent>) -> PResult<PropellantWindow> {
         // create the window from the event loop
         let window = winit::window::WindowBuilder::new()
             .with_title(&self.app_name)

@@ -1,4 +1,4 @@
-use crate::engine::errors::PropellantError;
+use crate::engine::errors::PResult;
 use vulkanalia::vk::KhrSurfaceExtension;
 use vulkanalia::vk::HasBuilder;
 
@@ -14,7 +14,7 @@ impl SwapchainSupport {
         instance: &vulkanalia::Instance,
         physical_device: vulkanalia::vk::PhysicalDevice,
         surface: vulkanalia::vk::SurfaceKHR
-    ) -> Result<SwapchainSupport, PropellantError> {
+    ) -> PResult<SwapchainSupport> {
         unsafe { Ok(SwapchainSupport {
             capabilities: instance.get_physical_device_surface_capabilities_khr(physical_device, surface)?,
             formats: instance.get_physical_device_surface_formats_khr(physical_device, surface)?,

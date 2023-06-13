@@ -1,15 +1,21 @@
+
 use std::rc::Rc;
 
-use foundry::ComponentTable;
-use crate::engine::{window::vulkan::vulkan_buffer::VulkanBuffer, errors::PResult};
+use crate::{Transform, Material, engine::{window::vulkan::vulkan_buffer::VulkanBuffer, errors::PResult}};
+
 use super::uniform_update_frequency::UniformUpdateFrequency;
 
-pub struct PerFrameUniformBuilder {
+
+
+pub struct PerObjectUniformBuilder {
     buffer_update: Rc<dyn Fn(
-        &vulkanalia::Device,
-        usize,
-        &ComponentTable,
-        &mut VulkanBuffer,
+        &vulkanalia::Device, // vk_device
+        usize, // image_index
+        usize, // image_count
+        &Transform, // transform
+        &Material, // material
+        usize, // offset
+        &mut VulkanBuffer, // target buffer
     ) -> PResult<()>>,
     object_size: usize,
     stage: vulkanalia::vk::ShaderStageFlags,
@@ -17,29 +23,37 @@ pub struct PerFrameUniformBuilder {
     update_frequency: UniformUpdateFrequency,
 }
 
-impl std::fmt::Debug for PerFrameUniformBuilder {
+impl std::fmt::Debug for PerObjectUniformBuilder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PerFrameUniformBuilder")
             .finish()
     }
 }
 
-impl PerFrameUniformBuilder {
+
+impl PerObjectUniformBuilder {
     pub fn new<T: 'static>(
-        object_generator: fn(&ComponentTable) -> PResult<T>,
+        object_generator: fn(&Transform, &Material) -> PResult<T>,
         stage: vulkanalia::vk::ShaderStageFlags,
         binding: u32,
         update_frequency: UniformUpdateFrequency,
-    ) -> PerFrameUniformBuilder {
-        PerFrameUniformBuilder {
+    ) -> PerObjectUniformBuilder {
+        PerObjectUniformBuilder {
             buffer_update: Rc::new(move |
                 vk_device: &vulkanalia::Device,
                 image_index: usize,
-                components: &ComponentTable,
+                image_count: usize,
+                transform: &Transform,
+                material: &Material,
+                offset: usize,
                 buffer: &mut VulkanBuffer,
             | {
-                object_generator(components).and_then(
-                    |object| buffer.map_data(vk_device, &[object], image_index * std::mem::size_of::<T>())
+                object_generator(transform, material).and_then(
+                    |object| buffer.map_data(
+                        vk_device,
+                        &[object],
+                        image_count * std::mem::size_of::<T>() * offset + image_index * std::mem::size_of::<T>()
+                    )
                 )
             }),
             object_size: std::mem::size_of::<T>(),
@@ -52,7 +66,10 @@ impl PerFrameUniformBuilder {
     pub fn buffer_update(&self) -> Rc<dyn Fn(
         &vulkanalia::Device,
         usize,
-        &ComponentTable,
+        usize,
+        &Transform,
+        &Material,
+        usize,
         &mut VulkanBuffer,
     ) -> PResult<()>> {
         self.buffer_update.clone()
@@ -74,3 +91,4 @@ impl PerFrameUniformBuilder {
         &self.update_frequency
     }
 }
+

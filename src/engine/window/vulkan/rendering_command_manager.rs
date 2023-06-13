@@ -2,11 +2,12 @@
 use std::collections::HashMap;
 
 use foundry::ComponentTable;
+use foundry::Entity;
 use foundry::component_iterator;
 use vulkanalia::vk::DeviceV1_0;
 use vulkanalia::vk::HasBuilder;
 
-use crate::engine::errors::PropellantError;
+use crate::engine::errors::PResult;
 use crate::engine::mesh::mesh_renderer::MeshRenderer;
 use crate::engine::renderer::pipeline_lib::GraphicPipelineLib;
 use crate::Transform;
@@ -22,7 +23,7 @@ impl RenderingCommandManager {
         vk_device: &vulkanalia::Device,
         framebuffers: &Vec<vulkanalia::vk::Framebuffer>,
         indices: super::queues::QueueFamilyIndices,
-    ) -> Result<RenderingCommandManager,PropellantError> {
+    ) -> PResult<RenderingCommandManager> {
         // create the frame buffers
         let info = vulkanalia::vk::CommandPoolCreateInfo::builder()
             .queue_family_index(indices.index())
@@ -48,7 +49,7 @@ impl RenderingCommandManager {
         &mut self,
         vk_device: &vulkanalia::Device,
         framebuffers: &Vec<vulkanalia::vk::Framebuffer>,
-    ) -> Result<(), PropellantError> {
+    ) -> PResult<()> {
         // create the frame buffers
         let allocate_info = vulkanalia::vk::CommandBufferAllocateInfo::builder()
             .command_pool(self.command_pool)
@@ -75,7 +76,7 @@ impl RenderingCommandManager {
         framebuffers: &Vec<vulkanalia::vk::Framebuffer>,
         components: &mut ComponentTable,
         pipeline_lib: &GraphicPipelineLib,
-    ) -> Result<(), PropellantError> {
+    ) -> PResult<()> {
         // loop through the command buffers, and register the commands
         for (image_index, command_buffer) in self.command_buffers.iter().enumerate() {
             let inheritance = vulkanalia::vk::CommandBufferInheritanceInfo::builder();
@@ -103,16 +104,16 @@ impl RenderingCommandManager {
                 .clear_values(clear_values);
 
             // create a map of the mesh renderers, regrouped by pipeline.
-            let mut rendering_map: HashMap<u64, Vec<(&mut Transform, &MeshRenderer)>> = HashMap::new();
+            let mut rendering_map: HashMap<u64, Vec<(Entity, (&mut Transform, &MeshRenderer))>> = HashMap::new();
 
             // todo : does not need to be mutable, but there is a bug in the foundry.
             for render_data in component_iterator!(components; mut Transform, MeshRenderer) {
-                match rendering_map.get_mut(&render_data.1.pipeline_id()) {
+                match rendering_map.get_mut(&render_data.1.1.pipeline_id()) {
                     Some(rendering_list) => {
                         rendering_list.push(render_data);
                     },
                     None => {
-                        rendering_map.insert(render_data.1.pipeline_id(), vec![render_data]);
+                        rendering_map.insert(render_data.1.1.pipeline_id(), vec![render_data]);
                     }
                 }
             }
@@ -131,9 +132,10 @@ impl RenderingCommandManager {
                 // bind the pipeline
                 unsafe { vk_device.cmd_bind_pipeline(*command_buffer, vulkanalia::vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline()) };
                 // bind the descriptor sets
-                pipeline.bind_descriptor_sets(vk_device, *command_buffer, image_index);
+                pipeline.bind_per_frame_uniform(vk_device, *command_buffer, image_index);
                 // bind the vertex buffers
-                for (_transform, mesh_renderer) in mesh_renderers.into_iter() {
+                for (entity, (_transform, mesh_renderer)) in mesh_renderers.into_iter() {
+                    pipeline.bind_per_object_uniform(vk_device, *command_buffer, image_index, swapchain.images().len(), entity);
                     mesh_renderer.register_draw_commands(vk_device, *command_buffer);
                 }
             }

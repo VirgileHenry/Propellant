@@ -1,4 +1,4 @@
-use crate::engine::errors::PropellantError;
+use crate::engine::errors::PResult;
 
 use vulkanalia::vk::DeviceV1_0;
 use vulkanalia::vk::HasBuilder;
@@ -18,7 +18,7 @@ impl TransferCommandManager {
     pub fn create(
         vk_device: &vulkanalia::Device,
         indices: super::queues::QueueFamilyIndices,
-    ) -> Result<TransferCommandManager, PropellantError> {
+    ) -> PResult<TransferCommandManager> {
         // create the frame buffers
         let info = vulkanalia::vk::CommandPoolCreateInfo::builder()
             .queue_family_index(indices.index())
@@ -43,7 +43,7 @@ impl TransferCommandManager {
         &mut self,
         vk_device: &vulkanalia::Device,
         queue: vulkanalia::vk::Queue,
-    ) -> Result<(), PropellantError> {
+    ) -> PResult<()> {
         
         let info = vulkanalia::vk::CommandBufferAllocateInfo::builder()
             .level(vulkanalia::vk::CommandBufferLevel::PRIMARY)
@@ -90,7 +90,7 @@ impl TransferCommandManager {
         staging: VulkanBuffer, // take ownership to destroy it when transfer is done.
         destination: vulkanalia::vk::Buffer,
         size: vulkanalia::vk::DeviceSize,
-    ) -> Result<(), PropellantError> {
+    ) -> PResult<()> {
         self.transfer_queue.push((staging, destination, size));
         let fence_info = vulkanalia::vk::FenceCreateInfo::default();
 

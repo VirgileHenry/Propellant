@@ -44,6 +44,10 @@ impl MeshRenderer {
         self.material.pipeline_id()
     }
 
+    pub fn material(&self) -> &Material {
+        &self.material
+    } 
+
     pub fn destroy(&mut self, vk_device: &vulkanalia::Device) {
         self.buffer.destroy(vk_device);
     }

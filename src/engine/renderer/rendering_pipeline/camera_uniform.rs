@@ -1,6 +1,6 @@
 use foundry::{component_iterator, ComponentTable};
 
-use crate::{Transform, Camera, engine::errors::PropellantError};
+use crate::{Transform, Camera, engine::errors::{PropellantError, PResult}};
 
 /// Uniform object for the camera, containing view and proj
 #[repr(C)]
@@ -19,9 +19,9 @@ impl CameraUniformObject {
 
 /// Functions that return a camera uniform object from the comp table. 
 /// This is used to generate the camera uniform object for the rendering pipeline.
-pub fn camera_uniform_generator(components: &ComponentTable) -> Result<CameraUniformObject, PropellantError> {
+pub fn camera_uniform_generator(components: &ComponentTable) -> PResult<CameraUniformObject> {
 
-    for (tf, cam) in component_iterator!(components; mut Transform, Camera) {
+    for (_, (tf, cam)) in component_iterator!(components; mut Transform, Camera) {
         if cam.is_main() {
             return Ok(CameraUniformObject::new(tf, cam));
         }

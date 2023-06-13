@@ -14,6 +14,7 @@ pub use engine::{
     mesh::{
         Mesh,
         mesh_renderer_builder::MeshRendererBuilder,
+        mesh_renderer::MeshRenderer,
         instance_renderer::InstanceRenderer,
         instance_mesh_lib_builder::InstanceMeshLibBuilder,
     },

@@ -1,4 +1,4 @@
-use crate::engine::errors::PropellantError;
+use crate::engine::errors::PResult;
 use super::queues::QueueFamilyIndices;
 use super::swapchain_support::SwapchainSupport;
 
@@ -26,7 +26,7 @@ impl SwapchainInterface {
         physical_device: vulkanalia::vk::PhysicalDevice,
         device: &vulkanalia::Device,
         indices: QueueFamilyIndices,
-    ) -> Result<SwapchainInterface, PropellantError> {
+    ) -> PResult<SwapchainInterface> {
         let support = SwapchainSupport::get(vk_instance, physical_device, surface)?;
 
         let format = support.format();
@@ -92,7 +92,7 @@ impl SwapchainInterface {
         physical_device: vulkanalia::vk::PhysicalDevice,
         device: &vulkanalia::Device,
         indices: QueueFamilyIndices,
-    ) -> Result<(), PropellantError> {
+    ) -> PResult<()> {
         // create the swapchain again.
         let support = SwapchainSupport::get(vk_instance, physical_device, surface)?;
 
@@ -158,7 +158,7 @@ impl SwapchainInterface {
         device: &vulkanalia::Device,
         swapchain_images: &Vec<vulkanalia::vk::Image>,
         swapchain_format: vulkanalia::vk::Format,
-    ) -> Result<Vec<vulkanalia::vk::ImageView>, PropellantError> {
+    ) -> PResult<Vec<vulkanalia::vk::ImageView>> {
         Ok(swapchain_images.iter().map(|i| {
             let components = vulkanalia::vk::ComponentMapping::builder()
                 .r(vulkanalia::vk::ComponentSwizzle::IDENTITY)

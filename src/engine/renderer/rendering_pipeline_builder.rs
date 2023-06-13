@@ -1,9 +1,14 @@
+use crate::engine::errors::PResult;
 use crate::engine::mesh::vertex::Vertex;
-use crate::engine::{renderer::shaders::DEFAULT_FRAG, errors::PropellantError};
+use crate::engine::renderer::shaders::DEFAULT_FRAG;
 use super::rendering_pipeline::RenderingPipeline;
 use super::rendering_pipeline::camera_uniform::camera_uniform_generator;
+use super::rendering_pipeline::model_transform_uniform::transform_uniform_generator;
 use super::rendering_pipeline::uniform_descriptor_set::per_frame_uniform::PerFrameUniformObject;
 use super::rendering_pipeline::uniform_descriptor_set::per_frame_uniform_builder::PerFrameUniformBuilder;
+use super::rendering_pipeline::uniform_descriptor_set::per_object_uniform::PerObjectUniformObject;
+use super::rendering_pipeline::uniform_descriptor_set::per_object_uniform_builder::PerObjectUniformBuilder;
+use super::rendering_pipeline::uniform_descriptor_set::uniform_update_frequency::UniformUpdateFrequency;
 use super::shaders::DEFAULT_VERT;
 
 use vulkanalia::vk::HasBuilder;
@@ -20,7 +25,9 @@ pub struct RenderingPipelineBuilder {
     /// Fragment shader byte code
     fragment: (Vec<u32>, usize),
     /// per frames uniforms.
-    per_frame_uniforms: Vec<PerFrameUniformBuilder>
+    per_frame_uniforms: Vec<PerFrameUniformBuilder>,
+    /// per object uniforms.
+    per_object_uniforms: Vec<PerObjectUniformBuilder>,
 }
 
 impl RenderingPipelineBuilder {
@@ -28,7 +35,8 @@ impl RenderingPipelineBuilder {
         RenderingPipelineBuilder {
             vertex: (Vec::with_capacity(0), 0),
             fragment: (Vec::with_capacity(0), 0),
-            per_frame_uniforms: Vec::with_capacity(0),
+            per_frame_uniforms: Vec::new(),
+            per_object_uniforms: Vec::new(),
         }
     }
 
@@ -40,7 +48,7 @@ impl RenderingPipelineBuilder {
         swapchain_extent: vulkanalia::vk::Extent2D,
         swapchain_images: &[vulkanalia::vk::Image],
         render_pass: vulkanalia::vk::RenderPass
-    ) -> Result<RenderingPipeline, PropellantError> {
+    ) -> PResult<RenderingPipeline> {
         // create shader modules (compile byte code)
         let vert_shader_module = Self::create_shader_module((&self.vertex.0, self.vertex.1), vk_device)?;
         let frag_shader_module = Self::create_shader_module((&self.fragment.0, self.fragment.1), vk_device)?;
@@ -125,6 +133,7 @@ impl RenderingPipelineBuilder {
         // create the descriptor pool, to allocate descriptor sets.
         let descriptor_pool = self.create_descriptor_pool(vk_device, swapchain_images)?;
 
+        // create the uniforms from the registered uniform builders.
         let per_frame_uniforms = self.per_frame_uniforms.iter().map(|builder| {
             PerFrameUniformObject::new(
                 builder,
@@ -136,7 +145,22 @@ impl RenderingPipelineBuilder {
             )
         }).collect::<Result<Vec<_>, _>>()?;
 
-        let layouts = per_frame_uniforms.iter().map(|uniform| uniform.layout()).collect::<Vec<_>>();
+        let per_object_uniforms = self.per_object_uniforms.iter().map(|builder| {
+            PerObjectUniformObject::new(
+                builder,
+                vk_instance,
+                vk_device,
+                vk_physical_device,
+                descriptor_pool,
+                swapchain_images.len(),
+            )
+        }).collect::<Result<Vec<_>, _>>()?;
+
+        // get the layout of the uniforms
+        let layouts = per_frame_uniforms.iter()
+            .map(|uniform| uniform.layout())
+            .chain(per_object_uniforms.iter().map(|uniform| uniform.layout()))
+            .collect::<Vec<_>>();
         
         // pipeline layout is where we set all our uniforms declaration
         let layout_info = vulkanalia::vk::PipelineLayoutCreateInfo::builder()
@@ -177,11 +201,12 @@ impl RenderingPipelineBuilder {
             pipeline,
             pipeline_layout,
             per_frame_uniforms,
+            per_object_uniforms,
             descriptor_pool,
         ))
     }
 
-    fn create_shader_module(source_code: (&[u32], usize), vk_device: &vulkanalia::Device) -> Result<vulkanalia::vk::ShaderModule, PropellantError> {
+    fn create_shader_module(source_code: (&[u32], usize), vk_device: &vulkanalia::Device) -> PResult<vulkanalia::vk::ShaderModule> {
         let info = vulkanalia::vk::ShaderModuleCreateInfo::builder()
             .code_size(source_code.1)
             .code(source_code.0);
@@ -189,21 +214,27 @@ impl RenderingPipelineBuilder {
         Ok(unsafe { vk_device.create_shader_module(&info, None)? })
     }
 
-
+    // todo : one pool per pipeline lib 
     fn create_descriptor_pool(
         &self,
         vk_device: &vulkanalia::Device,
         swapchain_images: &[vulkanalia::vk::Image],
-    ) -> Result<vulkanalia::vk::DescriptorPool, PropellantError> {
+    ) -> PResult<vulkanalia::vk::DescriptorPool> {
+        let descriptor_set_count = (self.per_frame_uniforms.len() + self.per_object_uniforms.len()) * swapchain_images.len();
         
-        let ubo_size = vulkanalia::vk::DescriptorPoolSize::builder()
+        let per_frame_size = vulkanalia::vk::DescriptorPoolSize::builder()
             .type_(vulkanalia::vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(swapchain_images.len() as u32);
+            .descriptor_count((self.per_frame_uniforms.len() * swapchain_images.len()) as u32);
 
-        let pool_sizes = &[ubo_size];
+        let per_object_size = vulkanalia::vk::DescriptorPoolSize::builder()
+            .type_(vulkanalia::vk::DescriptorType::UNIFORM_BUFFER_DYNAMIC)
+            .descriptor_count((self.per_object_uniforms.len() * swapchain_images.len()) as u32);
+ 
+        let pool_sizes = &[per_frame_size, per_object_size];
+
         let info = vulkanalia::vk::DescriptorPoolCreateInfo::builder()
             .pool_sizes(pool_sizes)
-            .max_sets(swapchain_images.len() as u32);
+            .max_sets(descriptor_set_count as u32);
 
         Ok( unsafe { 
             vk_device.create_descriptor_pool(&info, None)?
@@ -217,11 +248,24 @@ impl Default for RenderingPipelineBuilder {
         
         // return the builder
         RenderingPipelineBuilder { 
-            vertex: (DEFAULT_VERT.iter().map(|v| *v).collect(), DEFAULT_VERT.len() * 4),
-            fragment: (DEFAULT_FRAG.iter().map(|v| *v).collect(), DEFAULT_FRAG.len() * 4),
+            vertex: (DEFAULT_VERT.iter().map(|v| *v).collect(), DEFAULT_VERT.len() * 4), // x4 because we are using u32, and length is in byte
+            fragment: (DEFAULT_FRAG.iter().map(|v| *v).collect(), DEFAULT_FRAG.len() * 4), // x4 because we are using u32, and length is in byte
             per_frame_uniforms: vec![
-                PerFrameUniformBuilder::new(|comps| camera_uniform_generator(comps)),
+                PerFrameUniformBuilder::new(
+                    |comps| camera_uniform_generator(comps),
+                    vulkanalia::vk::ShaderStageFlags::VERTEX,
+                    0,
+                    UniformUpdateFrequency::EachFrame
+                ),
             ],
+            per_object_uniforms: vec![
+                PerObjectUniformBuilder::new(
+                    |tf, _mat| transform_uniform_generator(tf),
+                    vulkanalia::vk::ShaderStageFlags::VERTEX,
+                    0,
+                    UniformUpdateFrequency::EachFrame
+                ),
+            ]
         }
     }
 }

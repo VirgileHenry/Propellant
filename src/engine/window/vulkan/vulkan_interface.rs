@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 
 use crate::engine::consts::ENGINE_VERSION;
-use crate::engine::errors::PropellantError;
+use crate::engine::errors::rendering_error::RenderingError;
+use crate::engine::errors::{PropellantError, PResult};
 use crate::engine::mesh::mesh_renderer::MeshRenderer;
 use crate::engine::mesh::mesh_renderer_builder::MeshRendererBuilder;
 use crate::engine::renderer::pipeline_lib::GraphicPipelineLib;
@@ -48,7 +49,7 @@ impl VulkanInterface {
         window: &winit::window::Window,
         device_prefs: &Box<dyn PhysicalDevicePreferences>,
         app_name: String
-    ,) -> Result<VulkanInterface, PropellantError>{
+    ,) -> PResult<VulkanInterface>{
         // create the app info as a builder 
         let application_info = vk::ApplicationInfo::builder()
             .application_name(app_name.as_bytes())
@@ -64,7 +65,7 @@ impl VulkanInterface {
             // lib loading module error is private, so we have to go with a match here
             match LibloadingLoader::new(LIBRARY) {
                 Ok(lib) => lib,
-                Err(e) => return Err(PropellantError::LibLoadingError(e.to_string())),
+                Err(e) => return Err(PropellantError::LibLoading(e.to_string())),
             }
         };
         let entry = unsafe {Entry::new(loader)?};
@@ -121,7 +122,7 @@ impl VulkanInterface {
         vk_instance: &vulkanalia::Instance,
         device_prefs: &Box<dyn PhysicalDevicePreferences>,
         surface: vulkanalia::vk::SurfaceKHR,
-    ) -> Result<vulkanalia::vk::PhysicalDevice, PropellantError> {
+    ) -> PResult<vulkanalia::vk::PhysicalDevice> {
         unsafe {
             // iterate over the devices, filter the one that match the needed properties, and max them by prefs.
             vk_instance.enumerate_physical_devices()?.into_iter().filter(|device| {
@@ -138,7 +139,7 @@ impl VulkanInterface {
                 (device, vk_instance.get_physical_device_properties(device), vk_instance.get_physical_device_features(device))
             }).max_by(|d1, d2| device_prefs.order_devices((d1.1, d1.2), (d2.1, d2.2)))
                 .and_then(|d| Some(d.0))
-                .ok_or(PropellantError::NoFittingVulkanDevice)
+                .ok_or(PropellantError::Rendering(RenderingError::NoFittingVulkanDevice))
         }
     }
 
@@ -162,7 +163,7 @@ impl VulkanInterface {
         vk_instance: &vulkanalia::Instance,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
         indices: QueueFamilyIndices,
-    ) -> Result<(vulkanalia::Device, vulkanalia::vk::Queue), PropellantError> {
+    ) -> PResult<(vulkanalia::Device, vulkanalia::vk::Queue)> {
         let queue_priorities = &[1.0];
         let queue_info = vk::DeviceQueueCreateInfo::builder()
             .queue_family_index(indices.index())
@@ -186,7 +187,7 @@ impl VulkanInterface {
     fn create_render_pass(
         device: &vulkanalia::Device,
         swapchain_format: vulkanalia::vk::Format
-    ) -> Result<vulkanalia::vk::RenderPass, PropellantError> {
+    ) -> PResult<vulkanalia::vk::RenderPass> {
         // create the color attachment
         let color_attachment = vk::AttachmentDescription::builder()
             .format(swapchain_format)
@@ -233,7 +234,7 @@ impl VulkanInterface {
         image_views: &Vec<vulkanalia::vk::ImageView>,
         render_pass: vulkanalia::vk::RenderPass,
         extent: vulkanalia::vk::Extent2D
-    ) -> Result<Vec<vulkanalia::vk::Framebuffer>, PropellantError> {
+    ) -> PResult<Vec<vulkanalia::vk::Framebuffer>> {
         Ok(image_views
             .iter()
             .map(|i| {
@@ -255,23 +256,23 @@ impl VulkanInterface {
     /// Build the given mesh renderer builder into a mesh renderer.
     /// This allocates ressources for the buffers in memory, and register command for transfer operations.
     /// Therefore, the mutable borrow. 
-    pub fn build_mesh_renderer(&mut self, builder: MeshRendererBuilder) -> Result<MeshRenderer, PropellantError> {
+    pub fn build_mesh_renderer(&mut self, builder: MeshRendererBuilder) -> PResult<MeshRenderer> {
         Ok(builder.build(&self.instance, &self.device, self.physical_device, &mut self.transfer_manager)?)
     }
 
     /// Recompute the draw commands buffers with the components.
     /// If the scene graphics have changed, this must be called in order to see any changes.
-    pub fn rebuild_draw_commands(&mut self, components: &mut ComponentTable, pipeline_lib: &GraphicPipelineLib) -> Result<(), PropellantError> {
+    pub fn rebuild_draw_commands(&mut self, components: &mut ComponentTable, pipeline_lib: &GraphicPipelineLib) -> PResult<()> {
         self.rendering_manager.register_commands(&self.device, &self.swapchain, self.render_pass, &self.framebuffers, components, pipeline_lib)
     }
 
     /// Build a rendering pipeline builder into a rendering pipeline that can be used.
-    pub fn build_pipeline_lib(&mut self, pipeline_lib: &GraphicPipelineLibBuilder) -> Result<GraphicPipelineLib, PropellantError> {
+    pub fn build_pipeline_lib(&mut self, pipeline_lib: &GraphicPipelineLibBuilder) -> PResult<GraphicPipelineLib> {
         pipeline_lib.build(&self.instance, &self.device, self.physical_device, self.swapchain.extent(), &self.swapchain.images(), self.render_pass)
     }
 
     /// Operates the registered memory transfers, and wait for them to be done.
-    pub fn process_memory_transfers(&mut self) -> Result<(), PropellantError> {
+    pub fn process_memory_transfers(&mut self) -> PResult<()> {
         // process any memory transfers that are required.
         if self.transfer_manager.need_transfers() {
             self.transfer_manager.transfer(&self.device, self.queue)?;
@@ -280,7 +281,7 @@ impl VulkanInterface {
     }
 
     #[allow(unreachable_code, unused_variables)] // temp, while we make this working.
-    pub fn swapchain_recreation_request(&mut self, window: &winit::window::Window) -> Result<(), PropellantError> {
+    pub fn swapchain_recreation_request(&mut self, window: &winit::window::Window) -> PResult<()> {
         // ! fixme this whole thing does not work ! still out of date khr !
         return Ok(());
         // first, wait for any remaining work

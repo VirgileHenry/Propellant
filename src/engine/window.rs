@@ -1,7 +1,7 @@
 use foundry::{ComponentTable, Updatable, System, AsAny};
 use self::vulkan::vulkan_interface::VulkanInterface;
 
-use super::{errors::PropellantError, renderer::VulkanRenderer};
+use super::{errors::PResult, renderer::VulkanRenderer};
 
 #[derive(AsAny)]
 pub struct PropellantWindow {
@@ -31,7 +31,7 @@ impl PropellantWindow {
         }
     }
 
-    pub fn vk_swapchain_recreation_request(&mut self) -> Result<(), PropellantError> {
+    pub fn vk_swapchain_recreation_request(&mut self) -> PResult<()> {
         // signal the vk interface to recreate the swapchain.
         self.vk_interface.swapchain_recreation_request(&self.window)?;
         // rebuild the pipeline !
@@ -61,12 +61,12 @@ impl PropellantWindow {
 }
 
 impl Updatable for PropellantWindow {
-    fn update(&mut self, components: &mut ComponentTable, _delta: f32) {
+    fn update(&mut self, components: &mut ComponentTable, delta: f32) {
         // rendering loop : 
         // look for any mesh renderer builder to build 
         // redraw the scene
         // check for invalidation of the swapchain
-        match self.renderer.render(&mut self.vk_interface, components) {
+        match self.renderer.render(&mut self.vk_interface, components, delta) {
             Ok(_) => {}, // todo : handle non optimal swapchain ok value
             Err(e) => println!("[PROPELLANT ERROR] Error while rendering: {:?}", e),
         };

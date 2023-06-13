@@ -3,7 +3,7 @@ use foundry::ComponentTable;
 use crate::VulkanInterface;
 use self::pipeline_lib::GraphicPipelineLib;
 use self::pipeline_lib_builder::GraphicPipelineLibBuilder;
-use super::errors::PropellantError;
+use super::errors::PResult;
 use super::mesh::mesh_renderer_builder::MeshRendererBuilder;
 
 use vulkanalia::vk::Handle;
@@ -19,7 +19,7 @@ pub(crate) mod shaders;
 
 pub trait VulkanRenderer {
     /// Render the scene using the vulkan interface and the components.
-    fn render(&mut self, vk_interface: &mut VulkanInterface, components: &mut ComponentTable)-> Result<vulkanalia::vk::SuccessCode, PropellantError>;
+    fn render(&mut self, vk_interface: &mut VulkanInterface, components: &mut ComponentTable, delta_time: f32)-> PResult<vulkanalia::vk::SuccessCode>;
     /// Register a pipeline lib to use for rendering.
     fn use_pipeline_lib(&mut self, pipeline_lib: GraphicPipelineLib, pipeline_lib_builder: GraphicPipelineLibBuilder);
     /// Called when the surface is out of date.
@@ -31,7 +31,7 @@ pub trait VulkanRenderer {
         extent: vulkanalia::vk::Extent2D,
         images: &[vulkanalia::vk::Image],
         render_pass: vulkanalia::vk::RenderPass
-    ) -> Result<(), PropellantError>;
+    ) -> PResult<()>;
 }
 
 /// Default Vulkan renderer.
@@ -55,22 +55,41 @@ impl DefaultVulkanRenderer {
         &mut self,
         vk_device: &vulkanalia::Device,
         image_index: usize,
-        components: &mut ComponentTable
-    ) -> Result<(), PropellantError> {
+        swapchain_image_count: usize,
+        components: &mut ComponentTable,
+        delta_time: f32,
+    ) -> PResult<()> {
         self.pipeline_lib.get_pipelines_mut().for_each(
             |p| {
-                match p.set_uniforms(vk_device, image_index, components) {
+                match p.update_uniforms(vk_device, image_index, swapchain_image_count, components, delta_time) {
                     _ => {/* todo : hanlde ? */}
                 };
             }
         );
         Ok(())
     }
+
+    fn recreate_uniform_buffers(
+        &mut self,
+        vk_instance: &vulkanalia::Instance,
+        vk_device: &vulkanalia::Device,
+        vk_physical_device: vulkanalia::vk::PhysicalDevice,
+        swapchain_images_count: usize,
+        components: &ComponentTable,
+    ) {
+        self.pipeline_lib.get_pipelines_mut().for_each(
+            |p| {
+                match p.recreate_uniform_buffers(vk_instance, vk_device, vk_physical_device, swapchain_images_count, components) {
+                    _ => {/* todo : hanlde ? */}
+                };
+            }
+        );
+    }
 }
 
 
 impl VulkanRenderer for DefaultVulkanRenderer {
-    fn render(&mut self, vk_interface: &mut VulkanInterface, components: &mut ComponentTable) -> Result<vulkanalia::vk::SuccessCode, PropellantError> {
+    fn render(&mut self, vk_interface: &mut VulkanInterface, components: &mut ComponentTable, delta_time: f32) -> PResult<vulkanalia::vk::SuccessCode> {
         // drain the mesh renderer builders, and rebuild them.
         match components.drain_components::<MeshRendererBuilder>() {
             Some(builders) => {
@@ -83,6 +102,14 @@ impl VulkanRenderer for DefaultVulkanRenderer {
                         Err(e) => println!("[PROPELLANT ERROR] Failed to build mesh renderer : {e:?}"),
                     }
                 }
+                // recreate uniform buffers
+                self.recreate_uniform_buffers(
+                    &vk_interface.instance,
+                    &vk_interface.device,
+                    vk_interface.physical_device,
+                    vk_interface.swapchain.images().len(),
+                    components,
+                );
                 // now, we need to rebuild the command buffers.
                 vk_interface.rebuild_draw_commands(components, &self.pipeline_lib)?;
                 // process memory transfers (staging buffers to high perf memory buffers)
@@ -97,7 +124,9 @@ impl VulkanRenderer for DefaultVulkanRenderer {
         
         // vulkan rendering loop
         unsafe {
-            // wait for the frame on this fence to finish
+            // wait for the frame on this fence to finish.
+            // if we have less than MAX_FRAMES_IN_FLIGHT frames in flight, this will do nothing.
+            // otherwise, this will wait for the oldest frame to finish.
             vk_interface.rendering_sync.wait_for_frame_flight_fence(&vk_interface.device)?;
             // get the image index
             let image_index = vk_interface.device
@@ -111,9 +140,9 @@ impl VulkanRenderer for DefaultVulkanRenderer {
             vk_interface.rendering_sync.wait_for_in_flight_image(image_index, &vk_interface.device)?;
 
             // update uniform buffer
-            self.update_uniform_buffer(&vk_interface.device, image_index, components)?;
-                
-            // submit the draw command
+            self.update_uniform_buffer(&vk_interface.device, image_index, vk_interface.swapchain.images().len(), components, delta_time)?;
+            
+            // create the draw command
             let wait_semaphores = &[vk_interface.rendering_sync.image_available_semaphore(),];
             let wait_stages = &[vulkanalia::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
             let command_buffers = &[vk_interface.rendering_manager.buffers()[image_index]];
@@ -124,9 +153,10 @@ impl VulkanRenderer for DefaultVulkanRenderer {
                 .command_buffers(command_buffers)
                 .signal_semaphores(signal_semaphores);
             
-            
+            // reset the fence for this frame
             vk_interface.rendering_sync.reset_in_flight_frame_fence(&vk_interface.device)?;
             
+            // submit our draw command
             vk_interface.device.queue_submit(
                 vk_interface.queue,
                 &[submit_info],
@@ -168,7 +198,7 @@ impl VulkanRenderer for DefaultVulkanRenderer {
         extent: vulkanalia::vk::Extent2D,
         images: &[vulkanalia::vk::Image],
         render_pass: vulkanalia::vk::RenderPass,
-    ) -> Result<(), PropellantError> {
+    ) -> PResult<()> {
         // todo we need to rebuild our pipeline !
         // self.pipeline_lib = self.pipeline_lib_builder.clone().build(vk_instance, vk_device, vk_physical_device, extent, images, render_pass)?;
         Ok(())

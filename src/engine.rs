@@ -13,7 +13,7 @@ use self::{
         PropellantWindow,
         window_builder::PropellantWindowBuilder
     },
-    errors::PropellantError,
+    errors::PResult,
 };
 
 pub(crate) mod common_components;
@@ -70,7 +70,7 @@ impl PropellantEngine {
     }
 
     /// Adds a default window to the engine, and open the window.
-    pub fn with_window(mut self) -> Result<PropellantEngine, PropellantError> {
+    pub fn with_window(mut self) -> PResult<PropellantEngine> {
         let event_loop = self.event_loop.take().unwrap();
         let window = PropellantWindowBuilder::default().build(&event_loop)?;
         self.world.register_system(window.into(), id("window"));
@@ -80,7 +80,7 @@ impl PropellantEngine {
     }
 
     /// Adds a window builded with the given builder to the engine, and open the window.
-    pub fn with_builded_window(mut self, builder: PropellantWindowBuilder) -> Result<PropellantEngine, PropellantError> {
+    pub fn with_builded_window(mut self, builder: PropellantWindowBuilder) -> PResult<PropellantEngine> {
         let event_loop = self.event_loop.take().unwrap();
         let window = builder.build(&event_loop)?;
         self.world.register_system(window.into(), id("window"));

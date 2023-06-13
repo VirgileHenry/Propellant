@@ -1,3 +1,4 @@
+use crate::engine::errors::PResult;
 use crate::engine::errors::PropellantError;
 
 use vulkanalia::vk::HasBuilder;
@@ -19,7 +20,7 @@ impl VulkanBuffer {
         buffer_size: vulkanalia::vk::DeviceSize,
         usage: vulkanalia::vk::BufferUsageFlags,
         properties: vulkanalia::vk::MemoryPropertyFlags,
-    ) -> Result<VulkanBuffer, PropellantError> {
+    ) -> PResult<VulkanBuffer> {
         let buffer_info = vulkanalia::vk::BufferCreateInfo::builder()
             .size(buffer_size)
             .usage(usage)
@@ -54,7 +55,7 @@ impl VulkanBuffer {
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
         properties: vulkanalia::vk::MemoryPropertyFlags,
         requirements: vulkanalia::vk::MemoryRequirements
-    ) -> Result<u32, PropellantError> {
+    ) -> PResult<u32> {
         let memory = unsafe {vk_instance.get_physical_device_memory_properties(vk_physical_device) };
         (0..memory.memory_type_count)
             .find(|i| {
@@ -70,7 +71,7 @@ impl VulkanBuffer {
         vk_device: &vulkanalia::Device,
         data: &[T],
         offset: usize,
-    ) -> Result<(), PropellantError> {
+    ) -> PResult<()> {
         // in debug mode, assert the mapped memory data will not overflow the buffer.
         debug_assert!(data.len() as u64 * std::mem::size_of::<T>() as u64 + offset as u64 <= self.buffer_size);
 

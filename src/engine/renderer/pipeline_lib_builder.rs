@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{engine::errors::PropellantError, id};
+use crate::{engine::errors::{PropellantError, PResult}, id};
 
 use super::{rendering_pipeline_builder::RenderingPipelineBuilder, pipeline_lib::GraphicPipelineLib};
 
@@ -19,7 +19,7 @@ impl GraphicPipelineLibBuilder {
         swapchain_extent: vulkanalia::vk::Extent2D,
         swapchain_images: &[vulkanalia::vk::Image],
         render_pass: vulkanalia::vk::RenderPass
-    ) -> Result<GraphicPipelineLib, PropellantError> {
+    ) -> PResult<GraphicPipelineLib> {
         Ok(GraphicPipelineLib::new(
             self.lib
                 .iter()

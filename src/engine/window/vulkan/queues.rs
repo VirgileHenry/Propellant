@@ -1,4 +1,5 @@
-use crate::engine::errors::PropellantError;
+use crate::engine::errors::{PropellantError, PResult};
+use crate::engine::errors::rendering_error::RenderingError;
 use vulkanalia::vk::{InstanceV1_0, KhrSurfaceExtension};
 
 /// This represent the index of a the queue family that we will be using.
@@ -15,14 +16,14 @@ impl QueueFamilyIndices {
         instance: &vulkanalia::Instance,
         physical_device: vulkanalia::vk::PhysicalDevice,
         surface: vulkanalia::vk::SurfaceKHR,
-    ) -> Result<QueueFamilyIndices, PropellantError> {
+    ) -> PResult<QueueFamilyIndices> {
         let properties = instance
             .get_physical_device_queue_family_properties(physical_device);
 
         for (index, properties) in properties.iter().enumerate() {
             let index = match u32::try_from(index) {
                 Ok(n) => n,
-                Err(_) => return Err(PropellantError::NoFittingVulkanDevice),
+                Err(_) => return Err(PropellantError::Rendering(RenderingError::NoFittingVulkanDevice)),
             };
             // all our requiremenets here
             if
@@ -33,7 +34,7 @@ impl QueueFamilyIndices {
             }
         }
 
-        Err(PropellantError::NoFittingVulkanDevice)
+        Err(PropellantError::Rendering(RenderingError::NoFittingVulkanDevice))
     }
 
     pub fn index(&self) -> u32 {

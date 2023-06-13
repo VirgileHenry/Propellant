@@ -1,5 +1,5 @@
 use crate::engine::{
-    errors::PropellantError,
+    errors::PResult,
     material::Material,
     mesh::vertex::Vertex, 
     window::vulkan::{
@@ -31,7 +31,7 @@ impl MeshRendererBuilder {
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
         vk_transfer_manager: &mut TransferCommandManager,
-    ) -> Result<MeshRenderer, PropellantError> {
+    ) -> PResult<MeshRenderer> {
         // we will use a single buffer for both vertex and index data.
         // [ VERTEX BUFFER | INDEX BUFFER ]
         // create a staging buffer for the buffer (on CPU / RAM)

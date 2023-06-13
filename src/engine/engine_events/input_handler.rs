@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, any::Any};
 
 use foundry::{Updatable, AsAny};
 
-use crate::engine::errors::PropellantError;
+use crate::engine::errors::PResult;
 
 use super::{PropellantEvent, input_listener::InputListener};
 
@@ -32,7 +32,7 @@ impl InputHandler {
     }
 
     /// Sends a custom propellant event to the event loop, that will be intercepted in the main loop.
-    pub fn send_engine_event(&self, event: PropellantEvent) -> Result<(), PropellantError> {
+    pub fn send_engine_event(&self, event: PropellantEvent) -> PResult<()> {
         self.event_loop_proxy.send_event(event)?;
         Ok(())
     }

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Material, engine::{window::vulkan::{vulkan_buffer::VulkanBuffer, transfer_command_manager::TransferCommandManager}, errors::PropellantError}, Mesh};
+use crate::{Material, engine::{window::vulkan::{vulkan_buffer::VulkanBuffer, transfer_command_manager::TransferCommandManager}, errors::PResult}, Mesh};
 
 use super::vertex::Vertex;
 
@@ -35,7 +35,7 @@ impl InstanceMesh {
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
         vk_transfer_manager: &mut TransferCommandManager,
-    ) -> Result<InstanceMesh, PropellantError> {
+    ) -> PResult<InstanceMesh> {
         // we will use a single buffer for both vertex and index data.
         // [ VERTEX BUFFER | INDEX BUFFER ]
         // create a staging buffer for the buffer (on CPU / RAM)
