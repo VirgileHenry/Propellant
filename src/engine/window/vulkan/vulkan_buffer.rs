@@ -92,6 +92,13 @@ impl VulkanBuffer {
         Ok(())
     }
 
+    pub fn buffer_info(&self) -> vulkanalia::vk::DescriptorBufferInfoBuilder {
+        vulkanalia::vk::DescriptorBufferInfo::builder()
+            .buffer(self.buffer)
+            .offset(0)
+            .range(self.buffer_size)
+    }
+
     pub fn buffer(&self) -> vulkanalia::vk::Buffer {
         self.buffer
     }

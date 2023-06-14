@@ -8,6 +8,7 @@ use super::uniform_update_frequency::UniformUpdateFrequency;
 
 
 pub struct PerObjectUniformBuilder {
+    /// A function to generate the object and upload it to the buffer.
     buffer_update: Rc<dyn Fn(
         &vulkanalia::Device, // vk_device
         usize, // image_index

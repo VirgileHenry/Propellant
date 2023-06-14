@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use foundry::ComponentTable;
 
 use crate::VulkanInterface;
@@ -60,7 +62,7 @@ impl DefaultVulkanRenderer {
         delta_time: f32,
     ) -> PResult<()> {
         self.pipeline_lib.get_pipelines_mut().for_each(
-            |p| {
+            |(_, p)| {
                 match p.update_uniforms(vk_device, image_index, swapchain_image_count, components, delta_time) {
                     _ => {/* todo : hanlde ? */}
                 };
@@ -76,10 +78,14 @@ impl DefaultVulkanRenderer {
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
         swapchain_images_count: usize,
         components: &ComponentTable,
+        concerned_pipelines: HashSet<u64>,
     ) {
         self.pipeline_lib.get_pipelines_mut().for_each(
-            |p| {
-                match p.recreate_uniform_buffers(vk_instance, vk_device, vk_physical_device, swapchain_images_count, components) {
+            |(id, pipeline)| {
+                if !concerned_pipelines.contains(&id) {
+                    return;
+                }
+                match pipeline.recreate_uniform_buffers(vk_instance, vk_device, vk_physical_device, swapchain_images_count, components) {
                     _ => {/* todo : hanlde ? */}
                 };
             }
@@ -94,11 +100,15 @@ impl VulkanRenderer for DefaultVulkanRenderer {
         match components.drain_components::<MeshRendererBuilder>() {
             Some(builders) => {
                 // here, we have at least one mesh renderer builder. let's build them with our vulkan interface !
+                let mut concerned_pipelines = HashSet::new();
                 for (entity, mesh_renderer) in builders.map(|(e, b)|
-                (e, vk_interface.build_mesh_renderer(b))
-            ) {
+                    (e, vk_interface.build_mesh_renderer(b))
+                ) {
                     match mesh_renderer {
-                        Ok(mr) => {components.add_component(entity, mr);},
+                        Ok(mr) => {
+                            concerned_pipelines.insert(mr.material().pipeline_id());
+                            components.add_component(entity, mr);
+                        },
                         Err(e) => println!("[PROPELLANT ERROR] Failed to build mesh renderer : {e:?}"),
                     }
                 }
@@ -109,11 +119,13 @@ impl VulkanRenderer for DefaultVulkanRenderer {
                     vk_interface.physical_device,
                     vk_interface.swapchain.images().len(),
                     components,
+                    concerned_pipelines,
                 );
                 // now, we need to rebuild the command buffers.
                 vk_interface.rebuild_draw_commands(components, &self.pipeline_lib)?;
                 // process memory transfers (staging buffers to high perf memory buffers)
                 vk_interface.process_memory_transfers()?;
+                println!("updating scene");
             }
             None => {
                 // no mesh renderer to build, check for rebuild flags.
@@ -141,7 +153,7 @@ impl VulkanRenderer for DefaultVulkanRenderer {
 
             // update uniform buffer
             self.update_uniform_buffer(&vk_interface.device, image_index, vk_interface.swapchain.images().len(), components, delta_time)?;
-            
+
             // create the draw command
             let wait_semaphores = &[vk_interface.rendering_sync.image_available_semaphore(),];
             let wait_stages = &[vulkanalia::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];

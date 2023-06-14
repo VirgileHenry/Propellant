@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use foundry::{Entity, component_iterator, ComponentTable};
 use crate::{Transform, engine::{mesh::mesh_renderer::MeshRenderer, errors::PResult}, Material};
-use super::uniform_descriptor_set::per_object_uniform::PerObjectUniformObject;
+use super::uniform_descriptor_set::{per_object_uniform::PerObjectUniformObject, per_object_uniform_builder::PerObjectUniformBuilder};
 
 use vulkanalia::vk::DeviceV1_0;
 
@@ -10,7 +10,7 @@ use vulkanalia::vk::DeviceV1_0;
 const PER_OBJECT_SET_BINDING: u32 = 2;
 
 pub struct PerObjectUniforms {
-    /// The per object uniforms.
+    /// The per object uniforms. Each per object still has to keep his own DS, because of the offsets.
     uniforms: Vec<PerObjectUniformObject>,
     /// A map that for each entity, gives the position in the buffer.
     entity_to_index: HashMap<Entity, usize>,
@@ -19,12 +19,38 @@ pub struct PerObjectUniforms {
 }
 
 impl PerObjectUniforms {
-    pub fn new(uniforms: Vec<PerObjectUniformObject>) -> PerObjectUniforms {
-        PerObjectUniforms {
+    pub fn build(
+        uniforms: &[PerObjectUniformBuilder],
+        vk_instance: &vulkanalia::Instance,
+        vk_device: &vulkanalia::Device,
+        vk_physical_device: vulkanalia::vk::PhysicalDevice,
+        vk_descriptor_pool: vulkanalia::vk::DescriptorPool,
+        swapchain_images_count: usize,
+    ) -> PResult<PerObjectUniforms> {
+
+        // build the uniforms !
+        let uniforms = uniforms.iter()
+            .map(|builder| PerObjectUniformObject::build(
+                builder,
+                vk_instance,
+                vk_device,
+                vk_physical_device,
+                vk_descriptor_pool,
+                swapchain_images_count,
+            ))
+            .collect::<PResult<Vec<_>>>()?;
+        
+
+        Ok(PerObjectUniforms {
             uniforms,
             entity_to_index: HashMap::new(),
             entity_count: 0,
-        }
+        })
+    }
+
+    pub fn layouts(&self) -> impl Iterator<Item = vulkanalia::vk::DescriptorSetLayout> + '_ {
+        self.uniforms.iter()
+            .map(|uo| uo.layout())
     }
 
     pub fn bind(

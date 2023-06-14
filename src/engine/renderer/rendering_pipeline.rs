@@ -1,10 +1,6 @@
 use foundry::{ComponentTable, component_iterator};
 use crate::{engine::{errors::PResult, mesh::mesh_renderer::MeshRenderer}, Transform};
 use self::{
-    uniform_descriptor_set::{
-        per_frame_uniform::PerFrameUniformObject,
-        per_object_uniform::PerObjectUniformObject
-    },
     per_frame_uniforms::PerFrameUniforms,
     per_object_uniforms::PerObjectUniforms,
 };
@@ -23,15 +19,15 @@ impl RenderingPipeline {
     pub fn new(
         pipeline: vulkanalia::vk::Pipeline,
         layout: vulkanalia::vk::PipelineLayout,
-        per_frame_uniforms: Vec<PerFrameUniformObject>,
-        per_object_uniforms: Vec<PerObjectUniformObject>,
+        per_frame_uniforms: PerFrameUniforms,
+        per_object_uniforms: PerObjectUniforms,
         descriptor_pool: vulkanalia::vk::DescriptorPool,
     ) -> RenderingPipeline {
         RenderingPipeline {
             pipeline,
             layout,
-            per_frame_uniforms: PerFrameUniforms::new(per_frame_uniforms),
-            per_object_uniforms: PerObjectUniforms::new(per_object_uniforms),
+            per_frame_uniforms,
+            per_object_uniforms,
             descriptor_pool,
         }
     }

@@ -37,7 +37,7 @@ pub struct PerObjectUniformObject {
 impl PerObjectUniformObject {
     /// Creates a new per object uniform object, from a function that can generate our uniform object from a transform and the materials.
     /// Most per object data that is passed to the shader should be passed by the material, the transform is here to give model matrix.
-    pub fn new(
+    pub fn build(
         builder: &PerObjectUniformBuilder,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,

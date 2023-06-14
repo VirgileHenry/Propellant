@@ -4,7 +4,6 @@ use foundry::ComponentTable;
 use crate::engine::errors::PResult;
 use crate::engine::window::vulkan::vulkan_buffer::VulkanBuffer;
 
-use vulkanalia::vk::DeviceV1_0;
 use vulkanalia::vk::HasBuilder;
 
 use super::per_frame_uniform_builder::PerFrameUniformBuilder;
@@ -21,68 +20,53 @@ pub struct PerFrameUniformObject {
     ) -> PResult<()>>,
     /// The vulkan buffer to upload the uniform to.
     buffer: VulkanBuffer,
-    /// The descriptor set layout, a blueprint on how the descriptor set matches the shader.
-    layout: vulkanalia::vk::DescriptorSetLayout,
-    /// The descriptor sets, one for each swapchain image.
-    sets: Vec<vulkanalia::vk::DescriptorSet>,
     /// The update frequency of the uniform.
     update_frequency: UniformUpdateFrequency,
+    /// the binding for this uniform.
+    binding: u32,
+    /// The shader to stage to update the uniform to.
+    stage: vulkanalia::vk::ShaderStageFlags,
 }
 
 impl PerFrameUniformObject {
     /// Creates a new per frame uniform object, from a function that can generate our uniform object from the components
     /// (per frame uniforms are built from the whole comp table)
     /// and from the vk instance, device etc (for the buffer creation)
-    pub fn new(
+    pub fn build(
         builder: &PerFrameUniformBuilder,
-        instance: &vulkanalia::Instance,
-        device: &vulkanalia::Device,
-        physical_device: vulkanalia::vk::PhysicalDevice,
-        descriptor_pool: vulkanalia::vk::DescriptorPool,
+        vk_instance: &vulkanalia::Instance,
+        vk_device: &vulkanalia::Device,
+        vk_physical_device: vulkanalia::vk::PhysicalDevice,
         swapchain_images_count: usize,
     ) -> PResult<PerFrameUniformObject> {
-        // create the vulkan buffer
+        // create the vulkan buffer that will store the uniform.
         let buffer = VulkanBuffer::create(
-            instance, device, physical_device,
+            vk_instance, vk_device, vk_physical_device,
             (builder.object_size() * swapchain_images_count) as u64,
             vulkanalia::vk::BufferUsageFlags::UNIFORM_BUFFER,
             vulkanalia::vk::MemoryPropertyFlags::HOST_VISIBLE
                 | vulkanalia::vk::MemoryPropertyFlags::HOST_COHERENT,
         )?;
 
-        // create the descriptor set layout
-        // the layout is a blueprint on how the descriptor set matches the shader.
-        let layout_builder = vulkanalia::vk::DescriptorSetLayoutBinding::builder()
-            .binding(builder.binding())
-            .descriptor_type(vulkanalia::vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(1) 
-            .stage_flags(builder.stage());
-
-        let bindings = &[layout_builder];
-        
-        let info = vulkanalia::vk::DescriptorSetLayoutCreateInfo::builder()
-            .bindings(bindings);
-        
-        let layout = unsafe { device.create_descriptor_set_layout(&info, None)? };
-
-        let object_size = builder.object_size();
-
-        let sets = Self::create_descriptor_set(
-            device,
-            descriptor_pool,
-            swapchain_images_count,
-            layout,
-            &buffer,
-            object_size,
-        )?;
-
         Ok(PerFrameUniformObject {
             buffer_update: builder.buffer_update(),
             buffer,
-            layout,
-            sets,
             update_frequency: builder.update_frequency().clone(),
+            binding: builder.binding(),
+            stage: builder.stage(),
         })
+    }
+
+    pub fn layout(&self) -> <vulkanalia::vk::DescriptorSetLayoutBinding as vulkanalia::vk::HasBuilder>::Builder {
+        vulkanalia::vk::DescriptorSetLayoutBinding::builder()
+            .binding(self.binding)
+            .descriptor_type(vulkanalia::vk::DescriptorType::UNIFORM_BUFFER)
+            .descriptor_count(1) 
+            .stage_flags(self.stage)
+    }
+
+    pub fn buffer_info(&self) -> vulkanalia::vk::DescriptorBufferInfoBuilder {
+        self.buffer.buffer_info()
     }
 
     /// update the buffer value.
@@ -128,89 +112,13 @@ impl PerFrameUniformObject {
         }
     }
 
-    /// Create our descriptor sets from the given pool.
-    /// The pool might overflow, so in the future we should look into reallocating the pool.
-    /// Creation would usually be done once at the start of the app.
-    fn create_descriptor_set(
-        vk_device: &vulkanalia::Device,
-        descriptor_pool: vulkanalia::vk::DescriptorPool,
-        swapchain_images_count: usize,
-        layout: vulkanalia::vk::DescriptorSetLayout,
-        buffer: &VulkanBuffer,
-        object_size: usize,
-    ) -> PResult<Vec<vulkanalia::vk::DescriptorSet>> {
-        // create one descriptor set per swapchain image.
-        let layouts = vec![layout; swapchain_images_count];
-        let info = vulkanalia::vk::DescriptorSetAllocateInfo::builder()
-            .descriptor_pool(descriptor_pool)
-            .set_layouts(&layouts);
-
-        let sets = unsafe { vk_device.allocate_descriptor_sets(&info)? };
-
-        // populate the descriptor sets.
-        Self::populate_descriptor_sets(
-            vk_device,
-            swapchain_images_count,
-            buffer,
-            object_size,
-            &sets
-        )?;
-
-        Ok(sets)
-    }
-
-    fn populate_descriptor_sets(
-        vk_device: &vulkanalia::Device,
-        swapchain_images_count: usize,
-        buffer: &VulkanBuffer,
-        object_size: usize,
-        sets: &Vec<vulkanalia::vk::DescriptorSet>,
-    ) -> PResult<()> {
-        // populate the descriptor sets.
-        for i in 0..swapchain_images_count {
-            let info = vulkanalia::vk::DescriptorBufferInfo::builder()
-                .buffer(buffer.buffer())
-                .offset(0)
-                .range(object_size as u64);
-
-            let buffer_info = &[info];
-
-            let ubo_write = vulkanalia::vk::WriteDescriptorSet::builder()
-                .dst_set(sets[i])
-                .dst_binding(0)
-                .dst_array_element(0) // this is the element we can change for huge buffers ?
-                .descriptor_type(vulkanalia::vk::DescriptorType::UNIFORM_BUFFER)
-                .buffer_info(buffer_info);
-
-            // todo : factorize this into a single operation
-            unsafe { 
-                vk_device.update_descriptor_sets(&[ubo_write], &[] as &[vulkanalia::vk::CopyDescriptorSet]);
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Get the descriptor set for the given image index.
-    pub fn set(&self, image_index: usize) -> vulkanalia::vk::DescriptorSet {
-        self.sets[image_index]
-    }
-
-    /// get the layout.
-    pub fn layout(&self) -> vulkanalia::vk::DescriptorSetLayout {
-        self.layout
-    }
-
-    pub fn update_frequency(&self) -> &UniformUpdateFrequency {
-        &self.update_frequency
+    pub fn binding(&self) -> u32 {
+        self.binding
     }
 
     /// clear the ressources used by this object.
     pub fn destroy(&mut self, vk_device: &vulkanalia::Device) {
-        unsafe {
-            vk_device.destroy_descriptor_set_layout(self.layout, None);
-            self.buffer.destroy(vk_device);
-        }
+        self.buffer.destroy(vk_device);
     }
 }
 

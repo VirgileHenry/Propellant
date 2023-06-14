@@ -23,12 +23,12 @@ impl GraphicPipelineLib {
         self.lib.get(&id)
     }
 
-    pub fn get_pipelines(&self) -> impl Iterator<Item = &RenderingPipeline> {
-        self.lib.values()
+    pub fn get_pipelines(&self) -> impl Iterator<Item = (u64, &RenderingPipeline)> {
+        self.lib.iter().map(|(key, pipeline)| (*key, pipeline))
     }
 
-    pub fn get_pipelines_mut(&mut self) -> impl Iterator<Item = &mut RenderingPipeline> {
-        self.lib.values_mut()
+    pub fn get_pipelines_mut(&mut self) -> impl Iterator<Item = (u64, &mut RenderingPipeline)> {
+        self.lib.iter_mut().map(|(key, pipeline)| (*key, pipeline))
     }
 }
 

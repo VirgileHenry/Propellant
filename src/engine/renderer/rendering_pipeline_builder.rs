@@ -4,9 +4,9 @@ use crate::engine::renderer::shaders::DEFAULT_FRAG;
 use super::rendering_pipeline::RenderingPipeline;
 use super::rendering_pipeline::camera_uniform::camera_uniform_generator;
 use super::rendering_pipeline::model_transform_uniform::transform_uniform_generator;
-use super::rendering_pipeline::uniform_descriptor_set::per_frame_uniform::PerFrameUniformObject;
+use super::rendering_pipeline::per_frame_uniforms::PerFrameUniforms;
+use super::rendering_pipeline::per_object_uniforms::PerObjectUniforms;
 use super::rendering_pipeline::uniform_descriptor_set::per_frame_uniform_builder::PerFrameUniformBuilder;
-use super::rendering_pipeline::uniform_descriptor_set::per_object_uniform::PerObjectUniformObject;
 use super::rendering_pipeline::uniform_descriptor_set::per_object_uniform_builder::PerObjectUniformBuilder;
 use super::rendering_pipeline::uniform_descriptor_set::uniform_update_frequency::UniformUpdateFrequency;
 use super::shaders::DEFAULT_VERT;
@@ -131,35 +131,31 @@ impl RenderingPipelineBuilder {
             .blend_constants([0.0, 0.0, 0.0, 0.0]);
         
         // create the descriptor pool, to allocate descriptor sets.
-        let descriptor_pool = self.create_descriptor_pool(vk_device, swapchain_images)?;
+        let vk_descriptor_pool = self.create_descriptor_pool(vk_device, swapchain_images)?;
 
         // create the uniforms from the registered uniform builders.
-        let per_frame_uniforms = self.per_frame_uniforms.iter().map(|builder| {
-            PerFrameUniformObject::new(
-                builder,
-                vk_instance,
-                vk_device,
-                vk_physical_device,
-                descriptor_pool,
-                swapchain_images.len(),
-            )
-        }).collect::<Result<Vec<_>, _>>()?;
+        let per_frame_uniforms = PerFrameUniforms::build(
+            &self.per_frame_uniforms,
+            vk_instance,
+            vk_device,
+            vk_physical_device,
+            vk_descriptor_pool,
+            swapchain_images.len(),
+        )?;
 
-        let per_object_uniforms = self.per_object_uniforms.iter().map(|builder| {
-            PerObjectUniformObject::new(
-                builder,
-                vk_instance,
-                vk_device,
-                vk_physical_device,
-                descriptor_pool,
-                swapchain_images.len(),
-            )
-        }).collect::<Result<Vec<_>, _>>()?;
+        let per_object_uniforms = PerObjectUniforms::build(
+            &self.per_object_uniforms,
+            vk_instance,
+            vk_device,
+            vk_physical_device,
+            vk_descriptor_pool,
+            swapchain_images.len(),
+        )?;
 
         // get the layout of the uniforms
-        let layouts = per_frame_uniforms.iter()
-            .map(|uniform| uniform.layout())
-            .chain(per_object_uniforms.iter().map(|uniform| uniform.layout()))
+        // ! this SHOULD be ordered by set.
+        let layouts = vec![per_frame_uniforms.layout()].into_iter()
+            .chain(per_object_uniforms.layouts())
             .collect::<Vec<_>>();
         
         // pipeline layout is where we set all our uniforms declaration
@@ -202,7 +198,7 @@ impl RenderingPipelineBuilder {
             pipeline_layout,
             per_frame_uniforms,
             per_object_uniforms,
-            descriptor_pool,
+            vk_descriptor_pool,
         ))
     }
 
@@ -214,7 +210,6 @@ impl RenderingPipelineBuilder {
         Ok(unsafe { vk_device.create_shader_module(&info, None)? })
     }
 
-    // todo : one pool per pipeline lib 
     fn create_descriptor_pool(
         &self,
         vk_device: &vulkanalia::Device,
@@ -244,6 +239,7 @@ impl RenderingPipelineBuilder {
 }
 
 impl Default for RenderingPipelineBuilder {
+    /// Default rendering pipeline.
     fn default() -> Self {
         
         // return the builder
@@ -263,7 +259,7 @@ impl Default for RenderingPipelineBuilder {
                     |tf, _mat| transform_uniform_generator(tf),
                     vulkanalia::vk::ShaderStageFlags::VERTEX,
                     0,
-                    UniformUpdateFrequency::EachFrame
+                    UniformUpdateFrequency::StartOnly
                 ),
             ]
         }
