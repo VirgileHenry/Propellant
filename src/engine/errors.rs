@@ -10,6 +10,7 @@ pub type PResult<T> = Result<T, PropellantError>;
 pub enum PropellantError {
     Residual(Box<dyn std::error::Error + Send + Sync + 'static>),
     LibLoading(String),
+    MissingDebugInfo,
     OutOfMemory,
     EventLoopClosed,
     NoMainCamera,

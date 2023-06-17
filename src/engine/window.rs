@@ -1,4 +1,6 @@
 use foundry::{ComponentTable, Updatable, System, AsAny};
+use crate::{MeshLibrary, engine::consts::PROPELLANT_DEBUG_FEATURES};
+
 use self::vulkan::vulkan_interface::VulkanInterface;
 
 use super::{errors::PResult, renderer::VulkanRenderer};
@@ -55,7 +57,24 @@ impl PropellantWindow {
     }
 
     pub fn world_clean_up(&mut self, components: &mut ComponentTable) {
-        self.vk_interface.clean_up(components);
+        // wait any remaining work on the vulkan side
+        match self.vk_interface.wait_idle() {
+            Ok(_) => {},
+            Err(e) => {
+                if PROPELLANT_DEBUG_FEATURES {
+                    println!("[PROPELLANT DEBUG] Error while waiting for vulkan idle before clean up: {:?}", e)
+                }
+            },
+        };
+
+        // clean up mesh library
+        match components.remove_singleton::<MeshLibrary>() {
+            Some(mut mesh_lib) => mesh_lib.destroy(&self.vk_interface.device),
+            None => {},
+        }
+
+        // clean up the renderer
+        self.renderer.destroy(&self.vk_interface.device);
     }
 
 }

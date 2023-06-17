@@ -3,6 +3,7 @@
 pub enum RenderingError {
     Vulkan(vulkanalia::vk::ErrorCode),
     NoMainCamera,
+    NoMeshLibrary,
     NoFittingVulkanDevice,
     NoVulkanInterface,
     UnknownEntityBufferPosition,

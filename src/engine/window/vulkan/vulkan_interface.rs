@@ -1,12 +1,10 @@
 use std::collections::HashSet;
 
-use crate::engine::consts::ENGINE_VERSION;
+use crate::engine::consts::{ENGINE_VERSION, PROPELLANT_DEBUG_FEATURES};
 use crate::engine::errors::rendering_error::RenderingError;
 use crate::engine::errors::{PropellantError, PResult};
-use crate::engine::mesh::mesh_renderer::MeshRenderer;
-use crate::engine::mesh::mesh_renderer_builder::MeshRendererBuilder;
 use crate::engine::renderer::pipeline_lib::GraphicPipelineLib;
-use crate::engine::renderer::pipeline_lib_builder::GraphicPipelineLibBuilder;
+use crate::engine::renderer::pipeline_lib::pipeline_lib_builder::GraphicPipelineLibBuilder;
 
 
 use foundry::ComponentTable;
@@ -69,12 +67,36 @@ impl VulkanInterface {
             }
         };
         let entry = unsafe {Entry::new(loader)?};
+
+        // get the validation layer
+        let available_layers = unsafe {
+            entry
+                .enumerate_instance_layer_properties()?
+                .iter()
+                .map(|l| l.layer_name)
+                .collect::<HashSet<_>>()
+            };
+
+        let validation_layer = vulkanalia::vk::ExtensionName::from_bytes(b"VK_LAYER_KHRONOS_validation");
+        let use_validation_layers = PROPELLANT_DEBUG_FEATURES;
+
+        if use_validation_layers && !available_layers.contains(&validation_layer) {
+            return Err(PropellantError::MissingDebugInfo);
+        }
+
+        let layers = if use_validation_layers {
+            vec![validation_layer.as_ptr()]
+        } else {
+            Vec::with_capacity(0)
+        };
+
         // create the vk instance info
         let info = vk::InstanceCreateInfo::builder()
             .application_info(&application_info)
-            .enabled_extension_names(&extensions);
+            .enabled_extension_names(&extensions)
+            .enabled_layer_names(&layers);
+
         // create the vk instance
-        // todo : add validation layers
         let instance = unsafe {entry.create_instance(&info, None)?};
         // create the surface : interface between vulkan and winit window.
         let surface = unsafe {vk_window::create_surface(&instance, &window, &window)?};
@@ -253,22 +275,15 @@ impl VulkanInterface {
             .collect::<Result<Vec<_>, _>>()?)
     }
 
-    /// Build the given mesh renderer builder into a mesh renderer.
-    /// This allocates ressources for the buffers in memory, and register command for transfer operations.
-    /// Therefore, the mutable borrow. 
-    pub fn build_mesh_renderer(&mut self, builder: MeshRendererBuilder) -> PResult<MeshRenderer> {
-        Ok(builder.build(&self.instance, &self.device, self.physical_device, &mut self.transfer_manager)?)
-    }
-
     /// Recompute the draw commands buffers with the components.
     /// If the scene graphics have changed, this must be called in order to see any changes.
-    pub fn rebuild_draw_commands(&mut self, components: &mut ComponentTable, pipeline_lib: &GraphicPipelineLib) -> PResult<()> {
+    pub fn rebuild_draw_commands(&mut self, components: &ComponentTable, pipeline_lib: &GraphicPipelineLib) -> PResult<()> {
         self.rendering_manager.register_commands(&self.device, &self.swapchain, self.render_pass, &self.framebuffers, components, pipeline_lib)
     }
 
     /// Build a rendering pipeline builder into a rendering pipeline that can be used.
     pub fn build_pipeline_lib(&mut self, pipeline_lib: &GraphicPipelineLibBuilder) -> PResult<GraphicPipelineLib> {
-        pipeline_lib.build(&self.instance, &self.device, self.physical_device, self.swapchain.extent(), &self.swapchain.images(), self.render_pass)
+        pipeline_lib.build(&self.device, self.swapchain.extent(), &self.swapchain.images(), self.render_pass)
     }
 
     /// Operates the registered memory transfers, and wait for them to be done.
@@ -307,15 +322,11 @@ impl VulkanInterface {
         Ok(())
     }
 
-    /// Destroys all the ressources allocated by vulkan through the world.
-    pub fn clean_up(&mut self, components: &mut ComponentTable) {
-        match components.drain_components::<MeshRenderer>() {
-            Some(renderers) => for (_, mut renderer) in renderers {
-                renderer.destroy(&self.device);
-            }
-            None => {}, // no mesh renderers to destroy
-        }
+    pub fn wait_idle(&mut self) -> PResult<()> {
+        unsafe { self.device.device_wait_idle()?; }
+        Ok(())
     }
+
 }
 
 impl Drop for VulkanInterface {

@@ -1,8 +1,8 @@
 use crate::engine::consts::ENGINE_VERSION;
 use crate::engine::engine_events::PropellantEvent;
 use crate::engine::errors::PResult;
-use crate::engine::renderer::pipeline_lib_builder::GraphicPipelineLibBuilder;
-use crate::engine::renderer::rendering_pipeline_builder::RenderingPipelineBuilder;
+use crate::engine::renderer::pipeline_lib::pipeline_lib_builder::GraphicPipelineLibBuilder;
+use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
 use crate::engine::renderer::{DefaultVulkanRenderer, VulkanRenderer};
 use super::PropellantWindow;
 use super::vulkan::physical_device_prefs::{PhysicalDevicePreferences, DefaultPhysicalDevicePreferences};
@@ -28,7 +28,7 @@ impl PropellantWindowBuilder {
             .with_inner_size(winit::dpi::LogicalSize::new(self.inner_size.0 as u32, self.inner_size.1 as u32))
             .build(event_loop).unwrap();
         // name of the app
-        let mut vk_interface = VulkanInterface::create(&window, &self.device_prefs, self.app_name)?;
+        let mut vk_interface: VulkanInterface = VulkanInterface::create(&window, &self.device_prefs, self.app_name)?;
         let mut renderer = self.renderer;
 
         renderer.use_pipeline_lib(vk_interface.build_pipeline_lib(&self.pipeline_lib)?, self.pipeline_lib);

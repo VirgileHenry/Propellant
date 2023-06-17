@@ -13,17 +13,19 @@ use self::{
         PropellantWindow,
         window_builder::PropellantWindowBuilder
     },
-    errors::PResult,
+    errors::PResult, mesh::mesh_library::MeshLibrary, flags::{RequireMeshLoadingFlag, RequireSceneRebuildFlag},
 };
 
 pub(crate) mod common_components;
 pub(crate) mod consts;
 pub(crate) mod engine_events;
 pub(crate) mod errors;
+pub(crate) mod flags;
 pub(crate) mod material;
 pub(crate) mod mesh;
 pub(crate) mod renderer;
 pub(crate) mod transform;
+pub(crate) mod utils;
 pub(crate) mod window;
 
 
@@ -72,10 +74,12 @@ impl PropellantEngine {
     /// Adds a default window to the engine, and open the window.
     pub fn with_window(mut self) -> PResult<PropellantEngine> {
         let event_loop = self.event_loop.take().unwrap();
+        // register the rendering system.
         let window = PropellantWindowBuilder::default().build(&event_loop)?;
         self.world.register_system(window.into(), id("window"));
         self.event_loop = Some(event_loop);
-        // register the rendering system.
+        // marks the scene need building
+        self.world.add_singleton(RequireSceneRebuildFlag);
         Ok(self)
     }
 
@@ -87,6 +91,13 @@ impl PropellantEngine {
         self.event_loop = Some(event_loop);
         // register the rendering system.
         Ok(self)
+    }
+
+    /// Adds a mesh library to the engine, and add the mesh lib need rebuild flag.
+    pub fn with_mesh_library(mut self, mesh_lib: MeshLibrary) -> PropellantEngine {
+        self.world.add_singleton(mesh_lib);
+        self.world.add_singleton(RequireMeshLoadingFlag);
+        self
     }
 
     /// Adds a event handler singletin to the engine

@@ -7,9 +7,12 @@ use propellant::*;
 
 fn main() {
 
+    let mut mesh_lib = MeshLibrary::new();
+    mesh_lib.register_mesh(id("cube"), Mesh::cube(1.0));
+
     let mut engine = PropellantEngine::default()
         .with_window().unwrap()
-        .with_input_handler(create_inputs!(id("jump"), InputButton::new(winit::event::VirtualKeyCode::Space)));
+        .with_mesh_library(mesh_lib);
     
 
     let _cam = create_entity!(engine.world_mut();
@@ -18,11 +21,11 @@ fn main() {
     );
     let _cube = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(-1., 1., 0.)),
-        MeshRendererBuilder::new(Mesh::cube(1.), Material::default())
+        MeshRenderer::new(id("cube"), Material::default())
     );
     let _cube = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(2., 0., 0.)),
-        MeshRendererBuilder::new(Mesh::cube(0.4), Material::default())
+        MeshRenderer::new(id("cube"), Material::default())
     );
 
     engine.world_mut().register_system(Rotater::new(), 11);

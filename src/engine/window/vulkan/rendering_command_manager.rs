@@ -1,16 +1,14 @@
 
-use std::collections::HashMap;
 
 use foundry::ComponentTable;
-use foundry::Entity;
-use foundry::component_iterator;
 use vulkanalia::vk::DeviceV1_0;
 use vulkanalia::vk::HasBuilder;
 
+use crate::MeshLibrary;
 use crate::engine::errors::PResult;
-use crate::engine::mesh::mesh_renderer::MeshRenderer;
+use crate::engine::errors::PropellantError;
+use crate::engine::errors::rendering_error::RenderingError;
 use crate::engine::renderer::pipeline_lib::GraphicPipelineLib;
-use crate::Transform;
 
 pub struct RenderingCommandManager {
     command_pool: vulkanalia::vk::CommandPool,
@@ -74,16 +72,20 @@ impl RenderingCommandManager {
         swapchain: &super::swapchain_interface::SwapchainInterface,
         render_pass: vulkanalia::vk::RenderPass,
         framebuffers: &Vec<vulkanalia::vk::Framebuffer>,
-        components: &mut ComponentTable,
+        components: &ComponentTable,
         pipeline_lib: &GraphicPipelineLib,
     ) -> PResult<()> {
+
+        // get the mesh lib (to draw the meshes, duh)
+        let mesh_lib = match components.get_singleton::<MeshLibrary>() {
+            Some(lib) => lib,
+            None => return Err(PropellantError::Rendering(RenderingError::NoMeshLibrary)),
+        };
+
         // loop through the command buffers, and register the commands
         for (image_index, command_buffer) in self.command_buffers.iter().enumerate() {
-            let inheritance = vulkanalia::vk::CommandBufferInheritanceInfo::builder();
         
-            let info = vulkanalia::vk::CommandBufferBeginInfo::builder()
-                .flags(vulkanalia::vk::CommandBufferUsageFlags::empty()) // Optional.
-                .inheritance_info(&inheritance);             // Optional.
+            let info = vulkanalia::vk::CommandBufferBeginInfo::builder();
         
             unsafe { vk_device.begin_command_buffer(*command_buffer, &info)? };
             let render_area = vulkanalia::vk::Rect2D::builder()
@@ -103,41 +105,17 @@ impl RenderingCommandManager {
                 .render_area(render_area)
                 .clear_values(clear_values);
 
-            // create a map of the mesh renderers, regrouped by pipeline.
-            let mut rendering_map: HashMap<u64, Vec<(Entity, (&mut Transform, &MeshRenderer))>> = HashMap::new();
-
-            // todo : does not need to be mutable, but there is a bug in the foundry.
-            for render_data in component_iterator!(components; mut Transform, MeshRenderer) {
-                match rendering_map.get_mut(&render_data.1.1.pipeline_id()) {
-                    Some(rendering_list) => {
-                        rendering_list.push(render_data);
-                    },
-                    None => {
-                        rendering_map.insert(render_data.1.1.pipeline_id(), vec![render_data]);
-                    }
-                }
-            }
             
             unsafe { vk_device.cmd_begin_render_pass(*command_buffer, &info, vulkanalia::vk::SubpassContents::INLINE) };
             
-            for (pipeline_id, mesh_renderers) in rendering_map.into_iter() {
-                // get the pipeline
-                let pipeline = match pipeline_lib.get_pipeline(pipeline_id) {
-                    Some(pipeline) => pipeline,
-                    None => {
-                        println!("[PROPELLANT ERROR] Pipeline not found for id {}", pipeline_id);
-                        continue;
-                    }
-                };
-                // bind the pipeline
-                unsafe { vk_device.cmd_bind_pipeline(*command_buffer, vulkanalia::vk::PipelineBindPoint::GRAPHICS, pipeline.pipeline()) };
-                // bind the descriptor sets
-                pipeline.bind_per_frame_uniform(vk_device, *command_buffer, image_index);
-                // bind the vertex buffers
-                for (entity, (_transform, mesh_renderer)) in mesh_renderers.into_iter() {
-                    pipeline.bind_per_object_uniform(vk_device, *command_buffer, image_index, swapchain.images().len(), entity);
-                    mesh_renderer.register_draw_commands(vk_device, *command_buffer);
-                }
+            // for each pipeline
+            for (_, pipeline) in pipeline_lib.get_pipelines() {
+                pipeline.register_draw_commands(
+                    vk_device,
+                    image_index,
+                    *command_buffer,
+                    mesh_lib,
+                );
             }
 
             unsafe { vk_device.cmd_end_render_pass(*command_buffer) };
