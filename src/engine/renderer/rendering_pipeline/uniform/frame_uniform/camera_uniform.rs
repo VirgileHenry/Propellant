@@ -5,9 +5,12 @@ use crate::{Transform, Camera, engine::errors::{PResult, PropellantError, render
 use super::AsPerFrameUniform;
 
 
+#[repr(C)] // important for any data we send to the gpu
+#[allow(unused)] // we don't use the fields directly, but they are used by the gpu
 #[derive(Debug, Clone, Copy)]
 pub struct CameraUniformObject {
-    pub proj_view: glam::Mat4,
+    proj: glam::Mat4,
+    view: glam::Mat4,
 }
 
 impl AsPerFrameUniform for CameraUniformObject {
@@ -15,7 +18,8 @@ impl AsPerFrameUniform for CameraUniformObject {
         for (_, (tf, cam)) in component_iterator!(components; mut Transform, Camera) {
             if cam.is_main() {
                 return Ok(CameraUniformObject {
-                    proj_view: cam.projection_matrix() * tf.world_pos(),
+                    proj: cam.projection_matrix(),
+                    view:  tf.world_pos(),
                 });
             }
         }

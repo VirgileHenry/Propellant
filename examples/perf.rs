@@ -18,9 +18,9 @@ fn main() {
         Transform::origin().translated(glam::vec3(0., 3., -4.)),
         Camera::main(800., 450., 0.1, 100., 1.5)
     );
-    let _cubes = create_entities!(engine.world_mut(); 1_000,
+    let _cubes = create_entities!(engine.world_mut(); 100_000,
         |i| Transform::origin().translated(glam::vec3(0., 0., -(i as f32))).scaled(glam::vec3(1./ (i as f32 + 1.), 1./ (i as f32 + 1.), 1./ (i as f32 + 1.))),
-        |_| MeshRenderer::new(id("cube"), Material::default())
+        |_| MeshRenderer::new_static(id("cube"), Material::default())
     );
 
     engine.world_mut().register_system(System::new(Box::new(FPSCounter{timer: 0., frames: 0}), foundry::UpdateFrequency::PerFrame), 11);

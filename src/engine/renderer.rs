@@ -218,9 +218,22 @@ impl DefaultVulkanRenderer {
         });
 
         // finally, update all uniform buffers for static objects into the buffers, as they may have moved.
+        // map all the uniform buffers
+        self.pipeline_lib.get_pipelines_mut().for_each(
+            |(_, pipeline)| match pipeline.map_all_uniform_buffers(&vk_interface.device) {
+                Ok(_) => {/* all good */}
+                Err(e) => {
+                    if cfg!(debug_assertions) {
+                        println!("[PROPELLANT DEBUG] Failed to map uniform buffers: {:?}", e);
+                    }
+                }
+            }
+        );
+
         for (entity, (tf, mesh_renderer)) in component_iterator!(components; mut Transform, MeshRenderer) {
             if mesh_renderer.is_static() {
                 match self.pipeline_lib.get_pipeline_mut(mesh_renderer.pipeline_id()) {
+                    // ! fixme me : update for every frame. Maybe an enum tellic if mr are static or dyamic, static having data for telling which are updated ?
                     Some(pipeline) => {pipeline.update_uniform_buffers(mesh_renderer.instance(), tf, mesh_renderer.material(), 0).unwrap();},
                     None => {
                         if cfg!(debug_assertions) {
@@ -230,6 +243,11 @@ impl DefaultVulkanRenderer {
                 };
             }
         }
+
+        // unmap all the uniform buffers
+        self.pipeline_lib.get_pipelines_mut().for_each(
+            |(_, pipeline)| pipeline.unmap_all_uniform_buffers(&vk_interface.device)
+        );
 
         // finally, recreate the command buffers
         // directly return the result

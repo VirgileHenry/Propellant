@@ -1,6 +1,7 @@
 use super::AsPerObjectUniform;
 
-
+#[repr(C)] // important for any data we send to the gpu
+#[allow(unused)] // we don't use the fields directly, but they are used by the gpu
 #[derive(Debug, Clone, Copy)]
 pub struct ModelMatrixUniformObject {
     pub model: glam::Mat4,
