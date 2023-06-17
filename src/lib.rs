@@ -3,6 +3,7 @@ pub(crate) mod utils;
 
 // expose our types
 pub use engine::{
+    common_components::camera::Camera,
     PropellantEngine,
     engine_events::{
         input_handler::InputHandler,
@@ -17,12 +18,12 @@ pub use engine::{
         mesh_library::MeshLibrary,
     },
     material::Material,
+    resources::ProppellantResources,
     window::{
         PropellantWindow,
         vulkan::vulkan_interface::VulkanInterface,
     },
     transform::Transform,
-    common_components::camera::Camera,
 };
 
 pub use utils::id::id;

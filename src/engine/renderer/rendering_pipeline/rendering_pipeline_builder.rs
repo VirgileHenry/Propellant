@@ -79,7 +79,8 @@ impl RenderingPipelineBuilder {
             .primitive_restart_enable(false);
         
         
-        // create a default sized viewport
+        // create a default sized viewport.
+        // here, we could draw to only part of the screen for local multiplayer.
         let viewport = vulkanalia::vk::Viewport::builder()
             .x(0.0)
             .y(0.0)
@@ -159,6 +160,7 @@ impl RenderingPipelineBuilder {
 
         // create the pipeline ! 
         let stages = &[vert_stage, frag_stage];
+        
         let info = vulkanalia::vk::GraphicsPipelineCreateInfo::builder()
             .stages(stages)
             .vertex_input_state(&vertex_input_state)

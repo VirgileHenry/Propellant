@@ -1,6 +1,11 @@
 use std::collections::BTreeMap;
 
-use crate::{Transform, Material, engine::errors::PResult, MeshLibrary};
+use crate::{
+    Transform,
+    Material,
+    engine::errors::PResult,
+    ProppellantResources
+};
 
 use vulkanalia::vk::DeviceV1_0;
 
@@ -54,7 +59,7 @@ impl RenderingPipeline {
         vk_device: &vulkanalia::Device,
         image_index: usize,
         command_buffer: vulkanalia::vk::CommandBuffer,
-        mesh_lib: &MeshLibrary,
+        resources: &ProppellantResources,
     ) {
         // bind the pipeline 
         unsafe {
@@ -83,7 +88,7 @@ impl RenderingPipeline {
         
         // for each concerned mesh; bind it and draw instanced !
         for (mesh_id, (first_instance, instance_count)) in self.rendering_map.iter() {
-            match mesh_lib.loaded_mesh(mesh_id) {
+            match resources.meshes().loaded_mesh(mesh_id) {
                 Some(loaded_mesh) => {
                     // bind the mesh vertex and index
                     loaded_mesh.bind_mesh(vk_device, command_buffer);

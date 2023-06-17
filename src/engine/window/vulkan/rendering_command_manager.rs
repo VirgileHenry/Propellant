@@ -4,7 +4,7 @@ use foundry::ComponentTable;
 use vulkanalia::vk::DeviceV1_0;
 use vulkanalia::vk::HasBuilder;
 
-use crate::MeshLibrary;
+use crate::ProppellantResources;
 use crate::engine::errors::PResult;
 use crate::engine::errors::PropellantError;
 use crate::engine::errors::rendering_error::RenderingError;
@@ -77,9 +77,9 @@ impl RenderingCommandManager {
     ) -> PResult<()> {
 
         // get the mesh lib (to draw the meshes, duh)
-        let mesh_lib = match components.get_singleton::<MeshLibrary>() {
+        let resources = match components.get_singleton::<ProppellantResources>() {
             Some(lib) => lib,
-            None => return Err(PropellantError::Rendering(RenderingError::NoMeshLibrary)),
+            None => return Err(PropellantError::Rendering(RenderingError::MissingResources)),
         };
 
         // loop through the command buffers, and register the commands
@@ -114,7 +114,7 @@ impl RenderingCommandManager {
                     vk_device,
                     image_index,
                     *command_buffer,
-                    mesh_lib,
+                    resources,
                 );
             }
 

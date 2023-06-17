@@ -4,14 +4,15 @@ use std::collections::HashMap;
 use foundry::ComponentTable;
 use foundry::component_iterator;
 
-use crate::MeshLibrary;
 use crate::MeshRenderer;
+use crate::ProppellantResources;
 use crate::Transform;
 use crate::VulkanInterface;
 use self::pipeline_lib::GraphicPipelineLib;
 use self::pipeline_lib::pipeline_lib_builder::GraphicPipelineLibBuilder;
 use super::errors::PResult;
-use super::flags::RequireMeshLoadingFlag;
+use super::flags::RequireMemoryTransfersFlag;
+use super::flags::RequireResourcesLoadingFlag;
 use super::flags::RequireSceneRebuildFlag;
 
 use vulkanalia::vk::Handle;
@@ -67,17 +68,18 @@ impl DefaultVulkanRenderer {
     ) -> PResult<()> {
         // it is important that some flag are ordered.
         // for example, first build the meshes, then the scene.
-        match (components.remove_singleton::<RequireMeshLoadingFlag>(), components.get_singleton_mut::<MeshLibrary>()) {
-            (Some(_flag), Some(mesh_lib)) => {
+        match (components.remove_singleton::<RequireResourcesLoadingFlag>(), components.get_singleton_mut::<ProppellantResources>()) {
+            (Some(flags), Some(mesh_lib)) => {
                 // load meshes
-                mesh_lib.load_meshes(
+                mesh_lib.load_resources(
+                    flags,
                     &vk_interface.instance,
                     &vk_interface.device,
                     vk_interface.physical_device,
                     &mut vk_interface.transfer_manager,
                 )?;
-                // process the memory transfers
-                vk_interface.process_memory_transfers()?;
+                // ask for memory transfers
+                components.add_singleton(RequireMemoryTransfersFlag);
             }
             _ => {}
         }
@@ -88,6 +90,11 @@ impl DefaultVulkanRenderer {
                 vk_interface,
                 components
             )?;
+        }
+
+        // look for memory transfer flags
+        if let Some(_) = components.remove_singleton::<RequireMemoryTransfersFlag>() {
+            vk_interface.process_memory_transfers()?;
         }
 
         Ok(())

@@ -13,7 +13,12 @@ use self::{
         PropellantWindow,
         window_builder::PropellantWindowBuilder
     },
-    errors::PResult, mesh::mesh_library::MeshLibrary, flags::{RequireMeshLoadingFlag, RequireSceneRebuildFlag},
+    errors::PResult,
+    flags::{
+        RequireResourcesLoadingFlag,
+        RequireSceneRebuildFlag
+    },
+    resources::ProppellantResources,
 };
 
 pub(crate) mod common_components;
@@ -24,6 +29,7 @@ pub(crate) mod flags;
 pub(crate) mod material;
 pub(crate) mod mesh;
 pub(crate) mod renderer;
+pub(crate) mod resources;
 pub(crate) mod transform;
 pub(crate) mod utils;
 pub(crate) mod window;
@@ -94,9 +100,9 @@ impl PropellantEngine {
     }
 
     /// Adds a mesh library to the engine, and add the mesh lib need rebuild flag.
-    pub fn with_mesh_library(mut self, mesh_lib: MeshLibrary) -> PropellantEngine {
-        self.world.add_singleton(mesh_lib);
-        self.world.add_singleton(RequireMeshLoadingFlag);
+    pub fn with_resources(mut self, resources: ProppellantResources) -> PropellantEngine {
+        self.world.add_singleton(resources);
+        self.world.add_singleton(RequireResourcesLoadingFlag::ALL);
         self
     }
 

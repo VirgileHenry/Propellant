@@ -1,5 +1,8 @@
 use foundry::{ComponentTable, Updatable, System, AsAny};
-use crate::{MeshLibrary, engine::consts::PROPELLANT_DEBUG_FEATURES};
+use crate::{
+    engine::consts::PROPELLANT_DEBUG_FEATURES,
+    ProppellantResources
+};
 
 use self::vulkan::vulkan_interface::VulkanInterface;
 
@@ -68,8 +71,8 @@ impl PropellantWindow {
         };
 
         // clean up mesh library
-        match components.remove_singleton::<MeshLibrary>() {
-            Some(mut mesh_lib) => mesh_lib.destroy(&self.vk_interface.device),
+        match components.remove_singleton::<ProppellantResources>() {
+            Some(mut resources) => resources.destroy(&self.vk_interface.device),
             None => {},
         }
 

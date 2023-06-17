@@ -7,12 +7,12 @@ use propellant::*;
 
 fn main() {
 
-    let mut mesh_lib = MeshLibrary::new();
-    mesh_lib.register_mesh(id("cube"), Mesh::cube(1.0));
+    let mut resources = ProppellantResources::default();
+    resources.meshes_mut().register_mesh(id("cube"), Mesh::cube(1.0));
 
     let mut engine = PropellantEngine::default()
         .with_window().unwrap()
-        .with_mesh_library(mesh_lib);
+        .with_resources(resources);
     
 
     let _cam = create_entity!(engine.world_mut();

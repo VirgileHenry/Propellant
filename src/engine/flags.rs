@@ -5,4 +5,19 @@ pub struct RequireSceneRebuildFlag;
 
 
 /// Tere are new meshes in the lib that need to be loaded.
-pub struct RequireMeshLoadingFlag;
+#[derive(Debug, Clone, Copy)]
+pub struct RequireResourcesLoadingFlag(u64);
+
+#[allow(unused)]
+impl RequireResourcesLoadingFlag {
+    pub const MESHES: RequireResourcesLoadingFlag = RequireResourcesLoadingFlag(1 << 0);
+    pub const TEXTURES: RequireResourcesLoadingFlag = RequireResourcesLoadingFlag(1 << 1);
+    pub const ALL: RequireResourcesLoadingFlag = RequireResourcesLoadingFlag(u64::MAX);
+
+    pub fn contains(&self, flag: RequireResourcesLoadingFlag) -> bool {
+        self.0 & flag.0 != 0
+    }
+}
+
+/// There are new data in the transfer manager that we should load to the gpu.
+pub struct RequireMemoryTransfersFlag;
