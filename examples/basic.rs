@@ -19,18 +19,20 @@ fn main() {
         Transform::origin().translated(glam::vec3(0., 1., -4.)),
         Camera::main(800., 450., 0.1, 100., 1.5)
     );
+    // sun 
+    engine.world_mut().add_singleton(DirectionnalLight::new(glam::vec3(1., 1., 1.), glam::vec3(1., 1., 1.), glam::vec3(1., 1., 1.)));
     let _cube = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(-1., 1., 0.)),
         MeshRenderer::new(
             id("cube"),
-            Material::default().with_prop(PbrMaterialProperties::default().colored(glam::vec3(0.6, 0., 0.)))
+            Material::default().with_prop(PhongMaterialProperties::default().colored(glam::vec3(0.6, 0., 0.)))
         )
     );
     let _cube = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(2., 0., 0.)),
         MeshRenderer::new(
             id("cube"),
-            Material::default().with_prop(PbrMaterialProperties::default().colored(glam::vec3(0., 0.6, 0.)))
+            Material::default().with_prop(PhongMaterialProperties::default().colored(glam::vec3(0., 0.6, 0.)))
         )
     );
 

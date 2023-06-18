@@ -18,7 +18,7 @@ pub use engine::{
     },
     material::{
         Material,
-        pbr_material::PbrMaterialProperties,
+        phong_material::PhongMaterialProperties,
     },
     resources::ProppellantResources,
     window::{
@@ -26,6 +26,9 @@ pub use engine::{
         vulkan::vulkan_interface::VulkanInterface,
     },
     transform::Transform,
+    lights::{
+        directionnal_light::DirectionnalLight,
+    },
 };
 
 pub use utils::id::{

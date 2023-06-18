@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::engine::errors::PResult;
-use crate::engine::material::pbr_material::PbrMaterialProperties;
+use crate::engine::material::phong_material::PhongMaterialProperties;
 use crate::engine::mesh::vertex::Vertex;
 use crate::engine::renderer::shaders::DEFAULT_FRAG;
 use crate::engine::renderer::shaders::DEFAULT_VERT;
@@ -14,6 +14,7 @@ use super::RenderingPipeline;
 use super::uniform::frame_uniform::AsPerFrameUniform;
 use super::uniform::frame_uniform::FrameUniformBuilder;
 use super::uniform::frame_uniform::camera_uniform::CameraUniformObject;
+use super::uniform::frame_uniform::main_directionnal_light::MainDirectionnalLight;
 use super::uniform::object_uniform::AsPerObjectUniform;
 use super::uniform::object_uniform::ObjectUniformBuilder;
 use super::uniform::object_uniform::model_uniform::ModelMatrixUniformObject;
@@ -266,10 +267,11 @@ impl Default for RenderingPipelineBuilder {
             fragment: (DEFAULT_FRAG.iter().map(|v| *v).collect(), DEFAULT_FRAG.len() * 4), // x4 because we are using u32, and length is in byte
             frame_uniforms: vec![
                 Box::new(UniformBufferBuilder::<CameraUniformObject>::new(vulkanalia::vk::ShaderStageFlags::VERTEX, 0)),
+                Box::new(UniformBufferBuilder::<MainDirectionnalLight>::new(vulkanalia::vk::ShaderStageFlags::FRAGMENT, 0)),
             ],
             object_uniforms: vec![
                 Box::new(UniformBufferBuilder::<ModelMatrixUniformObject>::new(vulkanalia::vk::ShaderStageFlags::VERTEX, 0)),
-                Box::new(UniformBufferBuilder::<PbrMaterialProperties>::new(vulkanalia::vk::ShaderStageFlags::FRAGMENT, 0)),
+                Box::new(UniformBufferBuilder::<PhongMaterialProperties>::new(vulkanalia::vk::ShaderStageFlags::FRAGMENT, 0)),
             ],
         }
     }

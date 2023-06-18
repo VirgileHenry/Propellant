@@ -5,11 +5,12 @@ use crate::engine::errors::PResult;
 use super::uniform_buffer::{UniformBufferBuilder, UniformBuffer};
 
 pub(crate) mod camera_uniform;
+pub(crate) mod main_directionnal_light;
 
 /// Trait for any type that can be used as a per frame uniform.
 /// For this, the type needs a way to build the uniform from the component table.
 pub trait AsPerFrameUniform {
-    fn get_uniform(components: &ComponentTable) -> PResult<Self> where Self: Sized;
+    fn get_uniform(components: &ComponentTable) -> Self;
 }
 
 /// Handle around a UniformBufferBuilder<Any> used as a per frame uniform.
@@ -59,7 +60,7 @@ impl<T: AsPerFrameUniform + Debug + 'static> FrameUniform for UniformBuffer<T> {
     }
 
     fn update_buffer(&mut self, components: &ComponentTable, image_index: usize) -> PResult<()> {
-        let uniform = T::get_uniform(components)?;
+        let uniform = T::get_uniform(components);
         self.update_buffer(0, image_index, 1, &uniform);
         Ok(())
     }

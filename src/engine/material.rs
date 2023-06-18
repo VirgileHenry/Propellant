@@ -2,7 +2,7 @@ use foundry::AsAny;
 
 use crate::id;
 
-use self::pbr_material::PbrMaterialProperties;
+use self::phong_material::PhongMaterialProperties;
 
 use super::{
     renderer::rendering_pipeline::uniform::object_uniform::AsPerObjectUniform,
@@ -12,8 +12,8 @@ use super::{
     }
 };
 
-pub(crate) mod pbr_material;
-
+pub(crate) mod phong_material;
+pub(crate) mod colored_texture;
 
 /// Info on how to draw a mesh renderer.
 pub struct Material {
@@ -43,7 +43,7 @@ impl Default for Material {
     fn default() -> Self {
         Material {
             graphic_pipeline: id("default"), // default pipeline rendering.
-            properties: Box::new(PbrMaterialProperties::default()),
+            properties: Box::new(PhongMaterialProperties::default()),
         }
     }
 }

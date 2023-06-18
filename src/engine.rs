@@ -26,6 +26,7 @@ pub(crate) mod consts;
 pub(crate) mod engine_events;
 pub(crate) mod errors;
 pub(crate) mod flags;
+pub(crate) mod lights;
 pub(crate) mod material;
 pub(crate) mod mesh;
 pub(crate) mod renderer;

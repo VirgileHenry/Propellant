@@ -2,8 +2,9 @@
 #[derive(Debug)]
 pub enum RenderingError {
     Vulkan(vulkanalia::vk::ErrorCode),
-    NoMainCamera,
+    MissingMainCamera,
     MissingResources,
+    MissingUniformData,
     NoFittingVulkanDevice,
     NoVulkanInterface,
     UnknownEntityBufferPosition,

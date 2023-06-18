@@ -1,6 +1,10 @@
 use foundry::component_iterator;
 
-use crate::{Transform, Camera, engine::errors::{PResult, PropellantError, rendering_error::RenderingError}};
+use crate::{
+    Transform,
+    Camera,
+    engine::consts::PROPELLANT_DEBUG_FEATURES
+};
 
 use super::AsPerFrameUniform;
 
@@ -14,16 +18,23 @@ pub struct CameraUniformObject {
 }
 
 impl AsPerFrameUniform for CameraUniformObject {
-    fn get_uniform(components: &foundry::ComponentTable) -> PResult<Self> {
+    fn get_uniform(components: &foundry::ComponentTable) -> Self {
         for (_, (tf, cam)) in component_iterator!(components; mut Transform, Camera) {
             if cam.is_main() {
-                return Ok(CameraUniformObject {
+                return CameraUniformObject {
                     proj: cam.projection_matrix(),
                     view:  tf.world_pos(),
-                });
+                };
             }
         }
 
-        Err(PropellantError::Rendering(RenderingError::NoMainCamera))
+        if PROPELLANT_DEBUG_FEATURES {
+            println!("[PROPELLANT DEBUG] No main camera found.");
+        }
+
+        CameraUniformObject {
+            proj: glam::Mat4::ZERO,
+            view: glam::Mat4::ZERO,
+        }
     }
 }
