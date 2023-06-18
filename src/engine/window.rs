@@ -29,7 +29,7 @@ impl PropellantWindow {
             winit::event::WindowEvent::Resized(_) => {
                 match self.vk_swapchain_recreation_request() {
                     Ok(_) => {},
-                    Err(e) => println!("[PROPELLANT ERROR] Error while recreating swapchain: {:?}", e),
+                    Err(e) => println!("{e} while recreating swapchain."),
                 };
             }
             _ => {},
@@ -65,7 +65,7 @@ impl PropellantWindow {
             Ok(_) => {},
             Err(e) => {
                 if PROPELLANT_DEBUG_FEATURES {
-                    println!("[PROPELLANT DEBUG] Error while waiting for vulkan idle before clean up: {:?}", e)
+                    println!("{e} while waiting for vulkan idle before clean up.")
                 }
             },
         };
@@ -90,7 +90,7 @@ impl Updatable for PropellantWindow {
         // check for invalidation of the swapchain
         match self.renderer.render(&mut self.vk_interface, components, delta) {
             Ok(_) => {}, // todo : handle non optimal swapchain ok value
-            Err(e) => println!("[PROPELLANT ERROR] Error while rendering: {:?}", e),
+            Err(e) => println!("{e} while rendering"),
         };
     }
 }

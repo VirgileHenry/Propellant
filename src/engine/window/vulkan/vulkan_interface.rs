@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use crate::engine::consts::{ENGINE_VERSION, PROPELLANT_DEBUG_FEATURES};
+use crate::engine::errors::debug_error::DebugError;
 use crate::engine::errors::loading_errors::LoadingError;
 use crate::engine::errors::rendering_error::RenderingError;
 use crate::engine::errors::{PropellantError, PResult};
@@ -81,7 +82,7 @@ impl VulkanInterface {
         let use_validation_layers = PROPELLANT_DEBUG_FEATURES;
 
         if use_validation_layers && !available_layers.contains(&validation_layer) {
-            return Err(PropellantError::MissingDebugInfo);
+            return Err(PropellantError::DebugError(DebugError::MissingVulkanDebugLayers));
         }
 
         let layers = if use_validation_layers {

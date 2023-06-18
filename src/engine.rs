@@ -172,7 +172,7 @@ impl PropellantEngine {
                             Some(window) => {
                                 match window.vk_swapchain_recreation_request() {
                                     Ok(_) => {},
-                                    Err(e) => println!("[PROPELLANT ERROR] Error while recreating swapchain: {:?}", e),
+                                    Err(e) => println!("{e}"),
                                 };
                             },
                             None => {},

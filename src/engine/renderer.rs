@@ -112,7 +112,7 @@ impl DefaultVulkanRenderer {
                 Ok(_) => {/* all good */}
                 Err(e) => {
                     if cfg!(debug_assertions) {
-                        println!("[PROPELLANT DEBUG] Failed to map uniform buffers: {:?}", e);
+                        println!("{e}");
                     }
                 }
             }
@@ -212,7 +212,7 @@ impl DefaultVulkanRenderer {
                     Ok(_) => {/* all good */},
                     Err(e) => {
                         if cfg!(debug_assertions) {
-                            println!("[PROPELLANT DEBUG] Failed to rebuild pipeline {}: {:?}", pipeline_id, e);
+                            println!("{e} Failed to rebuild pipeline {pipeline_id}");
                         }
                     }
                 },
@@ -231,7 +231,7 @@ impl DefaultVulkanRenderer {
                 Ok(_) => {/* all good */}
                 Err(e) => {
                     if cfg!(debug_assertions) {
-                        println!("[PROPELLANT DEBUG] Failed to map uniform buffers: {:?}", e);
+                        println!("{e} Failed to map uniform buffers.");
                     }
                 }
             }

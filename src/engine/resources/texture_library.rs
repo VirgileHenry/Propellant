@@ -72,10 +72,12 @@ impl TextureLibrary {
     /// The texture will be loaded in memory the next time the renderer update,
     /// and the flag `RequireResourcesLoadingFlag` is set to textures.
     /// This operation might fail if the bytes are not a valid image.
-    pub fn register_texture(&mut self, texture_id: u64, bytes: &[u8]) -> PResult<()> {
-        self.loading_queue.insert(texture_id, (image::load_from_memory(bytes)?.to_rgba8(), self.next_texture_index));
+    /// This will return the texture index, so it can then be used for the material to reference it.
+    pub fn register_texture(&mut self, texture_id: u64, bytes: &[u8]) -> PResult<u32> {
+        let index = self.next_texture_index;
         self.next_texture_index += 1;
-        Ok(())
+        self.loading_queue.insert(texture_id, (image::load_from_memory(bytes)?.to_rgba8(), index));
+        Ok(index)
     }
 
     pub fn load_textures(

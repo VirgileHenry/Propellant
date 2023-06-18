@@ -7,7 +7,7 @@ use vulkanalia::vk::HasBuilder;
 use crate::ProppellantResources;
 use crate::engine::errors::PResult;
 use crate::engine::errors::PropellantError;
-use crate::engine::errors::rendering_error::RenderingError;
+use crate::engine::errors::debug_error::DebugError;
 use crate::engine::renderer::pipeline_lib::GraphicPipelineLib;
 
 pub struct RenderingCommandManager {
@@ -79,7 +79,7 @@ impl RenderingCommandManager {
         // get the mesh lib (to draw the meshes, duh)
         let resources = match components.get_singleton::<ProppellantResources>() {
             Some(lib) => lib,
-            None => return Err(PropellantError::Rendering(RenderingError::MissingResources)),
+            None => return Err(PropellantError::DebugError(DebugError::MissingResourceLibrary)),
         };
 
         // loop through the command buffers, and register the commands

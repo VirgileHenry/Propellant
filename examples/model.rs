@@ -5,11 +5,11 @@ use propellant::*;
 
 
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut resources = ProppellantResources::default();
     resources.meshes_mut().register_mesh(id("quad"), Mesh::flat_quad(2.0));
-    resources.textures_mut().register_texture(id("image"), include_bytes!("model/texture.jpg"));
+    let texture_id = resources.textures_mut().register_texture(id("image"), include_bytes!("model/texture.jpg"))?;
 
     let mut engine = PropellantEngine::default()
         .with_window().unwrap()
@@ -29,6 +29,8 @@ fn main() {
 
 
     engine.main_loop();
+
+    Ok(())
 }
 
 #[derive(AsAny)]
