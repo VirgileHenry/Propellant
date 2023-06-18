@@ -15,7 +15,7 @@ pub struct LoadedTexture {
 impl LoadedTexture {
     pub fn create(
         from: ImageBuffer<Rgba<u8>, Vec<u8>>,
-        id: u32,
+        index: u32,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
@@ -49,7 +49,8 @@ impl LoadedTexture {
 
 
 pub struct TextureLibrary {
-    loading_queue: HashMap<u64, ImageBuffer<Rgba<u8>, Vec<u8>>>,
+    /// The texture hash id, mapped to the texture raw bytes and it's index in the texture buffer.
+    loading_queue: HashMap<u64, (ImageBuffer<Rgba<u8>, Vec<u8>>, u32)>,
     textures: HashMap<u64, LoadedTexture>,
     next_texture_index: u32,
 }
@@ -58,7 +59,7 @@ impl TextureLibrary {
     pub fn new() -> TextureLibrary {
         
         let mut loading_queue = HashMap::new();
-        loading_queue.insert(id("white"), Self::create_white_textures());
+        loading_queue.insert(id("white"), (Self::create_white_textures(), 0));
 
         TextureLibrary {
             loading_queue,
@@ -67,8 +68,13 @@ impl TextureLibrary {
         }
     }
 
+    /// Register a texture to be queued for loading.
+    /// The texture will be loaded in memory the next time the renderer update,
+    /// and the flag `RequireResourcesLoadingFlag` is set to textures.
+    /// This operation might fail if the bytes are not a valid image.
     pub fn register_texture(&mut self, texture_id: u64, bytes: &[u8]) -> PResult<()> {
-        self.loading_queue.insert(texture_id, image::load_from_memory(bytes)?.to_rgba8());
+        self.loading_queue.insert(texture_id, (image::load_from_memory(bytes)?.to_rgba8(), self.next_texture_index));
+        self.next_texture_index += 1;
         Ok(())
     }
 
@@ -79,17 +85,16 @@ impl TextureLibrary {
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
         vk_transfer_manager: &mut TransferCommandManager,
     ) -> PResult<()> {
-        for (id, bytes) in self.loading_queue.drain() {
+        for (id, (bytes, index)) in self.loading_queue.drain() {
             let loaded_texture = LoadedTexture::create(
                 bytes,
-                self.next_texture_index,
+                index,
                 vk_instance,
                 vk_device,
                 vk_physical_device,
                 vk_transfer_manager,
             )?;
             self.textures.insert(id, loaded_texture);
-            self.next_texture_index += 1;
         }
         Ok(())
     }
