@@ -7,6 +7,7 @@ pub enum RenderingError {
     NoFittingVulkanDevice,
     NoVulkanInterface,
     UnknownEntityBufferPosition,
+    InvalidMaterialCast,
 }
 
 impl From<vulkanalia::vk::ErrorCode> for RenderingError {

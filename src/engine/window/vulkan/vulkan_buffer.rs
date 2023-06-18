@@ -164,12 +164,27 @@ impl VulkanBuffer {
             // check if the buffer is none null
             if self.buffer.is_null() {
                 println!("[PROPELLANT DEBUG] Attempt to free a null buffer");
-                return;
             }
         }
         unsafe {
             vk_device.destroy_buffer(self.buffer, None);
             vk_device.free_memory(self.memory, None);
+        }
+        if PROPELLANT_DEBUG_FEATURES {
+            // set the buffer to null
+            self.buffer = vulkanalia::vk::Buffer::null();
+        }
+    }
+}
+
+
+impl Drop for VulkanBuffer {
+    fn drop(&mut self) {
+        if PROPELLANT_DEBUG_FEATURES {
+            // check if the buffer is none null
+            if !self.buffer.is_null() {
+                println!("[PROPELLANT DEBUG] Buffer is dropped but never got destroyed.");
+            }
         }
     }
 }

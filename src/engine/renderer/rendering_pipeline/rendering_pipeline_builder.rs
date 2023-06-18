@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use crate::engine::errors::PResult;
+use crate::engine::material::pbr_material::PbrMaterialProperties;
 use crate::engine::mesh::vertex::Vertex;
 use crate::engine::renderer::shaders::DEFAULT_FRAG;
 use crate::engine::renderer::shaders::DEFAULT_VERT;
@@ -264,10 +265,11 @@ impl Default for RenderingPipelineBuilder {
             vertex: (DEFAULT_VERT.iter().map(|v| *v).collect(), DEFAULT_VERT.len() * 4), // x4 because we are using u32, and length is in byte
             fragment: (DEFAULT_FRAG.iter().map(|v| *v).collect(), DEFAULT_FRAG.len() * 4), // x4 because we are using u32, and length is in byte
             frame_uniforms: vec![
-                Box::new(UniformBufferBuilder::<CameraUniformObject>::new(vulkanalia::vk::ShaderStageFlags::VERTEX, 0))
+                Box::new(UniformBufferBuilder::<CameraUniformObject>::new(vulkanalia::vk::ShaderStageFlags::VERTEX, 0)),
             ],
             object_uniforms: vec![
-                Box::new(UniformBufferBuilder::<ModelMatrixUniformObject>::new(vulkanalia::vk::ShaderStageFlags::VERTEX, 0))
+                Box::new(UniformBufferBuilder::<ModelMatrixUniformObject>::new(vulkanalia::vk::ShaderStageFlags::VERTEX, 0)),
+                Box::new(UniformBufferBuilder::<PbrMaterialProperties>::new(vulkanalia::vk::ShaderStageFlags::FRAGMENT, 0)),
             ],
         }
     }

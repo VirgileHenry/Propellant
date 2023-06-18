@@ -1,6 +1,11 @@
 use self::vertex::Vertex;
 
 
+pub(crate) mod cube;
+pub(crate) mod quad;
+pub(crate) mod mesh_renderer;
+pub(crate) mod vertex;
+
 #[derive(Debug, Clone)]
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
@@ -21,8 +26,3 @@ impl Mesh {
     }
 
 }
-
-pub(crate) mod cube;
-pub(crate) mod mesh_renderer;
-pub(crate) mod mesh_library;
-pub(crate) mod vertex;

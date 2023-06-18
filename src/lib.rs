@@ -15,9 +15,11 @@ pub use engine::{
     mesh::{
         Mesh,
         mesh_renderer::MeshRenderer,
-        mesh_library::MeshLibrary,
     },
-    material::Material,
+    material::{
+        Material,
+        pbr_material::PbrMaterialProperties,
+    },
     resources::ProppellantResources,
     window::{
         PropellantWindow,
@@ -26,6 +28,9 @@ pub use engine::{
     transform::Transform,
 };
 
-pub use utils::id::id;
+pub use utils::id::{
+    id,
+    small_id,
+};
 
 

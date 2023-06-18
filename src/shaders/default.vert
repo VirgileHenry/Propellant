@@ -13,6 +13,9 @@ layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec2 inUv;
 
+layout (location = 0) out int instanceIndex;
+
 void main() {
+    instanceIndex = gl_InstanceIndex;
     gl_Position = cam.proj * cam.view * models.world_pos[gl_InstanceIndex] * vec4(inPosition, 1.0);
 }

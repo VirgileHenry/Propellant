@@ -1,3 +1,4 @@
+use crate::engine::consts::PROPELLANT_DEBUG_FEATURES;
 use crate::engine::errors::PResult;
 
 use vulkanalia::vk::DeviceV1_0;
@@ -102,6 +103,33 @@ impl TransferCommandManager {
         }
 
         Ok(())
+    }
+
+    pub fn destroy(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+    ) {
+        for fence in self.transfer_fences.drain(..) {
+            unsafe { vk_device.destroy_fence(fence, None) };
+        }
+
+        unsafe { vk_device.destroy_command_pool(self.command_pool, None) };
+
+        // in debug mode, we set the command pool to null to mark it has been destroyed.
+        if PROPELLANT_DEBUG_FEATURES {
+            self.command_pool = vulkanalia::vk::CommandPool::null();
+        }
+    }
+}
+
+impl Drop for TransferCommandManager {
+    fn drop(&mut self) {
+        if PROPELLANT_DEBUG_FEATURES {
+            // in debug mode, check the pool have indeed been destroyed.
+            if self.command_pool != vulkanalia::vk::CommandPool::null() {
+                println!("[PROPELLANT DEBUG] TransferCommandManager was not destroyed before being dropped.");
+            }
+        }
     }
 }
 

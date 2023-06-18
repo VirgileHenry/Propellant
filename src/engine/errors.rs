@@ -1,4 +1,12 @@
-use self::rendering_error::RenderingError;
+use image::ImageError;
+
+use self::{
+    rendering_error::RenderingError,
+    loading_errors::LoadingError
+};
+
+pub(crate) mod rendering_error;
+pub(crate) mod loading_errors;
 
 
 /// The Propellant result.
@@ -9,12 +17,12 @@ pub type PResult<T> = Result<T, PropellantError>;
 #[derive(Debug)]
 pub enum PropellantError {
     Residual(Box<dyn std::error::Error + Send + Sync + 'static>),
-    LibLoading(String),
+    Loading(LoadingError),
+    Rendering(RenderingError),
     MissingDebugInfo,
     OutOfMemory,
     EventLoopClosed,
     NoMainCamera,
-    Rendering(RenderingError),
 }
 
 
@@ -36,10 +44,20 @@ impl From<RenderingError> for PropellantError {
     }
 }
 
+impl From<LoadingError> for PropellantError {
+    fn from(value: LoadingError) -> Self {
+        PropellantError::Loading(value)
+    }
+}
+
 impl From<vulkanalia::vk::ErrorCode> for PropellantError {
     fn from(value: vulkanalia::vk::ErrorCode) -> Self {
         PropellantError::Rendering(RenderingError::Vulkan(value))
     }
 }
 
-pub(crate) mod rendering_error;
+impl From<ImageError> for PropellantError {
+    fn from(value: ImageError) -> Self {
+        PropellantError::Loading(LoadingError::Texture(value))
+    }
+}

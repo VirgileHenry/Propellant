@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
 use crate::engine::consts::{ENGINE_VERSION, PROPELLANT_DEBUG_FEATURES};
+use crate::engine::errors::loading_errors::LoadingError;
 use crate::engine::errors::rendering_error::RenderingError;
 use crate::engine::errors::{PropellantError, PResult};
 use crate::engine::renderer::pipeline_lib::GraphicPipelineLib;
 use crate::engine::renderer::pipeline_lib::pipeline_lib_builder::GraphicPipelineLibBuilder;
-
 
 use foundry::ComponentTable;
 use vulkanalia::loader::{LibloadingLoader, LIBRARY};
@@ -46,8 +46,8 @@ impl VulkanInterface {
     pub fn create(
         window: &winit::window::Window,
         device_prefs: &Box<dyn PhysicalDevicePreferences>,
-        app_name: String
-    ,) -> PResult<VulkanInterface>{
+        app_name: String,
+    ) -> PResult<VulkanInterface>{
         // create the app info as a builder 
         let application_info = vk::ApplicationInfo::builder()
             .application_name(app_name.as_bytes())
@@ -63,7 +63,7 @@ impl VulkanInterface {
             // lib loading module error is private, so we have to go with a match here
             match LibloadingLoader::new(LIBRARY) {
                 Ok(lib) => lib,
-                Err(e) => return Err(PropellantError::LibLoading(e.to_string())),
+                Err(e) => return Err(PropellantError::Loading(LoadingError::VulkanLibrary(e.to_string()))),
             }
         };
         let entry = unsafe {Entry::new(loader)?};
@@ -332,8 +332,9 @@ impl VulkanInterface {
 impl Drop for VulkanInterface {
     fn drop(&mut self) {
         unsafe {
-            // we have to wait for any remaining work here, to avoid destroying in flight frames.
-            self.device.device_wait_idle().unwrap(); // todo : handle this ? 
+            // we have to wait for any remaining work here, to avoid destroying in flight frames
+            self.device.device_wait_idle().unwrap(); // todo : handle failure here ?
+            self.transfer_manager.destroy(&self.device);
             self.rendering_sync.destroy(&self.device);
             self.rendering_manager.destroy(&self.device);
             self.framebuffers
@@ -341,8 +342,10 @@ impl Drop for VulkanInterface {
                 .for_each(|f| self.device.destroy_framebuffer(*f, None));
             self.swapchain.destroy(&self.device);
             self.device.destroy_render_pass(self.render_pass, None);
+            self.device.destroy_device(None);
             self.instance.destroy_surface_khr(self.surface, None);
             self.instance.destroy_instance(None);
+
         }
     }
 }

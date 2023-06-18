@@ -1,18 +1,24 @@
-use crate::MeshLibrary;
+use self::{mesh_library::MeshLibrary, texture_library::TextureLibrary};
+use super::{
+    window::vulkan::transfer_command_manager::TransferCommandManager,
+    flags::RequireResourcesLoadingFlag,
+    errors::PResult
+};
 
-use super::{window::vulkan::transfer_command_manager::TransferCommandManager, flags::RequireResourcesLoadingFlag, errors::PResult};
-
-
+pub(crate) mod mesh_library;
+pub(crate) mod texture_library;
 
 /// Holds all the resources that are required by the user, 3D models, textures, etc.
 pub struct ProppellantResources {
     meshes: MeshLibrary,
+    textures: TextureLibrary,
 }
 
 impl Default for ProppellantResources {
     fn default() -> Self {
         ProppellantResources {
             meshes: MeshLibrary::new(),
+            textures: TextureLibrary::new(),
         }
     }
 }
@@ -41,6 +47,14 @@ impl ProppellantResources {
 
     pub fn meshes_mut(&mut self) -> &mut MeshLibrary {
         &mut self.meshes
+    }
+
+    pub fn textures(&self) -> &TextureLibrary {
+        &self.textures
+    }
+
+    pub fn textures_mut(&mut self) -> &mut TextureLibrary {
+        &mut self.textures
     }
 
     pub fn destroy(&mut self, vk_device: &vulkanalia::Device) {

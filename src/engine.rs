@@ -31,7 +31,6 @@ pub(crate) mod mesh;
 pub(crate) mod renderer;
 pub(crate) mod resources;
 pub(crate) mod transform;
-pub(crate) mod utils;
 pub(crate) mod window;
 
 

@@ -6,11 +6,10 @@ use crate::{
             vulkan_buffer::VulkanBuffer,
             transfer_command_manager::TransferCommandManager
         },
-        errors::PResult
+        errors::PResult, mesh::vertex::Vertex
     },
     Mesh
 };
-use super::vertex::Vertex;
 
 use vulkanalia::vk::DeviceV1_0;
 
@@ -112,20 +111,20 @@ impl LoadedMesh {
 /// maybe specify this is a vulkan mesh lib?
 #[derive(Debug)]
 pub struct MeshLibrary {
-    to_load: HashMap<u64, Mesh>,
-    loaded: HashMap<u64, LoadedMesh>,
+    loading_queue: HashMap<u64, Mesh>,
+    meshes: HashMap<u64, LoadedMesh>,
 }
 
 impl MeshLibrary {
     pub fn new() -> MeshLibrary {
         MeshLibrary {
-            to_load: HashMap::new(),
-            loaded: HashMap::new(),
+            loading_queue: HashMap::new(),
+            meshes: HashMap::new(),
         }
     }
 
     pub fn register_mesh(&mut self, mesh_id: u64, mesh: Mesh) {
-        self.to_load.insert(mesh_id, mesh);
+        self.loading_queue.insert(mesh_id, mesh);
     }
 
     pub fn load_meshes(
@@ -135,7 +134,7 @@ impl MeshLibrary {
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
         vk_transfer_manager: &mut TransferCommandManager,
     ) -> PResult<()> {
-        for (mesh_id, mesh) in self.to_load.drain() {
+        for (mesh_id, mesh) in self.loading_queue.drain() {
             let loaded_mesh = LoadedMesh::create(
                 mesh,
                 vk_instance,
@@ -143,20 +142,20 @@ impl MeshLibrary {
                 vk_physical_device,
                 vk_transfer_manager,
             )?;
-            self.loaded.insert(mesh_id, loaded_mesh);
+            self.meshes.insert(mesh_id, loaded_mesh);
         }
         Ok(())
     }
 
     pub fn loaded_mesh(&self, mesh_id: &u64) -> Option<&LoadedMesh> {
-        self.loaded.get(mesh_id)
+        self.meshes.get(mesh_id)
     }
 
     pub fn destroy(
         &mut self,
         vk_device: &vulkanalia::Device
     ) {
-        for (_, mesh) in self.loaded.drain() {
+        for (_, mesh) in self.meshes.drain() {
             mesh.destroy(vk_device);
         }
     }

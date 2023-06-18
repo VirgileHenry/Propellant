@@ -1,4 +1,3 @@
-pub(crate) mod vulkan_buffer;
 pub(crate) mod physical_device_prefs;
 pub(crate) mod queues;
 pub(crate) mod rendering_command_manager;
@@ -6,4 +5,6 @@ pub(crate) mod rendering_sync;
 pub(crate) mod swapchain_interface;
 pub(crate) mod swapchain_support;
 pub(crate) mod transfer_command_manager;
+pub(crate) mod vulkan_buffer;
+pub(crate) mod vulkan_image;
 pub(crate) mod vulkan_interface;
