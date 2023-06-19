@@ -3,10 +3,13 @@ use std::fmt::Display;
 use image::ImageError;
 
 
-
+/// Error while trying to load ressources for the engine.
 #[derive(Debug)]
 pub enum LoadingError {
+    /// Unable to load the vulkan library.
+    /// This is a fatal error, and the engine will not be able to run.
     VulkanLibrary(String),
+    /// Error while loading a texture.
     Texture(ImageError),
 }
 

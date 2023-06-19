@@ -1,12 +1,21 @@
 use std::fmt::Display;
 
-
+/// Errors that occured during rendering.
 #[derive(Debug)]
 pub enum RenderingError {
+    /// Any vulkan error.
     Vulkan(vulkanalia::vk::ErrorCode),
+    /// There is no vulkan device that can be used for rendering.
+    /// This mean that no GPU on the device was compatible with the engine.
     NoFittingVulkanDevice,
+    /// There is no vulkan interface, so we can't do any vulkan calls.
     NoVulkanInterface,
+    /// The entity position in a uniform buffer is not known.
+    /// This entity can't set it's transforms to the shaders.
+    /// This may be caused by a scene that have not been properly rebuilt.
     UnknownEntityBufferPosition,
+    /// The material cast is invalid.
+    /// This comes from a try to send a material to the shader that was not in the expected type.
     InvalidMaterialCast,
 }
 
