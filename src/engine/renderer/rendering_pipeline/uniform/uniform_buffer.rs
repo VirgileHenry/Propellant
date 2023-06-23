@@ -71,16 +71,12 @@ enum UniformBufferMemoryState {
 #[derive(Debug)]
 pub struct UniformBuffer<T> {
     phantom: std::marker::PhantomData<T>,
-    /// The allocated vulkan buffer containing all the uniform data.
-    /// It is duplicated for each frame in flight.
-    /// [ frame 1 obj1 | frame 1 obj2 | ... | frame 1 objn | frame 2 obj1 | ... | frame n objn]
-    vk_buffer: VulkanBuffer,
     /// The state of our vk buffer, if it is mapped or not.
     buffer_state: UniformBufferMemoryState,
     /// DS layout
     layout: vulkanalia::vk::DescriptorSetLayout,
-    /// descriptor sets
-    descriptor_sets: Vec<vulkanalia::vk::DescriptorSet>,
+    /// descriptor sets and buffers for each frame.
+    sets_and_buffers: Vec<(vulkanalia::vk::DescriptorSet, VulkanBuffer)>,
     /// the binding at the creation of the buffer. The binding is given by the moment it have been registered in the pipeline.
     binding: u32,
     /// The type of descriptor buffer we have : uniform for per frame, storage for per object.
@@ -117,11 +113,10 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         )?;
 
         Ok(UniformBuffer {
-            vk_buffer: VulkanBuffer::empty(),
             buffer_state: UniformBufferMemoryState::Uninitialized,
             phantom: std::marker::PhantomData,
             layout,
-            descriptor_sets,
+            sets_and_buffers: descriptor_sets.into_iter().map(|ds| (ds, VulkanBuffer::empty())).collect(),
             binding: builder.binding(),
             descriptor_type: builder.descriptor_type(),
         })
@@ -132,6 +127,7 @@ impl<T: Debug + 'static> UniformBuffer<T> {
     pub fn map(
         &mut self,
         vk_device: &vulkanalia::Device,
+        image_index: usize,
     ) -> PResult<()> {
         match self.buffer_state {
             UniformBufferMemoryState::Mapped(_) => {
@@ -146,7 +142,7 @@ impl<T: Debug + 'static> UniformBuffer<T> {
                     panic!("[PROPELLANT DEBUG] UniformBuffer::map() called on a buffer that is not initialized.");
                 }
             }
-            UniformBufferMemoryState::AtRest => self.buffer_state = UniformBufferMemoryState::Mapped(self.vk_buffer.map(vk_device)?),
+            UniformBufferMemoryState::AtRest => self.buffer_state = UniformBufferMemoryState::Mapped(self.sets_and_buffers[image_index].1.map(vk_device)?),
         }
         Ok(())
     }
@@ -155,16 +151,15 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         &mut self,
         instance_id: usize,
         image_index: usize,
-        instance_count: usize,
         data: &T, // maybe &[T] ?
     ) {
         // compute the offset in bytes
-        let byte_offset = std::mem::size_of::<T>() * instance_count * image_index + std::mem::size_of::<T>() * instance_id;
+        let byte_offset = std::mem::size_of::<T>() * instance_id;
 
         // write to the buffer, offseted. As the size of c_void is 1 byte, the byte offset is indeed in bytes.
         // otherwise, be careful as the add() function offset of offset * size_of::<T>().
         match self.buffer_state {
-            UniformBufferMemoryState::Mapped(mem) => self.vk_buffer.write(
+            UniformBufferMemoryState::Mapped(mem) => self.sets_and_buffers[image_index].1.write(
                 unsafe {mem.add(byte_offset)},
                 std::slice::from_ref(data)
             ),
@@ -186,10 +181,11 @@ impl<T: Debug + 'static> UniformBuffer<T> {
     pub fn unmap(
         &mut self,
         vk_device: &vulkanalia::Device,
+        image_index: usize,
     ) {
         match self.buffer_state {
             UniformBufferMemoryState::Mapped(_) => {
-                self.vk_buffer.unmap(vk_device);
+                self.sets_and_buffers[image_index].1.unmap(vk_device);
                 self.buffer_state = UniformBufferMemoryState::AtRest;
             }
             UniformBufferMemoryState::Uninitialized => {
@@ -227,34 +223,30 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         Ok(sets)
     }
 
-    pub fn populate_descriptor_sets(
+    pub fn populate_descriptor_set(
         &self,
         vk_device: &vulkanalia::Device,
-        swapchain_image_count: usize,
+        image_index: usize,
         object_count: usize,
     ) -> PResult<()> {
-        // populate the descriptor sets.
-        for i in 0..swapchain_image_count {
-            // the buffer info points to our buffer, offseted to match the frame buffer.
-            let info = vulkanalia::vk::DescriptorBufferInfo::builder()
-                .buffer(self.vk_buffer.buffer())
-                .offset((object_count * std::mem::size_of::<T>() * i) as u64)
-                .range((object_count * std::mem::size_of::<T>()) as u64);
+        // the buffer info points to our buffer, offseted to match the frame buffer.
+        let info = vulkanalia::vk::DescriptorBufferInfo::builder()
+            .buffer(self.sets_and_buffers[image_index].1.buffer())
+            .offset(0)
+            .range((object_count * std::mem::size_of::<T>()) as u64);
 
-            let buffer_info = &[info];
+        let buffer_info = &[info];
 
-            let ubo_write = vulkanalia::vk::WriteDescriptorSet::builder()
-                .dst_set(self.descriptor_sets[i])
-                .dst_binding(self.binding)
-                .dst_array_element(0) 
-                .descriptor_type(self.descriptor_type)
-                .buffer_info(buffer_info);
+        let ubo_write = vulkanalia::vk::WriteDescriptorSet::builder()
+            .dst_set(self.sets_and_buffers[image_index].0)
+            .dst_binding(self.binding)
+            .dst_array_element(0) 
+            .descriptor_type(self.descriptor_type)
+            .buffer_info(buffer_info);
 
-            unsafe { 
-                vk_device.update_descriptor_sets(&[ubo_write], &[] as &[vulkanalia::vk::CopyDescriptorSet]);
-            }
+        unsafe { 
+            vk_device.update_descriptor_sets(&[ubo_write], &[] as &[vulkanalia::vk::CopyDescriptorSet]);
         }
-
         Ok(())
     }
 
@@ -263,14 +255,14 @@ impl<T: Debug + 'static> UniformBuffer<T> {
     pub fn assert_buffer_size(
         &mut self,
         object_count: usize,
-        swapchain_image_count: usize,
+        image_index: usize,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
     ) -> PResult<()> {
-        let buffer_size = (object_count * swapchain_image_count * std::mem::size_of::<T>()) as u64;
+        let buffer_size = (object_count * std::mem::size_of::<T>()) as u64;
 
-        if buffer_size > self.vk_buffer.size() {
+        if buffer_size > self.sets_and_buffers[image_index].1.size() {
 
             if PROPELLANT_DEBUG_FEATURES {
                 if let UniformBufferMemoryState::Mapped(_) = self.buffer_state {
@@ -282,8 +274,8 @@ impl<T: Debug + 'static> UniformBuffer<T> {
             self.buffer_state = UniformBufferMemoryState::AtRest;
 
             // destroy the previous buffer
-            if self.vk_buffer.size() > 0 {
-                self.vk_buffer.destroy(vk_device);
+            if self.sets_and_buffers[image_index].1.size() > 0 {
+                self.sets_and_buffers[image_index].1.destroy(vk_device);
             }
             // reallocate the buffer
             let usage = match self.descriptor_type {
@@ -291,7 +283,7 @@ impl<T: Debug + 'static> UniformBuffer<T> {
                 vulkanalia::vk::DescriptorType::STORAGE_BUFFER => vulkanalia::vk::BufferUsageFlags::STORAGE_BUFFER,
                 _ => panic!("[PROPELLANT ERROR] Invalid descriptor type for UniformBuffer: not uniform nor storage buffer.\nIf this is intended, please add the new usage case here."),
             };
-            self.vk_buffer = VulkanBuffer::create(
+            self.sets_and_buffers[image_index].1 = VulkanBuffer::create(
                 vk_instance,
                 vk_device,
                 vk_physical_device,
@@ -301,13 +293,13 @@ impl<T: Debug + 'static> UniformBuffer<T> {
             )?;
 
             // repopulate ds
-            self.populate_descriptor_sets(vk_device, swapchain_image_count, object_count)?;
+            self.populate_descriptor_set(vk_device, image_index, object_count)?;
         }
         Ok(())
     }
 
     pub fn set(&self, image_index: usize) -> vulkanalia::vk::DescriptorSet {
-        self.descriptor_sets[image_index]
+        self.sets_and_buffers[image_index].0
     }
 
     pub fn layout(&self) -> vulkanalia::vk::DescriptorSetLayout {
@@ -315,9 +307,11 @@ impl<T: Debug + 'static> UniformBuffer<T> {
     }
 
     pub fn destroy_buffer(&mut self, vk_device: &vulkanalia::Device) {
-        if self.vk_buffer.size() > 0 {
-            self.vk_buffer.destroy(vk_device);
-        }
+        self.sets_and_buffers.iter_mut().for_each(|(_, buffer)| {
+            if buffer.size() > 0 {
+                buffer.destroy(vk_device);
+            }
+        });
         unsafe {
             vk_device.destroy_descriptor_set_layout(self.layout, None);
         }

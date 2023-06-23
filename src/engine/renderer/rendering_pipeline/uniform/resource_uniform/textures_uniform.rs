@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 
+use crate::engine::consts::PROPELLANT_DEBUG_FEATURES;
 use crate::engine::consts::PROPELLANT_MAX_LOADED_TEXTURE_COUNT;
 use crate::engine::errors::PResult;
 use crate::engine::resources::texture_library::TextureLibrary;
@@ -69,8 +70,6 @@ pub struct TextureUniform {
     descriptor_size: u32,
     /// Keep track of loaded texture index.
     loaded_textures: BTreeSet<u32>,
-    /// the binding at the creation of the buffer. The binding is given by the moment it have been registered in the pipeline.
-    binding: u32,
 }
 
 impl TextureUniform {
@@ -118,7 +117,6 @@ impl TextureUniform {
             descriptor_set: VulkanSyncState::new(descriptor_set),
             descriptor_size: START_DESCRIPTOR_SIZE,
             loaded_textures: BTreeSet::new(),
-            binding: 0,
         })
     }
         
@@ -158,9 +156,17 @@ impl TextureUniform {
     ) -> PResult<()> {
         // populate the descriptor sets.
         // start by checking if we need to reallocate the descriptor set.
-        if textures.max_index() > self.descriptor_size {
+        if textures.max_index() >= self.descriptor_size {
             // need to reallocate the descriptor set.
             self.descriptor_size *= 2;
+
+            if PROPELLANT_DEBUG_FEATURES {
+                // check for max textures
+                if self.descriptor_size > PROPELLANT_MAX_LOADED_TEXTURE_COUNT {
+                    panic!("[PROPELLANT DEBUG] TextureUniform::populate_descriptor_sets: descriptor size is bigger than the max texture count.")
+                }
+            }
+
             let new_ds = Self::create_descriptor_set(
                 vk_device,
                 descriptor_pool,

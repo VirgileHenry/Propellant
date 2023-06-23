@@ -45,10 +45,10 @@ impl<T: AsPerObjectUniform + Debug + 'static> ObjectUniformBuilder for UniformBu
 /// A handle around a UniformBuffer<Any> used as a per object uniform.
 /// It acts as the layer between our raw uniform buffer and a more abstract uniform object.
 pub trait ObjectUniform: Debug {
-    fn map_buffers(&mut self, vk_device: &vulkanalia::Device) -> PResult<()>;
-    fn update_buffer(&mut self, instance_id: usize, instance_count: usize, transform: &Transform, material: &Material, image_index: usize) -> PResult<()>;
-    fn unmap_buffers(&mut self, vk_device: &vulkanalia::Device);
-    fn resize_buffer(&mut self, object_count: usize, swapchain_image_count: usize, vk_instance: &vulkanalia::Instance, vk_device: &vulkanalia::Device, vk_physical_device: vulkanalia::vk::PhysicalDevice) -> PResult<()>;
+    fn map_buffers(&mut self, vk_device: &vulkanalia::Device, image_index: usize) -> PResult<()>;
+    fn update_buffer(&mut self, instance_id: usize, transform: &Transform, material: &Material, image_index: usize) -> PResult<()>;
+    fn unmap_buffers(&mut self, vk_device: &vulkanalia::Device, image_index: usize);
+    fn resize_buffer(&mut self, object_count: usize, image_index: usize, vk_instance: &vulkanalia::Instance, vk_device: &vulkanalia::Device, vk_physical_device: vulkanalia::vk::PhysicalDevice) -> PResult<()>;
     fn set(&self, image_index: usize) -> vulkanalia::vk::DescriptorSet;
     fn layout(&self) -> vulkanalia::vk::DescriptorSetLayout;
     fn destroy(&mut self, vk_device: &vulkanalia::Device);
@@ -56,22 +56,22 @@ pub trait ObjectUniform: Debug {
 
 /// This implementation basically means any T can be an object uniform, as long as it implements the Debug and AsPerObjectUniform traits.
 impl<T: AsPerObjectUniform + Debug + 'static> ObjectUniform for UniformBuffer<T> {
-    fn map_buffers(&mut self, vk_device: &vulkanalia::Device) -> PResult<()> {
-        self.map(vk_device)
+    fn map_buffers(&mut self, vk_device: &vulkanalia::Device, image_index: usize) -> PResult<()> {
+        self.map(vk_device, image_index)
     }
 
-    fn update_buffer(&mut self, instance_id: usize, instance_count: usize, transform: &Transform, material: &Material, image_index: usize) -> PResult<()> {
+    fn update_buffer(&mut self, instance_id: usize, transform: &Transform, material: &Material, image_index: usize) -> PResult<()> {
         let uniform = T::get_uniform(transform, material)?;
-        self.update_buffer(instance_id, image_index, instance_count, &uniform);
+        self.update_buffer(instance_id, image_index, &uniform);
         Ok(())
     }
 
-    fn unmap_buffers(&mut self, vk_device: &vulkanalia::Device) {
-        self.unmap(vk_device);
+    fn unmap_buffers(&mut self, vk_device: &vulkanalia::Device, image_index: usize) {
+        self.unmap(vk_device, image_index);
     }
 
-    fn resize_buffer(&mut self, object_count: usize, swapchain_image_count: usize, vk_instance: &vulkanalia::Instance, vk_device: &vulkanalia::Device, vk_physical_device: vulkanalia::vk::PhysicalDevice) -> PResult<()> {
-        self.assert_buffer_size(object_count, swapchain_image_count, vk_instance, vk_device, vk_physical_device)
+    fn resize_buffer(&mut self, object_count: usize, image_index: usize, vk_instance: &vulkanalia::Instance, vk_device: &vulkanalia::Device, vk_physical_device: vulkanalia::vk::PhysicalDevice) -> PResult<()> {
+        self.assert_buffer_size(object_count, image_index, vk_instance, vk_device, vk_physical_device)
     }
 
     fn set(&self, image_index: usize) -> vulkanalia::vk::DescriptorSet {

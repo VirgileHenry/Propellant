@@ -43,11 +43,21 @@ pub trait VulkanRenderer {
     fn destroy(&mut self, vk_device: &vulkanalia::Device);
 }
 
+
+#[derive(Debug)]
+enum SyncingState {
+    /// All good
+    Sane,
+    /// we are syncing, with the list of unsynced frames.
+    Syncing(Vec<bool>)
+}
+
 /// Default Vulkan renderer.
 /// Perform basic drawing operation using the vk interface and the components.
 pub struct DefaultVulkanRenderer {
     pipeline_lib: GraphicPipelineLib,
     pipeline_lib_builder: GraphicPipelineLibBuilder,
+    syncing_state: SyncingState,
 }
 
 impl Default for DefaultVulkanRenderer {
@@ -55,6 +65,7 @@ impl Default for DefaultVulkanRenderer {
         DefaultVulkanRenderer {
             pipeline_lib: GraphicPipelineLib::empty(),
             pipeline_lib_builder: GraphicPipelineLibBuilder::default(),
+            syncing_state: SyncingState::Sane,
         }
     }
 }
@@ -65,6 +76,7 @@ impl DefaultVulkanRenderer {
         &mut self,
         vk_interface: &mut VulkanInterface,
         components: &mut ComponentTable,
+        image_index: usize,
     ) -> PResult<()> {
         // it is important that some flag are ordered.
         // for example, first build the meshes, then the scene.
@@ -93,7 +105,30 @@ impl DefaultVulkanRenderer {
             // rebuild the scene
             self.scene_recreation(
                 vk_interface,
-                components
+                components,
+                image_index,
+            )?;
+            // set the syncing state : we will update the data for the current frame, but not the one for in flight frames.
+            let mut unsynced_frames = vec![false; vk_interface.swapchain.images().len()];
+            unsynced_frames[image_index] = true;
+            self.syncing_state = SyncingState::Syncing(unsynced_frames);
+        }
+        // no rebuild flags, check if there is syncing to do !
+        if match &mut self.syncing_state {
+            SyncingState::Sane => false,
+            SyncingState::Syncing(synced_frames) => {
+                let result = !synced_frames[image_index];
+                synced_frames[image_index] = true;
+                if synced_frames.iter().all(|b| *b) {
+                    self.syncing_state = SyncingState::Sane;
+                }
+                result
+            }
+        } {
+            self.scene_recreation(
+                vk_interface,
+                components,
+                image_index,
             )?;
         }
 
@@ -111,9 +146,10 @@ impl DefaultVulkanRenderer {
         image_index: usize,
         components: &mut ComponentTable,
     ) -> PResult<()> {
+
         // map all the uniform buffers
         self.pipeline_lib.get_pipelines_mut().for_each(
-            |(_, pipeline)| match pipeline.map_all_uniform_buffers(vk_device) {
+            |(_, pipeline)| match pipeline.map_all_uniform_buffers(vk_device, image_index) {
                 Ok(_) => {/* all good */}
                 Err(e) => {
                     if cfg!(debug_assertions) {
@@ -147,7 +183,7 @@ impl DefaultVulkanRenderer {
 
         // unmap all the uniform buffers
         self.pipeline_lib.get_pipelines_mut().for_each(
-            |(_, pipeline)| pipeline.unmap_all_uniform_buffers(vk_device)
+            |(_, pipeline)| pipeline.unmap_all_uniform_buffers(vk_device, image_index)
         );
 
         Ok(())
@@ -157,6 +193,7 @@ impl DefaultVulkanRenderer {
         &mut self,
         vk_interface: &mut VulkanInterface,
         components: &ComponentTable,
+        image_index: usize,
     ) -> PResult<()> {
         // for each mesh in each pipeline, count the number of instances
         // hashmap : pipeline_id -> mesh_id -> (instance_count, mesh_offset, instance counter)
@@ -209,7 +246,7 @@ impl DefaultVulkanRenderer {
             match self.pipeline_lib.get_pipeline_mut(pipeline_id) {
                 Some(pipeline) => match pipeline.resize_uniforms_buffers(
                         map,
-                        vk_interface.swapchain.images().len(),
+                        image_index,
                         &vk_interface.instance,
                         &vk_interface.device,
                         vk_interface.physical_device,
@@ -232,7 +269,7 @@ impl DefaultVulkanRenderer {
         // finally, update all uniform buffers for static objects into the buffers, as they may have moved.
         // map all the uniform buffers
         self.pipeline_lib.get_pipelines_mut().for_each(
-            |(_, pipeline)| match pipeline.map_all_uniform_buffers(&vk_interface.device) {
+            |(_, pipeline)| match pipeline.map_all_uniform_buffers(&vk_interface.device, image_index) {
                 Ok(_) => {/* all good */}
                 Err(e) => {
                     if cfg!(debug_assertions) {
@@ -261,20 +298,19 @@ impl DefaultVulkanRenderer {
 
         // unmap all the uniform buffers
         self.pipeline_lib.get_pipelines_mut().for_each(
-            |(_, pipeline)| pipeline.unmap_all_uniform_buffers(&vk_interface.device)
+            |(_, pipeline)| pipeline.unmap_all_uniform_buffers(&vk_interface.device, image_index)
         );
 
         // finally, recreate the command buffers
         // directly return the result
-        vk_interface.rebuild_draw_commands(components, &mut self.pipeline_lib)
+        vk_interface.rebuild_frame_draw_commands(components, &mut self.pipeline_lib, image_index)
     }
 }
 
 
 impl VulkanRenderer for DefaultVulkanRenderer {
     fn render(&mut self, vk_interface: &mut VulkanInterface, components: &mut ComponentTable, _delta_time: f32) -> PResult<vulkanalia::vk::SuccessCode> {
-        // look for flags
-        self.handle_rendering_flags(vk_interface, components)?;
+
         
         // vulkan rendering loop
         unsafe {
@@ -290,8 +326,12 @@ impl VulkanRenderer for DefaultVulkanRenderer {
                     vk_interface.rendering_sync.image_available_semaphore(),
                     vulkanalia::vk::Fence::null(),
                 )?.0 as usize;
+
             // wait for any in flight image
             vk_interface.rendering_sync.wait_for_in_flight_image(image_index, &vk_interface.device)?;
+
+            // look for flags
+            self.handle_rendering_flags(vk_interface, components, image_index)?;
 
             // update uniform buffer
             self.update_uniform_buffer(&vk_interface.device, image_index, components)?;
@@ -299,7 +339,7 @@ impl VulkanRenderer for DefaultVulkanRenderer {
             // create the draw command
             let wait_semaphores = &[vk_interface.rendering_sync.image_available_semaphore(),];
             let wait_stages = &[vulkanalia::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-            let command_buffers = &[vk_interface.rendering_manager.buffers()[image_index]];
+            let command_buffers = &[vk_interface.rendering_manager.command_buffer(image_index)];
             let signal_semaphores = &[vk_interface.rendering_sync.render_finished_semaphore()];
             let submit_info = vulkanalia::vk::SubmitInfo::builder()
                 .wait_semaphores(wait_semaphores)

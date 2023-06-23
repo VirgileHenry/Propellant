@@ -48,10 +48,10 @@ impl<T: AsPerFrameUniform + Debug + 'static> FrameUniformBuilder for UniformBuff
 /// handle around a per frame uniform
 /// It acts as the layer between our raw uniform buffer and a more abstract uniform object.
 pub trait FrameUniform: Debug {
-    fn map_buffers(&mut self, vk_device: &vulkanalia::Device) -> PResult<()>;
+    fn map_buffers(&mut self, vk_device: &vulkanalia::Device, image_index: usize) -> PResult<()>;
     fn update_buffer(&mut self, components: &ComponentTable, image_index: usize) -> PResult<()>;
-    fn unmap_buffers(&mut self, vk_device: &vulkanalia::Device);
-    fn resize_buffer(&mut self, swapchain_image_count: usize, vk_instance: &vulkanalia::Instance, vk_device: &vulkanalia::Device, vk_physical_device: vulkanalia::vk::PhysicalDevice) -> PResult<()>;
+    fn unmap_buffers(&mut self, vk_device: &vulkanalia::Device, image_index: usize);
+    fn resize_buffer(&mut self, image_index: usize, vk_instance: &vulkanalia::Instance, vk_device: &vulkanalia::Device, vk_physical_device: vulkanalia::vk::PhysicalDevice) -> PResult<()>;
     fn set(&self, image_index: usize) -> vulkanalia::vk::DescriptorSet;
     fn layout(&self) -> vulkanalia::vk::DescriptorSetLayout;
     fn destroy(&mut self, vk_device: &vulkanalia::Device);
@@ -59,23 +59,23 @@ pub trait FrameUniform: Debug {
 
 /// This implementation basically means any T can be a per frame uniform, as long as it implements Debug and AsPerTraitUniform.
 impl<T: AsPerFrameUniform + Debug + 'static> FrameUniform for UniformBuffer<T> {
-    fn map_buffers(&mut self, vk_device: &vulkanalia::Device) -> PResult<()> {
-        self.map(vk_device)
+    fn map_buffers(&mut self, vk_device: &vulkanalia::Device, image_index: usize) -> PResult<()> {
+        self.map(vk_device, image_index)
     }
 
     fn update_buffer(&mut self, components: &ComponentTable, image_index: usize) -> PResult<()> {
         let uniform = T::get_uniform(components);
-        self.update_buffer(0, image_index, 1, &uniform);
+        self.update_buffer(0, image_index, &uniform);
         Ok(())
     }
 
-    fn unmap_buffers(&mut self, vk_device: &vulkanalia::Device) {
-        self.unmap(vk_device);
+    fn unmap_buffers(&mut self, vk_device: &vulkanalia::Device, image_index: usize) {
+        self.unmap(vk_device, image_index);
     }
 
-    fn resize_buffer(&mut self, swapchain_image_count: usize, vk_instance: &vulkanalia::Instance, vk_device: &vulkanalia::Device, vk_physical_device: vulkanalia::vk::PhysicalDevice) -> PResult<()> {
+    fn resize_buffer(&mut self, image_index: usize, vk_instance: &vulkanalia::Instance, vk_device: &vulkanalia::Device, vk_physical_device: vulkanalia::vk::PhysicalDevice) -> PResult<()> {
         // we have a per frame uniform : the object count is 1, we have a single object.
-        self.assert_buffer_size(1, swapchain_image_count, vk_instance, vk_device, vk_physical_device)
+        self.assert_buffer_size(1, image_index, vk_instance, vk_device, vk_physical_device)
     }
 
     fn set(&self, image_index: usize) -> vulkanalia::vk::DescriptorSet {

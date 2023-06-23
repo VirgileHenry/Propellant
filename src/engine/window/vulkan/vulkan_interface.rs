@@ -295,8 +295,21 @@ impl VulkanInterface {
 
     /// Recompute the draw commands buffers with the components.
     /// If the scene graphics have changed, this must be called in order to see any changes.
-    pub fn rebuild_draw_commands(&mut self, components: &ComponentTable, pipeline_lib: &mut GraphicPipelineLib) -> PResult<()> {
-        self.rendering_manager.register_commands(&self.device, &self.swapchain, self.render_pass, &self.framebuffers, components, pipeline_lib)
+    pub fn rebuild_frame_draw_commands(
+        &mut self,
+        components: &ComponentTable,
+        pipeline_lib: &mut GraphicPipelineLib,
+        image_index: usize
+    ) -> PResult<()> {
+        self.rendering_manager.register_frame_commands(
+            &self.device,
+            &self.swapchain,
+            self.render_pass,
+            &self.framebuffers,
+            components,
+            pipeline_lib,
+            image_index,
+        )
     }
 
     /// Build a rendering pipeline builder into a rendering pipeline that can be used.

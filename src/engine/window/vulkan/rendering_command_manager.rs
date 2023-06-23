@@ -79,12 +79,11 @@ impl RenderingCommandManager {
         Ok(())
     }
 
-
-    pub fn buffers(&self) -> &Vec<vulkanalia::vk::CommandBuffer> {
-        &self.command_buffers
+    pub fn command_buffer(&self, index: usize) -> vulkanalia::vk::CommandBuffer {
+        self.command_buffers[index]
     }
 
-    pub fn register_commands(
+    pub fn register_frame_commands(
         &mut self,
         vk_device: &vulkanalia::Device,
         swapchain: &super::swapchain_interface::SwapchainInterface,
@@ -92,6 +91,7 @@ impl RenderingCommandManager {
         framebuffers: &Vec<vulkanalia::vk::Framebuffer>,
         components: &ComponentTable,
         pipeline_lib: &mut GraphicPipelineLib,
+        image_index: usize,
     ) -> PResult<()> {
 
         // get the mesh lib (to draw the meshes, duh)
@@ -101,46 +101,41 @@ impl RenderingCommandManager {
         };
 
         // loop through the command buffers, and register the commands
-        for (image_index, command_buffer) in self.command_buffers.iter().enumerate() {
+        let command_buffer = self.command_buffers[image_index];
+
+        let info = vulkanalia::vk::CommandBufferBeginInfo::builder();
         
-            let info = vulkanalia::vk::CommandBufferBeginInfo::builder();
+        unsafe { vk_device.begin_command_buffer(command_buffer, &info)? };
+        let render_area = vulkanalia::vk::Rect2D::builder()
+            .offset(vulkanalia::vk::Offset2D::default())
+            .extent(swapchain.extent());
+
+        let color_clear_value = vulkanalia::vk::ClearValue {
+            color: vulkanalia::vk::ClearColorValue {
+                float32: [0., 0., 0., 1.0],
+            },
+        };
+
+        let clear_values = &[color_clear_value];
+        let info = vulkanalia::vk::RenderPassBeginInfo::builder()
+            .render_pass(render_pass)
+            .framebuffer(framebuffers[image_index])
+            .render_area(render_area)
+            .clear_values(clear_values);
         
-            unsafe { vk_device.begin_command_buffer(*command_buffer, &info)? };
-            let render_area = vulkanalia::vk::Rect2D::builder()
-                .offset(vulkanalia::vk::Offset2D::default())
-                .extent(swapchain.extent());
-    
-            let color_clear_value = vulkanalia::vk::ClearValue {
-                color: vulkanalia::vk::ClearColorValue {
-                    float32: [0., 0., 0., 1.0],
-                },
-            };
-    
-            let clear_values = &[color_clear_value];
-            let info = vulkanalia::vk::RenderPassBeginInfo::builder()
-                .render_pass(render_pass)
-                .framebuffer(framebuffers[image_index])
-                .render_area(render_area)
-                .clear_values(clear_values);
-
-            
-            unsafe { vk_device.cmd_begin_render_pass(*command_buffer, &info, vulkanalia::vk::SubpassContents::INLINE) };
-            
-            // for each pipeline
-            for (_, pipeline) in pipeline_lib.get_pipelines_mut() {
-                pipeline.register_draw_commands(
-                    vk_device,
-                    image_index,
-                    *command_buffer,
-                    resources,
-                );
-            }
-
-            unsafe { vk_device.cmd_end_render_pass(*command_buffer) };
-            unsafe { vk_device.end_command_buffer(*command_buffer)? };
-
+        unsafe { vk_device.cmd_begin_render_pass(command_buffer, &info, vulkanalia::vk::SubpassContents::INLINE) };
+        
+        // for each pipeline
+        for (_, pipeline) in pipeline_lib.get_pipelines_mut() {
+            pipeline.register_draw_commands(
+                vk_device,
+                image_index,
+                command_buffer,
+                resources,
+            );
         }
-
+        unsafe { vk_device.cmd_end_render_pass(command_buffer) };
+        unsafe { vk_device.end_command_buffer(command_buffer)? };
         Ok(())
     }
     

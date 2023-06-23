@@ -30,6 +30,7 @@ pub use engine::{
     lights::{
         directionnal_light::DirectionnalLight,
     },
+    flags::*,
 };
 
 pub use utils::id::{

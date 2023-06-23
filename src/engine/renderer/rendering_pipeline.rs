@@ -122,6 +122,7 @@ impl RenderingPipeline {
     pub fn map_all_uniform_buffers(
         &mut self,
         vk_device: &vulkanalia::Device,
+        image_index: usize,
     ) -> PResult<()> {
         // check if we have at least one entity to draw
         if self.rendering_map.is_empty() {
@@ -129,10 +130,10 @@ impl RenderingPipeline {
         }
 
         for frame_uniform in self.frame_uniforms.iter_mut() {
-            frame_uniform.map_buffers(vk_device)?;
+            frame_uniform.map_buffers(vk_device, image_index)?;
         }
         for object_uniform in self.object_uniforms.iter_mut() {
-            object_uniform.map_buffers(vk_device)?;
+            object_uniform.map_buffers(vk_device, image_index)?;
         }
 
         Ok(())
@@ -168,7 +169,7 @@ impl RenderingPipeline {
         }
 
         for object_uniform in self.object_uniforms.iter_mut() {
-            object_uniform.update_buffer(instance_id, self.instance_count, transform, material, image_index)?;
+            object_uniform.update_buffer(instance_id, transform, material, image_index)?;
         }
 
         Ok(())
@@ -177,6 +178,7 @@ impl RenderingPipeline {
     pub fn unmap_all_uniform_buffers(
         &mut self,
         vk_device: &vulkanalia::Device,
+        image_index: usize,
     ) {
         // check if we have at least one entity to draw
         if self.rendering_map.is_empty() {
@@ -184,10 +186,10 @@ impl RenderingPipeline {
         }
 
         for frame_uniform in self.frame_uniforms.iter_mut() {
-            frame_uniform.unmap_buffers(vk_device);
+            frame_uniform.unmap_buffers(vk_device, image_index);
         }
         for object_uniform in self.object_uniforms.iter_mut() {
-            object_uniform.unmap_buffers(vk_device);
+            object_uniform.unmap_buffers(vk_device, image_index);
         }
     }
 
@@ -197,7 +199,7 @@ impl RenderingPipeline {
     pub fn resize_uniforms_buffers(
         &mut self,
         mesh_map: BTreeMap<u64, (usize, usize, usize)>,
-        swapchain_image_count: usize,
+        image_index: usize,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
@@ -206,11 +208,11 @@ impl RenderingPipeline {
         self.instance_count = mesh_map.iter().map(|(_, v)| v.0).sum();
 
         for frame_uniform in self.frame_uniforms.iter_mut() {
-            frame_uniform.resize_buffer(swapchain_image_count, vk_instance, vk_device, vk_physical_device)?;
+            frame_uniform.resize_buffer(image_index, vk_instance, vk_device, vk_physical_device)?;
         }
 
         for object_uniform in self.object_uniforms.iter_mut() {
-            object_uniform.resize_buffer(self.instance_count, swapchain_image_count, vk_instance, vk_device, vk_physical_device)?;
+            object_uniform.resize_buffer(self.instance_count, image_index, vk_instance, vk_device, vk_physical_device)?;
         }
 
         // finally, consume the btree map to recreate our rendering map
