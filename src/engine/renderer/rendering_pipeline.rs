@@ -17,6 +17,7 @@ use self::uniform::{
 
 pub(crate) mod rendering_pipeline_builder;
 pub(crate) mod uniform;
+pub(crate) mod attachments;
 
 pub struct RenderingPipeline {
     pipeline: vulkanalia::vk::Pipeline,

@@ -15,8 +15,11 @@ layout(set = 0, binding = 0) uniform sampler2D all_textures[];
 
 layout(set = 2, binding = 0) uniform MainDirectionnalLight {
     vec3 direction;
+    float _padd_0;
     vec3 ambiant_color;
-    vec3 diffuse_color;
+    float _padd_1;
+    vec3 direct_color;
+    float _padd_2;
 } mainLight;
 
 layout(set = 4, binding = 0) readonly buffer MaterialProperties {
@@ -24,18 +27,29 @@ layout(set = 4, binding = 0) readonly buffer MaterialProperties {
 } materialsProperties;
 
 layout (location = 0) in flat int instanceIndex;
-layout (location = 1) in vec3 inNormal;
-layout (location = 2) in vec2 inUV;
+layout (location = 1) in smooth vec3 inPosition;
+layout (location = 2) in smooth vec3 inNormal;
+layout (location = 3) in smooth vec2 inUv;
+layout (location = 4) in smooth vec3 inCamPos;
 
 layout (location = 0) out vec4 outColor;
 
 
-
-
 void main() {
-    vec4 albedo_tex = texture(all_textures[nonuniformEXT(materialsProperties.materials[instanceIndex].albedo.textureId)], inUV);
+    vec4 albedo_tex = texture(all_textures[nonuniformEXT(materialsProperties.materials[instanceIndex].albedo.textureId)], inUv);
     vec3 albedo = albedo_tex.rgb * materialsProperties.materials[instanceIndex].albedo.color;
-    outColor = vec4(albedo, 1);
+
+    vec3 ambiant = mainLight.ambiant_color * albedo;
+    vec3 diffuse = mainLight.direct_color * albedo * max(0.0, dot(inNormal, -mainLight.direction));
+
+    vec3 viewDir = normalize(inPosition - inCamPos);
+    vec3 reflectDir = reflect(-mainLight.direction, inNormal);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 16);
+
+    vec3 specular = 0.5 * spec * mainLight.direct_color; 
+      
+    vec3 result = ambiant + diffuse + specular;
+    outColor = vec4(result, 1.0);
 }
 
 

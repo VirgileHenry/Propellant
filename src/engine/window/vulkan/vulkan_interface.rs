@@ -314,7 +314,15 @@ impl VulkanInterface {
 
     /// Build a rendering pipeline builder into a rendering pipeline that can be used.
     pub fn build_pipeline_lib(&mut self, pipeline_lib: &GraphicPipelineLibBuilder) -> PResult<GraphicPipelineLib> {
-        pipeline_lib.build(&self.device, self.swapchain.extent(), &self.swapchain.images(), self.render_pass)
+        pipeline_lib.build(
+            &self.instance,
+            &self.device,
+            self.physical_device,
+            self.swapchain.extent(),
+            &self.swapchain.images(),
+            self.render_pass,
+            &mut self.transfer_manager,
+        )
     }
 
     /// Operates the registered memory transfers, and wait for them to be done.

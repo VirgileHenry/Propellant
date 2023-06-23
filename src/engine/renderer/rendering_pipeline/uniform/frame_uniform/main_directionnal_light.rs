@@ -7,21 +7,33 @@ use super::AsPerFrameUniform;
 #[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct MainDirectionnalLight {
-    main_light: DirectionnalLight,
-    padding: f32, 
+    direction: glam::Vec3,
+    _padd_0: f32,
+    ambiant_color: glam::Vec3,
+    _padd_1: f32,
+    direct_color: glam::Vec3,
+    _padd_2: f32,
 }
 
 impl AsPerFrameUniform for MainDirectionnalLight {
     fn get_uniform(components: &ComponentTable) -> Self {
         match components.get_singleton::<DirectionnalLight>() {
             Some(main_light) => MainDirectionnalLight {
-                main_light: main_light.clone(),
-                padding: Default::default(),
+                direction: main_light.direction,
+                _padd_0: 0.0,
+                ambiant_color: main_light.ambiant_color,
+                _padd_1: 0.0,
+                direct_color: main_light.direct_color,
+                _padd_2: 0.0
             },
             None => {
                 MainDirectionnalLight {
-                    main_light: DirectionnalLight::black(),
-                    padding: Default::default(),
+                    direction: glam::Vec3::NEG_Y,
+                    _padd_0: 0.0,
+                    ambiant_color: glam::Vec3::ZERO,
+                    _padd_1: 0.0,
+                    direct_color: glam::Vec3::ZERO,
+                    _padd_2: 0.0
                 }
             },
         }

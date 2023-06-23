@@ -5,6 +5,8 @@ use vulkanalia::vk::InstanceV1_0;
 use crate::engine::errors::PResult;
 use crate::engine::errors::PropellantError;
 
+pub(crate) mod vulkan_image_view;
+
 #[allow(unused)] // width, height and format are not used yet, maybe remove those fields ?
 pub struct VulkanImage {
     image: vulkanalia::vk::Image,

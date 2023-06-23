@@ -10,9 +10,9 @@ pub struct Camera {
 impl Camera {
     /// Create a new main camera, with a perspective projection matrix.
     pub fn main_perspective(screen_height: f32, screen_width: f32, z_near: f32, z_far: f32, fov_y_radians: f32) -> Camera {
-        let proj = glam::Mat4::perspective_rh_gl(fov_y_radians, screen_height / screen_width, z_near, z_far);
+        let proj = glam::Mat4::perspective_rh(fov_y_radians, screen_height / screen_width, z_near, z_far);
         Camera {
-            projection_matrix: proj,
+            projection_matrix: proj * glam::Mat4::from_scale(glam::vec3(1., -1., 1.)), // flip the y axis
             is_main: true,
         }
     }

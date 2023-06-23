@@ -6,12 +6,14 @@ use crate::engine::material::phong_material::PhongMaterialProperties;
 use crate::engine::mesh::vertex::Vertex;
 use crate::engine::renderer::shaders::DEFAULT_FRAG;
 use crate::engine::renderer::shaders::DEFAULT_VERT;
+use crate::engine::window::vulkan::transfer_command_manager::TransferCommandManager;
 
 use vulkanalia::vk::HasBuilder;
 use vulkanalia::vk::DeviceV1_0;
 use vulkanalia::vk::Handle;
 
 use super::RenderingPipeline;
+use super::attachments::depth_attachment::create_depth_objects;
 use super::uniform::frame_uniform::AsPerFrameUniform;
 use super::uniform::frame_uniform::FrameUniformBuilder;
 use super::uniform::frame_uniform::camera_uniform::CameraUniformObject;
@@ -53,7 +55,10 @@ impl RenderingPipelineBuilder {
 
     pub fn build(
         &self,
+        vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
+        vk_physical_device: vulkanalia::vk::PhysicalDevice,
+        transfer_manager: &mut TransferCommandManager,
         swapchain_extent: vulkanalia::vk::Extent2D,
         swapchain_images: &[vulkanalia::vk::Image],
         render_pass: vulkanalia::vk::RenderPass
@@ -128,12 +133,14 @@ impl RenderingPipelineBuilder {
             .sample_shading_enable(false)
             .rasterization_samples(vulkanalia::vk::SampleCountFlags::_1);
         
-        // todo : depth buffer set up !
         // color blending. transparency and alpha color blending can be done here !
-        let attachment = vulkanalia::vk::PipelineColorBlendAttachmentState::builder()
+        let color_attachment = vulkanalia::vk::PipelineColorBlendAttachmentState::builder()
             .color_write_mask(vulkanalia::vk::ColorComponentFlags::all())
             .blend_enable(false);
-        let attachments = &[attachment];
+
+        // todo : depth attachment 
+
+        let attachments = &[color_attachment];
         let color_blend_state = vulkanalia::vk::PipelineColorBlendStateCreateInfo::builder()
             .logic_op_enable(false)
             .logic_op(vulkanalia::vk::LogicOp::COPY)

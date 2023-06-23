@@ -4,7 +4,9 @@ use self::vertex::Vertex;
 pub(crate) mod cube;
 pub(crate) mod quad;
 pub(crate) mod mesh_renderer;
+pub(crate) mod sphere;
 pub(crate) mod vertex;
+pub(crate) mod loader;
 
 #[derive(Debug, Clone)]
 pub struct Mesh {

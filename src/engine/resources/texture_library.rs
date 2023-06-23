@@ -8,7 +8,7 @@ use crate::{
         window::vulkan::{
             transfer_command_manager::TransferCommandManager,
             vulkan_buffer::VulkanBuffer,
-            vulkan_image::VulkanImage
+            vulkan_image::{VulkanImage, vulkan_image_view::create_image_view}
         }
     },
     id
@@ -71,20 +71,12 @@ impl LoadedTexture {
 
         // create the image view. 
         // we do create it before the transfer is done, should be fine.
-        let subresource_range = vulkanalia::vk::ImageSubresourceRange::builder()
-            .aspect_mask(vulkanalia::vk::ImageAspectFlags::COLOR)
-            .base_mip_level(0)
-            .level_count(1)
-            .base_array_layer(0)
-            .layer_count(1);
-
-        let info = vulkanalia::vk::ImageViewCreateInfo::builder()
-            .image(texture.image())
-            .view_type(vulkanalia::vk::ImageViewType::_2D)
-            .format(vulkanalia::vk::Format::R8G8B8A8_SRGB)
-            .subresource_range(subresource_range);
-
-        let view = unsafe { vk_device.create_image_view(&info, None)? };
+        let view = create_image_view(
+            vk_device,
+            &texture,
+            vulkanalia::vk::Format::R8G8B8A8_SRGB,
+            vulkanalia::vk::ImageAspectFlags::COLOR,
+        )?;
 
         // create the sampler
         // todo : all of these should be configurable at texture creation ?

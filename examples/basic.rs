@@ -16,7 +16,7 @@ fn main() {
     
 
     let _cam = create_entity!(engine.world_mut();
-        Transform::origin().translated(glam::vec3(0., 1., -4.)),
+        Transform::origin().translated(glam::vec3(0., 3., -4.)),
         Camera::main_perspective(800., 450., 0.1, 100., 1.5)
     );
     // sun 

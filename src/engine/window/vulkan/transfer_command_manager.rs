@@ -10,10 +10,12 @@ use vulkanalia::vk::Handle;
 use super::vulkan_buffer::VulkanBuffer;
 
 pub enum TransferCommand {
-    // staging buffer, destination buffer, size
+    /// staging buffer, destination buffer, size
     CopyBuffer(VulkanBuffer, vulkanalia::vk::Buffer, u64),
-    // staging buffer, destination image, width, height
+    /// staging buffer, destination image, width, height
     CopyImage(VulkanBuffer, vulkanalia::vk::Image, u32, u32),
+    /// Transition the image to the given layout.
+    TransitionImageLayout(vulkanalia::vk::Image, vulkanalia::vk::Format, vulkanalia::vk::ImageLayout, vulkanalia::vk::ImageLayout),
 }
 
 impl TransferCommand {
@@ -33,6 +35,7 @@ impl TransferCommand {
         match self {
             TransferCommand::CopyBuffer(staging_buffer, _, _) => staging_buffer.destroy(vk_device),
             TransferCommand::CopyImage(staging_buffer, _, _, _) => staging_buffer.destroy(vk_device),
+            TransferCommand::TransitionImageLayout(_, _, _, _) => {}
         }
     }
 }
@@ -85,7 +88,8 @@ impl TransferCommandManager {
         for (transfer, command_buffer) in self.transfer_queue.iter().zip(command_buffers.iter()) {
             match transfer {
                 TransferCommand::CopyBuffer(staging, destination, size) => Self::record_buffer_transfer(vk_device, *command_buffer, staging, *destination, *size)?,
-                TransferCommand::CopyImage(staging, destination, width, height) => Self::record_image_transfer(vk_device, *command_buffer, staging, *destination, *width, *height)?
+                TransferCommand::CopyImage(staging, destination, width, height) => Self::record_image_transfer(vk_device, *command_buffer, staging, *destination, *width, *height)?,
+                TransferCommand::TransitionImageLayout(image, format, old_layout, new_layout) => Self::record_pipeline_barrier(vk_device, *command_buffer, *image, *format,  *old_layout, *new_layout)?,
             }
         }
 
@@ -145,6 +149,7 @@ impl TransferCommandManager {
 
         // switch the image layout to transfer destination, using a barrier.
         Self::record_pipeline_barrier(vk_device, command_buffer, destination,
+            vulkanalia::vk::Format::R8G8B8A8_SRGB,
             vulkanalia::vk::ImageLayout::UNDEFINED,
             vulkanalia::vk::ImageLayout::TRANSFER_DST_OPTIMAL,
         )?;
@@ -176,6 +181,7 @@ impl TransferCommandManager {
 
         // switch the image layout to shader read.
         Self::record_pipeline_barrier(vk_device, command_buffer, destination,
+            vulkanalia::vk::Format::R8G8B8A8_SRGB,
             vulkanalia::vk::ImageLayout::TRANSFER_DST_OPTIMAL,
             vulkanalia::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
         )?;
@@ -191,6 +197,7 @@ impl TransferCommandManager {
         vk_device: &vulkanalia::Device,
         command_buffer: vulkanalia::vk::CommandBuffer,
         destination: vulkanalia::vk::Image,
+        format: vulkanalia::vk::Format,
         old_layout: vulkanalia::vk::ImageLayout,
         new_layout: vulkanalia::vk::ImageLayout,
     ) -> PResult<()> {
@@ -213,11 +220,27 @@ impl TransferCommandManager {
                 vulkanalia::vk::PipelineStageFlags::TRANSFER,
                 vulkanalia::vk::PipelineStageFlags::FRAGMENT_SHADER,
             ),
+            (vulkanalia::vk::ImageLayout::UNDEFINED, vulkanalia::vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL) => (
+                vulkanalia::vk::AccessFlags::empty(),
+                vulkanalia::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vulkanalia::vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+                vulkanalia::vk::PipelineStageFlags::TOP_OF_PIPE,
+                vulkanalia::vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+            ),
             _ => return Err(PropellantError::Loading(LoadingError::TextureLayoutTransitionMissing)),
         };
 
+        let aspect_mask = if new_layout == vulkanalia::vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL {
+            match format {
+                vulkanalia::vk::Format::D32_SFLOAT_S8_UINT | vulkanalia::vk::Format::D24_UNORM_S8_UINT =>
+                    vulkanalia::vk::ImageAspectFlags::DEPTH | vulkanalia::vk::ImageAspectFlags::STENCIL,
+                _ => vulkanalia::vk::ImageAspectFlags::DEPTH
+            }
+        } else {
+            vulkanalia::vk::ImageAspectFlags::COLOR
+        };
+
         let subresource = vulkanalia::vk::ImageSubresourceRange::builder()
-            .aspect_mask(vulkanalia::vk::ImageAspectFlags::COLOR)
+            .aspect_mask(aspect_mask)
             .base_mip_level(0)
             .level_count(1)
             .base_array_layer(0)
@@ -278,6 +301,27 @@ impl TransferCommandManager {
         height: u32,
     ) -> PResult<()> {
         self.transfer_queue.push(TransferCommand::CopyImage(staging, destination, width, height));
+        let fence_info = vulkanalia::vk::FenceCreateInfo::default();
+
+        // complete the fence list.
+        while self.transfer_fences.len() < self.transfer_queue.len() {
+            self.transfer_fences.push(unsafe {
+                vk_device.create_fence(&fence_info, None)?
+            });
+        }
+
+        Ok(())
+    }
+
+    pub fn register_transition_image_layout(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+        image: vulkanalia::vk::Image,
+        format: vulkanalia::vk::Format,
+        old_layout: vulkanalia::vk::ImageLayout,
+        new_layout: vulkanalia::vk::ImageLayout,
+    ) -> PResult<()> {
+        self.transfer_queue.push(TransferCommand::TransitionImageLayout(image, format, old_layout, new_layout));
         let fence_info = vulkanalia::vk::FenceCreateInfo::default();
 
         // complete the fence list.

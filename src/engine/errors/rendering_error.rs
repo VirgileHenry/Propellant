@@ -10,6 +10,8 @@ pub enum RenderingError {
     NoFittingVulkanDevice,
     /// There is no vulkan interface, so we can't do any vulkan calls.
     NoVulkanInterface,
+    /// There is no supported depth format.
+    NoSupportedDepthFormat,
     /// The entity position in a uniform buffer is not known.
     /// This entity can't set it's transforms to the shaders.
     /// This may be caused by a scene that have not been properly rebuilt.
@@ -33,6 +35,7 @@ impl Display for RenderingError {
             RenderingError::NoVulkanInterface => write!(f, "No vulkan interface."),
             RenderingError::UnknownEntityBufferPosition => write!(f, "Unknown entity buffer position. The scene have not been properly rebuilt."),
             RenderingError::InvalidMaterialCast => write!(f, "Invalid material cast."),
+            RenderingError::NoSupportedDepthFormat => write!(f, "No supported depth format."),
         }
     }
 }
