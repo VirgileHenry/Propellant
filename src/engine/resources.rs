@@ -38,6 +38,10 @@ impl ProppellantResources {
             self.meshes.load_meshes(vk_instance, vk_device, vk_physical_device, vk_transfer_manager)?;
         }
 
+        if flags.contains(RequireResourcesLoadingFlag::TEXTURES) {
+            self.textures.load_textures(vk_instance, vk_device, vk_physical_device, vk_transfer_manager)?;
+        }
+
         Ok(())
     }
 
@@ -59,5 +63,6 @@ impl ProppellantResources {
 
     pub fn destroy(&mut self, vk_device: &vulkanalia::Device) {
         self.meshes.destroy(vk_device);
+        self.textures.destroy(vk_device);
     }
 }

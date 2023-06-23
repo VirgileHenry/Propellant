@@ -9,8 +9,6 @@ pub enum DebugError {
     MissingResourceLibrary,
     /// There is no main camera in the scene, so we can't render.
     NoMainCamera,
-    /// There is no main light in the scene. This is not a fatal error, but it is a warning.
-    NoMainLight,
 }
 
 impl Display for DebugError {
@@ -19,7 +17,6 @@ impl Display for DebugError {
             DebugError::MissingVulkanDebugLayers => write!(f, "Missing Vulkan debug layers"),
             DebugError::MissingResourceLibrary => write!(f, "Missing resource library"),
             DebugError::NoMainCamera => write!(f, "No main camera"),
-            DebugError::NoMainLight => write!(f, "No main light"),
         }
     }
 }

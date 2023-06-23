@@ -23,6 +23,7 @@ pub use engine::{
     resources::ProppellantResources,
     window::{
         PropellantWindow,
+        window_builder::PropellantWindowBuilder,
         vulkan::vulkan_interface::VulkanInterface,
     },
     transform::Transform,

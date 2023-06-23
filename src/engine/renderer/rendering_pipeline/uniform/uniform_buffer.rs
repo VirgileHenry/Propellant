@@ -1,5 +1,6 @@
 use std::{ffi::c_void, fmt::Debug};
 
+use crate::engine::consts::PROPELLANT_DEBUG_FEATURES;
 use crate::engine::{window::vulkan::vulkan_buffer::VulkanBuffer, errors::PResult};
 
 use vulkanalia::vk::HasBuilder;
@@ -10,6 +11,7 @@ use vulkanalia::vk::DeviceV1_0;
 pub struct UniformBufferBuilder<T> {
     phantom: std::marker::PhantomData<T>,
     stage: vulkanalia::vk::ShaderStageFlags,
+    descriptor_type: vulkanalia::vk::DescriptorType,
     binding: u32,
 }
 
@@ -17,11 +19,13 @@ impl<T: Debug + 'static> UniformBufferBuilder<T> {
     /// Creates a new empty uniform buffer.
     pub fn new(
         stage: vulkanalia::vk::ShaderStageFlags,
+        descriptor_type: vulkanalia::vk::DescriptorType,
         binding: u32,
     ) -> UniformBufferBuilder<T> {
         UniformBufferBuilder {
             phantom: std::marker::PhantomData,
             stage,
+            descriptor_type,
             binding,
         }
     }
@@ -31,15 +35,12 @@ impl<T: Debug + 'static> UniformBufferBuilder<T> {
         vk_device: &vulkanalia::Device,
         vk_descriptor_pool: vulkanalia::vk::DescriptorPool,
         swapchain_images_count: usize,
-        descriptor_type: vulkanalia::vk::DescriptorType,
     ) -> PResult<UniformBuffer<T>> {
         UniformBuffer::new(
             self,
             vk_device,
             vk_descriptor_pool,
             swapchain_images_count,
-            self.binding,
-            descriptor_type,
         )
     }
 
@@ -50,13 +51,21 @@ impl<T: Debug + 'static> UniformBufferBuilder<T> {
     pub fn binding(&self) -> u32 {
         self.binding
     }
+
+    pub fn descriptor_type(&self) -> vulkanalia::vk::DescriptorType {
+        self.descriptor_type
+    }
 }
 
 
 #[derive(Debug)]
 enum UniformBufferMemoryState {
+    /// The buffer is mapped, and we carry the pointer to the mapped memory.
     Mapped(*mut c_void),
-    Unmapped,
+    /// The buffer is currently not mapped.
+    AtRest,
+    /// The buffer have not been initialized yet.
+    Uninitialized,
 }
 
 #[derive(Debug)]
@@ -84,14 +93,12 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         vk_device: &vulkanalia::Device,
         vk_descriptor_pool: vulkanalia::vk::DescriptorPool,
         swapchain_images_count: usize,
-        binding: u32,
-        descriptor_type: vulkanalia::vk::DescriptorType,
     ) -> PResult<UniformBuffer<T>> {
         // create the descriptor set layout
         // the layout is a blueprint on how the descriptor set matches the shader.
         let layout_builder = vulkanalia::vk::DescriptorSetLayoutBinding::builder()
             .binding(builder.binding())
-            .descriptor_type(descriptor_type)
+            .descriptor_type(builder.descriptor_type())
             .descriptor_count(1) 
             .stage_flags(builder.stage());
 
@@ -111,12 +118,12 @@ impl<T: Debug + 'static> UniformBuffer<T> {
 
         Ok(UniformBuffer {
             vk_buffer: VulkanBuffer::empty(),
-            buffer_state: UniformBufferMemoryState::Unmapped,
+            buffer_state: UniformBufferMemoryState::Uninitialized,
             phantom: std::marker::PhantomData,
             layout,
             descriptor_sets,
-            binding,
-            descriptor_type,
+            binding: builder.binding(),
+            descriptor_type: builder.descriptor_type(),
         })
     }
 
@@ -126,16 +133,21 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         &mut self,
         vk_device: &vulkanalia::Device,
     ) -> PResult<()> {
-        // additional checks in debug mode
-        if cfg!(debug_assertions) {
-            match self.buffer_state {
-                UniformBufferMemoryState::Mapped(_) => {
+        match self.buffer_state {
+            UniformBufferMemoryState::Mapped(_) => {
+                // additional warnings if debug features are enabled.
+                if PROPELLANT_DEBUG_FEATURES {
                     panic!("[PROPELLANT DEBUG] UniformBuffer::map() called on a buffer that is already mapped.");
                 }
-                UniformBufferMemoryState::Unmapped => {}
             }
+            UniformBufferMemoryState::Uninitialized => {
+                // additional warnings if debug features are enabled.
+                if PROPELLANT_DEBUG_FEATURES {
+                    panic!("[PROPELLANT DEBUG] UniformBuffer::map() called on a buffer that is not initialized.");
+                }
+            }
+            UniformBufferMemoryState::AtRest => self.buffer_state = UniformBufferMemoryState::Mapped(self.vk_buffer.map(vk_device)?),
         }
-        self.buffer_state = UniformBufferMemoryState::Mapped(self.vk_buffer.map(vk_device)?);
         Ok(())
     }
 
@@ -156,9 +168,14 @@ impl<T: Debug + 'static> UniformBuffer<T> {
                 unsafe {mem.add(byte_offset)},
                 std::slice::from_ref(data)
             ),
-            UniformBufferMemoryState::Unmapped => {
+            UniformBufferMemoryState::AtRest => {
                 if cfg!(debug_assertions) {
                     panic!("[PROPELLANT DEBUG] UniformBuffer::update_buffer() called on a buffer that is not mapped.");
+                }
+            }
+            UniformBufferMemoryState::Uninitialized => {
+                if cfg!(debug_assertions) {
+                    panic!("[PROPELLANT DEBUG] UniformBuffer::update_buffer() called on a buffer that is not initialized.");
                 }
             }
         }
@@ -170,17 +187,23 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         &mut self,
         vk_device: &vulkanalia::Device,
     ) {
-        // additional checks in debug mode
-        if cfg!(debug_assertions) {
-            match self.buffer_state {
-                UniformBufferMemoryState::Mapped(_) => {}
-                UniformBufferMemoryState::Unmapped => {
-                    panic!("[PROPELLANT DEBUG] UniformBuffer::unmap() called on a buffer that is already unmapped.");
+        match self.buffer_state {
+            UniformBufferMemoryState::Mapped(_) => {
+                self.vk_buffer.unmap(vk_device);
+                self.buffer_state = UniformBufferMemoryState::AtRest;
+            }
+            UniformBufferMemoryState::Uninitialized => {
+                // additional warnings if debug features are enabled.
+                if PROPELLANT_DEBUG_FEATURES {
+                    panic!("[PROPELLANT DEBUG] UniformBuffer::map() called on a buffer that is not initialized.");
                 }
             }
+            UniformBufferMemoryState::AtRest => {
+                if PROPELLANT_DEBUG_FEATURES {
+                    panic!("[PROPELLANT DEBUG] UniformBuffer::map() called on a buffer that is not mapped.");
+                }
+            },
         }
-        self.vk_buffer.unmap(vk_device);
-        self.buffer_state = UniformBufferMemoryState::Unmapped;
     }
 
     
@@ -248,6 +271,16 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         let buffer_size = (object_count * swapchain_image_count * std::mem::size_of::<T>()) as u64;
 
         if buffer_size > self.vk_buffer.size() {
+
+            if PROPELLANT_DEBUG_FEATURES {
+                if let UniformBufferMemoryState::Mapped(_) = self.buffer_state {
+                    panic!("[PROPELLANT DEBUG] Reallocating buffer called on a buffer that is mapped.");
+                }
+            }
+
+            // the buffer is no longer unititialized if it was
+            self.buffer_state = UniformBufferMemoryState::AtRest;
+
             // destroy the previous buffer
             if self.vk_buffer.size() > 0 {
                 self.vk_buffer.destroy(vk_device);

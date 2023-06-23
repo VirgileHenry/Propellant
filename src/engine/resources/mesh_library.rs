@@ -63,7 +63,7 @@ impl LoadedMesh {
             vulkanalia::vk::MemoryPropertyFlags::DEVICE_LOCAL,
         )?;
         // set the buffer transfer on the queue
-        vk_transfer_manager.register_transfer(
+        vk_transfer_manager.register_buffer_transfer(
             vk_device,
             staging_buffer,
             buffer.buffer(),

@@ -69,16 +69,21 @@ impl DefaultVulkanRenderer {
         // it is important that some flag are ordered.
         // for example, first build the meshes, then the scene.
         match (components.remove_singleton::<RequireResourcesLoadingFlag>(), components.get_singleton_mut::<ProppellantResources>()) {
-            (Some(flags), Some(mesh_lib)) => {
+            (Some(flags), Some(resource_lib)) => {
                 // load meshes
-                mesh_lib.load_resources(
+                resource_lib.load_resources(
                     flags,
                     &vk_interface.instance,
                     &vk_interface.device,
                     vk_interface.physical_device,
                     &mut vk_interface.transfer_manager,
                 )?;
+                // rebuild the resources uniforms.
+                for (_, pipeline) in self.pipeline_lib.get_pipelines_mut() {
+                    pipeline.rebuild_resources_uniforms(&vk_interface.device, resource_lib)?;
+                }
                 // ask for memory transfers
+                // this should be the last thing we do, so the compiler see we stop using the resource lib and we can insert comps
                 components.add_singleton(RequireMemoryTransfersFlag);
             }
             _ => {}
@@ -240,8 +245,11 @@ impl DefaultVulkanRenderer {
         for (entity, (tf, mesh_renderer)) in component_iterator!(components; mut Transform, MeshRenderer) {
             if mesh_renderer.is_static() {
                 match self.pipeline_lib.get_pipeline_mut(mesh_renderer.pipeline_id()) {
-                    // ! fixme me : update for every frame. Maybe an enum tellic if mr are static or dyamic, static having data for telling which are updated ?
-                    Some(pipeline) => {pipeline.update_uniform_buffers(mesh_renderer.instance(), tf, mesh_renderer.material(), 0).unwrap();},
+                    Some(pipeline) => {
+                        for i in 0..vk_interface.swapchain.images().len() {
+                            pipeline.update_uniform_buffers(mesh_renderer.instance(), tf, mesh_renderer.material(), i).unwrap();
+                        }
+                    }
                     None => {
                         if cfg!(debug_assertions) {
                             println!("[PROPELLANT DEBUG] Pipeline id {} requested by entity {} does not exist.", mesh_renderer.pipeline_id(), entity);
@@ -258,7 +266,7 @@ impl DefaultVulkanRenderer {
 
         // finally, recreate the command buffers
         // directly return the result
-        vk_interface.rebuild_draw_commands(components, &self.pipeline_lib)
+        vk_interface.rebuild_draw_commands(components, &mut self.pipeline_lib)
     }
 }
 

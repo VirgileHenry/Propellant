@@ -21,6 +21,7 @@ pub trait FrameUniformBuilder: Debug {
         vk_descriptor_pool: vulkanalia::vk::DescriptorPool,
         swapchain_images_count: usize,
     ) -> PResult<Box<dyn FrameUniform>>;
+    fn descriptor_type(&self) -> vulkanalia::vk::DescriptorType;
 }
 
 /// This implementation basically means any T can be a uniform.
@@ -35,8 +36,11 @@ impl<T: AsPerFrameUniform + Debug + 'static> FrameUniformBuilder for UniformBuff
             vk_device,
             vk_descriptor_pool,
             swapchain_images_count,
-            vulkanalia::vk::DescriptorType::UNIFORM_BUFFER,
         )?))
+    }
+
+    fn descriptor_type(&self) -> vulkanalia::vk::DescriptorType {
+        self.descriptor_type()
     }
 }
 

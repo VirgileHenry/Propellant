@@ -11,7 +11,8 @@ use vulkanalia::vk::DeviceV1_0;
 
 use self::uniform::{
     frame_uniform::FrameUniform,
-    object_uniform::ObjectUniform
+    object_uniform::ObjectUniform, 
+    resource_uniform::ResourceUniform
 };
 
 pub(crate) mod rendering_pipeline_builder;
@@ -21,6 +22,7 @@ pub struct RenderingPipeline {
     pipeline: vulkanalia::vk::Pipeline,
     layout: vulkanalia::vk::PipelineLayout,
     descriptor_pool: vulkanalia::vk::DescriptorPool,
+    resource_uniforms: Vec<Box<dyn ResourceUniform>>,
     frame_uniforms: Vec<Box<dyn FrameUniform>>,
     object_uniforms: Vec<Box<dyn ObjectUniform>>,
     instance_count: usize,
@@ -32,6 +34,7 @@ impl RenderingPipeline {
         pipeline: vulkanalia::vk::Pipeline,
         layout: vulkanalia::vk::PipelineLayout,
         descriptor_pool: vulkanalia::vk::DescriptorPool,
+        resource_uniforms: Vec<Box<dyn ResourceUniform>>,
         frame_uniforms: Vec<Box<dyn FrameUniform>>,
         object_uniforms: Vec<Box<dyn ObjectUniform>>,
     ) -> RenderingPipeline {
@@ -39,6 +42,7 @@ impl RenderingPipeline {
             pipeline,
             layout,
             descriptor_pool,
+            resource_uniforms,
             frame_uniforms,
             object_uniforms,
             instance_count: 0,
@@ -55,7 +59,7 @@ impl RenderingPipeline {
     }
 
     pub fn register_draw_commands(
-        &self,
+        &mut self,
         vk_device: &vulkanalia::Device,
         image_index: usize,
         command_buffer: vulkanalia::vk::CommandBuffer,
@@ -70,9 +74,12 @@ impl RenderingPipeline {
             );
         }
 
-        // bind all uniform's ds
-        let ds = self.frame_uniforms.iter().map(|frame_uniform| frame_uniform.set(image_index))
-            .chain(self.object_uniforms.iter().map(|object_uniform| object_uniform.set(image_index)))
+        // bind all descriptor sets
+        let empty_ds = Vec::with_capacity(0);
+        let ds = empty_ds.into_iter()
+            .chain(self.resource_uniforms.iter_mut().map(|uniform| uniform.set(image_index)))
+            .chain(self.frame_uniforms.iter().map(|uniform| uniform.set(image_index)))
+            .chain(self.object_uniforms.iter().map(|uniform| uniform.set(image_index)))
             .collect::<Vec<_>>();
 
         unsafe {
@@ -116,6 +123,11 @@ impl RenderingPipeline {
         &mut self,
         vk_device: &vulkanalia::Device,
     ) -> PResult<()> {
+        // check if we have at least one entity to draw
+        if self.rendering_map.is_empty() {
+            return Ok(());
+        }
+
         for frame_uniform in self.frame_uniforms.iter_mut() {
             frame_uniform.map_buffers(vk_device)?;
         }
@@ -131,6 +143,11 @@ impl RenderingPipeline {
         components: &foundry::ComponentTable,
         image_index: usize,
     ) -> PResult<()> {
+        // check if we have at least one entity to draw
+        if self.rendering_map.is_empty() {
+            return Ok(());
+        }
+
         for frame_uniform in self.frame_uniforms.iter_mut() {
             frame_uniform.update_buffer(components, image_index)?;
         }
@@ -145,6 +162,11 @@ impl RenderingPipeline {
         material: &Material,
         image_index: usize,
     ) -> PResult<()> {
+        // check if we have at least one entity to draw
+        if self.rendering_map.is_empty() {
+            return Ok(());
+        }
+
         for object_uniform in self.object_uniforms.iter_mut() {
             object_uniform.update_buffer(instance_id, self.instance_count, transform, material, image_index)?;
         }
@@ -156,6 +178,11 @@ impl RenderingPipeline {
         &mut self,
         vk_device: &vulkanalia::Device,
     ) {
+        // check if we have at least one entity to draw
+        if self.rendering_map.is_empty() {
+            return;
+        }
+
         for frame_uniform in self.frame_uniforms.iter_mut() {
             frame_uniform.unmap_buffers(vk_device);
         }
@@ -192,8 +219,25 @@ impl RenderingPipeline {
         Ok(())
     }
 
+    /// Reload the resource uniforms.
+    /// This should be called when a resource is reloaded.
+    pub fn rebuild_resources_uniforms(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+        resources: &ProppellantResources,
+    ) -> PResult<()> {
+        for uniform in self.resource_uniforms.iter_mut() {
+            uniform.recreate(vk_device, self.descriptor_pool, resources)?;
+        }
+
+        Ok(())
+    }
+
     pub fn destroy(&mut self, vk_device: &vulkanalia::Device) {
         // clean up uniforms
+        for resource_uniform in self.resource_uniforms.iter_mut() {
+            resource_uniform.destroy(vk_device);
+        }
         for frame_uniform in self.frame_uniforms.iter_mut() {
             frame_uniform.destroy(vk_device);
         }

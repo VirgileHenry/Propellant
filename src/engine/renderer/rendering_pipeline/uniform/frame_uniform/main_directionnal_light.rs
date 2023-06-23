@@ -1,9 +1,6 @@
 use foundry::ComponentTable;
 
-use crate::engine::{
-    lights::directionnal_light::DirectionnalLight,
-    consts::PROPELLANT_DEBUG_FEATURES
-};
+use crate::engine::lights::directionnal_light::DirectionnalLight;
 
 use super::AsPerFrameUniform;
 
@@ -22,9 +19,6 @@ impl AsPerFrameUniform for MainDirectionnalLight {
                 padding: Default::default(),
             },
             None => {
-                if PROPELLANT_DEBUG_FEATURES {
-                    println!("[PROPELLANT DEBUG] No main light found.");
-                }
                 MainDirectionnalLight {
                     main_light: DirectionnalLight::black(),
                     padding: Default::default(),

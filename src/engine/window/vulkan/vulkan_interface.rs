@@ -9,11 +9,6 @@ use crate::engine::renderer::pipeline_lib::GraphicPipelineLib;
 use crate::engine::renderer::pipeline_lib::pipeline_lib_builder::GraphicPipelineLibBuilder;
 
 use foundry::ComponentTable;
-use vulkanalia::loader::{LibloadingLoader, LIBRARY};
-use vulkanalia::vk::KhrSurfaceExtension;
-use vulkanalia::window as vk_window;
-use vulkanalia::prelude::v1_0::*;
-use vulkanalia::vk::KhrSwapchainExtension;
 
 use super::rendering_command_manager::RenderingCommandManager;
 use super::physical_device_prefs::PhysicalDevicePreferences;
@@ -23,8 +18,18 @@ use super::swapchain_interface::SwapchainInterface;
 use super::swapchain_support::SwapchainSupport;
 use super::transfer_command_manager::TransferCommandManager;
 
+use vulkanalia::vk::EntryV1_0;
+use vulkanalia::vk::InstanceV1_0;
+use vulkanalia::vk::DeviceV1_0;
+use vulkanalia::vk::HasBuilder;
+use vulkanalia::vk::KhrSwapchainExtension;
+use vulkanalia::vk::KhrSurfaceExtension;
+
 /// Extensions that are required to run the propellant engine, if we are using the window and vulkan.
-pub(crate) const REQUIRED_DEVICE_EXTENSIONS: &[vk::ExtensionName] = &[vk::KHR_SWAPCHAIN_EXTENSION.name];
+pub(crate) const REQUIRED_DEVICE_EXTENSIONS: &[vulkanalia::vk::ExtensionName] = &[
+    vulkanalia::vk::KHR_SWAPCHAIN_EXTENSION.name,
+    vulkanalia::vk::EXT_DESCRIPTOR_INDEXING_EXTENSION.name,
+];
 pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 2;
 
 pub struct VulkanInterface {
@@ -50,24 +55,24 @@ impl VulkanInterface {
         app_name: String,
     ) -> PResult<VulkanInterface>{
         // create the app info as a builder 
-        let application_info = vk::ApplicationInfo::builder()
+        let application_info = vulkanalia::vk::ApplicationInfo::builder()
             .application_name(app_name.as_bytes())
-            .application_version(vk::make_version(1, 0, 0))
+            .application_version(vulkanalia::vk::make_version(1, 0, 0))
             .engine_name(b"ProppelantEngine\0")
-            .engine_version(vk::make_version(ENGINE_VERSION.0, ENGINE_VERSION.1, ENGINE_VERSION.2))
-            .api_version(vk::make_version(1, 0, 0));
+            .engine_version(vulkanalia::vk::make_version(ENGINE_VERSION.0, ENGINE_VERSION.1, ENGINE_VERSION.2))
+            .api_version(vulkanalia::vk::make_version(1, 2, 0));
         // get the required extensions from the winit window
-        let extensions = vk_window::get_required_instance_extensions(&window).iter().map(|e| e.as_ptr())
+        let extensions = vulkanalia::window::get_required_instance_extensions(&window).iter().map(|e| e.as_ptr())
             .collect::<Vec<_>>();
         // create the vulkan loader and entry
         let loader = unsafe {
             // lib loading module error is private, so we have to go with a match here
-            match LibloadingLoader::new(LIBRARY) {
+            match vulkanalia::loader::LibloadingLoader::new(vulkanalia::loader::LIBRARY) {
                 Ok(lib) => lib,
                 Err(e) => return Err(PropellantError::Loading(LoadingError::VulkanLibrary(e.to_string()))),
             }
         };
-        let entry = unsafe {Entry::new(loader)?};
+        let entry = unsafe {vulkanalia::Entry::new(loader)?};
 
         // get the validation layer
         let available_layers = unsafe {
@@ -92,7 +97,7 @@ impl VulkanInterface {
         };
 
         // create the vk instance info
-        let info = vk::InstanceCreateInfo::builder()
+        let info = vulkanalia::vk::InstanceCreateInfo::builder()
             .application_info(&application_info)
             .enabled_extension_names(&extensions)
             .enabled_layer_names(&layers);
@@ -100,7 +105,7 @@ impl VulkanInterface {
         // create the vk instance
         let instance = unsafe {entry.create_instance(&info, None)?};
         // create the surface : interface between vulkan and winit window.
-        let surface = unsafe {vk_window::create_surface(&instance, &window, &window)?};
+        let surface = unsafe {vulkanalia::window::create_surface(&instance, &window, &window)?};
         // pick a physical device that match our needs
         let physical_device = Self::pick_physical_device(&instance, device_prefs, surface)?;
         // get the queue indices. 
@@ -188,17 +193,29 @@ impl VulkanInterface {
         indices: QueueFamilyIndices,
     ) -> PResult<(vulkanalia::Device, vulkanalia::vk::Queue)> {
         let queue_priorities = &[1.0];
-        let queue_info = vk::DeviceQueueCreateInfo::builder()
+        let queue_info = vulkanalia::vk::DeviceQueueCreateInfo::builder()
             .queue_family_index(indices.index())
             .queue_priorities(queue_priorities);
+        
+        let features = vulkanalia::vk::PhysicalDeviceFeatures::builder()
+            .sampler_anisotropy(true)
+            .shader_sampled_image_array_dynamic_indexing(true);
 
-        let features = vk::PhysicalDeviceFeatures::builder();
+        // allows to use non uniform indexing in shaders, that is required for our texture lib.
+        let mut vk12_device_features = vulkanalia::vk::PhysicalDeviceVulkan12Features::builder()
+            .shader_sampled_image_array_non_uniform_indexing(true)
+            .descriptor_indexing(true)
+            .runtime_descriptor_array(true)
+            .descriptor_binding_update_unused_while_pending(true)
+            .descriptor_binding_partially_bound(true)
+            .descriptor_binding_variable_descriptor_count(true);
     
         let queue_infos = &[queue_info];
         let extensions = REQUIRED_DEVICE_EXTENSIONS.iter().map(|e| e.as_ptr()).collect::<Vec<_>>();
-        let info = vk::DeviceCreateInfo::builder()
+        let info = vulkanalia::vk::DeviceCreateInfo::builder()
             .queue_create_infos(queue_infos)
             .enabled_features(&features)
+            .push_next(&mut vk12_device_features)
             .enabled_extension_names(&extensions);
 
         let vk_device = unsafe {vk_instance.create_device(vk_physical_device, &info, None)?};
@@ -212,37 +229,37 @@ impl VulkanInterface {
         swapchain_format: vulkanalia::vk::Format
     ) -> PResult<vulkanalia::vk::RenderPass> {
         // create the color attachment
-        let color_attachment = vk::AttachmentDescription::builder()
+        let color_attachment = vulkanalia::vk::AttachmentDescription::builder()
             .format(swapchain_format)
-            .samples(vk::SampleCountFlags::_1)
-            .load_op(vk::AttachmentLoadOp::CLEAR)
-            .store_op(vk::AttachmentStoreOp::STORE)
-            .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-            .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
-            .initial_layout(vk::ImageLayout::UNDEFINED)
-            .final_layout(vk::ImageLayout::PRESENT_SRC_KHR);
+            .samples(vulkanalia::vk::SampleCountFlags::_1)
+            .load_op(vulkanalia::vk::AttachmentLoadOp::CLEAR)
+            .store_op(vulkanalia::vk::AttachmentStoreOp::STORE)
+            .stencil_load_op(vulkanalia::vk::AttachmentLoadOp::DONT_CARE)
+            .stencil_store_op(vulkanalia::vk::AttachmentStoreOp::DONT_CARE)
+            .initial_layout(vulkanalia::vk::ImageLayout::UNDEFINED)
+            .final_layout(vulkanalia::vk::ImageLayout::PRESENT_SRC_KHR);
         // create the color attachment reference
-        let color_attachment_ref = vk::AttachmentReference::builder()
+        let color_attachment_ref = vulkanalia::vk::AttachmentReference::builder()
             .attachment(0)
-            .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
+            .layout(vulkanalia::vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         // create the subpass
         let color_attachments = &[color_attachment_ref];
-        let subpass = vk::SubpassDescription::builder()
-            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+        let subpass = vulkanalia::vk::SubpassDescription::builder()
+            .pipeline_bind_point(vulkanalia::vk::PipelineBindPoint::GRAPHICS)
             .color_attachments(color_attachments);
         // create the subpass dependency
         let dependency = vulkanalia::vk::SubpassDependency::builder()
             .src_subpass(vulkanalia::vk::SUBPASS_EXTERNAL)
             .dst_subpass(0)
-            .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .src_access_mask(vk::AccessFlags::empty())
-            .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE);
+            .src_stage_mask(vulkanalia::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .src_access_mask(vulkanalia::vk::AccessFlags::empty())
+            .dst_stage_mask(vulkanalia::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .dst_access_mask(vulkanalia::vk::AccessFlags::COLOR_ATTACHMENT_WRITE);
         // create the render pass
         let attachments = &[color_attachment];
         let subpasses = &[subpass];
         let dependencies = &[dependency];
-        let info = vk::RenderPassCreateInfo::builder()
+        let info = vulkanalia::vk::RenderPassCreateInfo::builder()
             .attachments(attachments)
             .subpasses(subpasses)
             .dependencies(dependencies);
@@ -262,7 +279,7 @@ impl VulkanInterface {
             .iter()
             .map(|i| {
                 let attachments = &[*i];
-                let create_info = vk::FramebufferCreateInfo::builder()
+                let create_info = vulkanalia::vk::FramebufferCreateInfo::builder()
                     .render_pass(render_pass)
                     .attachments(attachments)
                     .width(extent.width)
@@ -278,7 +295,7 @@ impl VulkanInterface {
 
     /// Recompute the draw commands buffers with the components.
     /// If the scene graphics have changed, this must be called in order to see any changes.
-    pub fn rebuild_draw_commands(&mut self, components: &ComponentTable, pipeline_lib: &GraphicPipelineLib) -> PResult<()> {
+    pub fn rebuild_draw_commands(&mut self, components: &ComponentTable, pipeline_lib: &mut GraphicPipelineLib) -> PResult<()> {
         self.rendering_manager.register_commands(&self.device, &self.swapchain, self.render_pass, &self.framebuffers, components, pipeline_lib)
     }
 

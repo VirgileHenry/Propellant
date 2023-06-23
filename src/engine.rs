@@ -93,9 +93,11 @@ impl PropellantEngine {
     pub fn with_builded_window(mut self, builder: PropellantWindowBuilder) -> PResult<PropellantEngine> {
         let event_loop = self.event_loop.take().unwrap();
         let window = builder.build(&event_loop)?;
+        // register the rendering system.
         self.world.register_system(window.into(), id("window"));
         self.event_loop = Some(event_loop);
-        // register the rendering system.
+        // marks the scene need building
+        self.world.add_singleton(RequireSceneRebuildFlag);
         Ok(self)
     }
 
@@ -180,7 +182,7 @@ impl PropellantEngine {
                     }
                 }
                 winit::event::Event::LoopDestroyed => {
-                    self.clean_up();
+                    
                 }
                 _ => ()
             }
@@ -209,4 +211,9 @@ impl PropellantEngine {
 }
 
 
-// other impls 
+impl Drop for PropellantEngine {
+    fn drop(&mut self) {
+        // clean up the engine's resources
+        self.clean_up();
+    }
+}

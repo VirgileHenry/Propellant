@@ -25,7 +25,7 @@ impl RenderingCommandManager {
         // create the frame buffers
         let info = vulkanalia::vk::CommandPoolCreateInfo::builder()
             .queue_family_index(indices.index())
-            .flags(vulkanalia::vk::CommandPoolCreateFlags::empty());
+            .flags(vulkanalia::vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
 
         let command_pool = unsafe {vk_device.create_command_pool(&info, None)?};
 
@@ -36,10 +36,26 @@ impl RenderingCommandManager {
         
         let command_buffers = unsafe{ vk_device.allocate_command_buffers(&allocate_info)? };
 
+        // register empty commands in the command buffers.
+        Self::register_empty_commands(&command_buffers, vk_device)?;
+
         Ok(RenderingCommandManager {
             command_pool,
             command_buffers,
         })
+    }
+
+    fn register_empty_commands(
+        command_buffers: &Vec<vulkanalia::vk::CommandBuffer>,
+        vk_device: &vulkanalia::Device,
+
+    ) -> PResult<()> {
+        for command_buffer in command_buffers.iter() {
+            let info = vulkanalia::vk::CommandBufferBeginInfo::builder();
+            unsafe { vk_device.begin_command_buffer(*command_buffer, &info)? };
+            unsafe { vk_device.end_command_buffer(*command_buffer)? };
+        }
+        Ok(())
     }
 
     /// Recreate the command buffers. They need to be freed before.
@@ -56,6 +72,8 @@ impl RenderingCommandManager {
         
         let command_buffers = unsafe{ vk_device.allocate_command_buffers(&allocate_info)? };
 
+        Self::register_empty_commands(&command_buffers, vk_device)?;
+        
         self.command_buffers = command_buffers;
 
         Ok(())
@@ -73,7 +91,7 @@ impl RenderingCommandManager {
         render_pass: vulkanalia::vk::RenderPass,
         framebuffers: &Vec<vulkanalia::vk::Framebuffer>,
         components: &ComponentTable,
-        pipeline_lib: &GraphicPipelineLib,
+        pipeline_lib: &mut GraphicPipelineLib,
     ) -> PResult<()> {
 
         // get the mesh lib (to draw the meshes, duh)
@@ -109,7 +127,7 @@ impl RenderingCommandManager {
             unsafe { vk_device.cmd_begin_render_pass(*command_buffer, &info, vulkanalia::vk::SubpassContents::INLINE) };
             
             // for each pipeline
-            for (_, pipeline) in pipeline_lib.get_pipelines() {
+            for (_, pipeline) in pipeline_lib.get_pipelines_mut() {
                 pipeline.register_draw_commands(
                     vk_device,
                     image_index,

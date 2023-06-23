@@ -15,6 +15,11 @@ impl PhongMaterialProperties {
         self.albedo.set_color(color);
         self
     }
+
+    pub fn textured(mut self, texture_index: u32) -> Self {
+        self.albedo.set_texture(texture_index);
+        self
+    }
 }
 
 impl Default for PhongMaterialProperties {

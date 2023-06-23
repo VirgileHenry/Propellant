@@ -22,10 +22,10 @@ pub enum PropellantError {
     Residual(Box<dyn std::error::Error + Send + Sync + 'static>),
     Loading(LoadingError),
     Rendering(RenderingError),
+    DebugError(DebugError),
     OutOfMemory,
     EventLoopClosed,
     NoMainCamera,
-    DebugError(DebugError),
 }
 
 
@@ -61,7 +61,7 @@ impl From<vulkanalia::vk::ErrorCode> for PropellantError {
 
 impl From<ImageError> for PropellantError {
     fn from(value: ImageError) -> Self {
-        PropellantError::Loading(LoadingError::Texture(value))
+        PropellantError::Loading(LoadingError::TextureCreation(value))
     }
 }
 

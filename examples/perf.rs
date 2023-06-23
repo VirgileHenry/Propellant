@@ -2,9 +2,6 @@ use foundry::{create_entity, create_entities, AsAny, Updatable, System};
 use propellant::*;
 
 
-
-
-
 fn main() {
 
     let mut resources = ProppellantResources::default();
@@ -14,16 +11,18 @@ fn main() {
         .with_window().unwrap()
         .with_resources(resources);
 
+    // sun
+    engine.world_mut().add_singleton(DirectionnalLight::new(glam::vec3(1., 1., 1.), glam::vec3(1., 1., 1.), glam::vec3(1., 1., 1.)));
     let _cam = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(0., 3., -4.)),
-        Camera::main(800., 450., 0.1, 100., 1.5)
+        Camera::main_perspective(800., 450., 0.1, 100., 1.5)
     );
-    let _cubes = create_entities!(engine.world_mut(); 100_000,
+    let _cubes = create_entities!(engine.world_mut(); 500_000,
         |i| Transform::origin().translated(glam::vec3(0., 0., -(i as f32))).scaled(glam::vec3(1./ (i as f32 + 1.), 1./ (i as f32 + 1.), 1./ (i as f32 + 1.))),
-        |_| MeshRenderer::new(id("cube"), Material::default())
+        |_| MeshRenderer::new_static(id("cube"), Material::default())
     );
 
-    engine.world_mut().register_system(System::new(Box::new(FPSCounter{timer: 0., frames: 0}), foundry::UpdateFrequency::PerFrame), 11);
+    engine.world_mut().register_system(System::new(Box::new(FPSCounter{timer: -3., frames: 0}), foundry::UpdateFrequency::PerFrame), 11);
 
     engine.main_loop();
 }
@@ -36,10 +35,12 @@ struct FPSCounter {
 
 impl Updatable for FPSCounter {
     fn update(&mut self, _components: &mut foundry::ComponentTable, delta: f32) {
-        self.frames += 1;
         self.timer += delta;
+        if self.timer > 0. {
+            self.frames += 1;
+        }
         if self.timer > 1. {
-            println!("FPS: {}", self.frames);
+            println!("{} FPS - (frame time: {}ms)", self.frames, 1000. / self.frames as f32);
             self.frames = 0;
             self.timer = 0.;
         }

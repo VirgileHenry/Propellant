@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 use crate::engine::errors::PResult;
@@ -18,6 +19,8 @@ use super::uniform::frame_uniform::main_directionnal_light::MainDirectionnalLigh
 use super::uniform::object_uniform::AsPerObjectUniform;
 use super::uniform::object_uniform::ObjectUniformBuilder;
 use super::uniform::object_uniform::model_uniform::ModelMatrixUniformObject;
+use super::uniform::resource_uniform::ResourceUniformBuilder;
+use super::uniform::resource_uniform::textures_uniform::TextureUniformBuilder;
 use super::uniform::uniform_buffer::UniformBufferBuilder;
 
 
@@ -29,6 +32,8 @@ pub struct RenderingPipelineBuilder {
     vertex: (Vec<u32>, usize),
     /// Fragment shader byte code
     fragment: (Vec<u32>, usize),
+    /// Per resources uniforms
+    resource_uniforms: Vec<Box<dyn ResourceUniformBuilder>>,
     /// Per frames uniforms
     frame_uniforms: Vec<Box<dyn FrameUniformBuilder>>,
     /// Per object uniforms
@@ -40,6 +45,7 @@ impl RenderingPipelineBuilder {
         RenderingPipelineBuilder {
             vertex: (Vec::with_capacity(0), 0),
             fragment: (Vec::with_capacity(0), 0),
+            resource_uniforms: Vec::new(),
             frame_uniforms: Vec::new(),
             object_uniforms: Vec::new(),
         }
@@ -138,6 +144,10 @@ impl RenderingPipelineBuilder {
         let vk_descriptor_pool = self.create_descriptor_pool(vk_device, swapchain_images)?;
 
         // create the uniforms
+        let resource_uniforms = self.resource_uniforms.iter().map(|builder|
+            builder.build(vk_device, vk_descriptor_pool)
+        ).collect::<PResult<Vec<_>>>()?;
+
         let frame_uniforms = self.frame_uniforms.iter().map(|builder|
             builder.build(vk_device, vk_descriptor_pool, swapchain_images.len())
         ).collect::<PResult<Vec<_>>>()?;
@@ -146,9 +156,13 @@ impl RenderingPipelineBuilder {
             builder.build(vk_device, vk_descriptor_pool, swapchain_images.len())
         ).collect::<PResult<Vec<_>>>()?;
 
+        let empty_ds: Vec<vulkanalia::vk::DescriptorSetLayout> = Vec::with_capacity(0);
+
         // get the layout of the uniforms
         // ! this SHOULD be ordered by set.
-        let layouts = frame_uniforms.iter().map(|uniform| uniform.layout())
+        let layouts = empty_ds.into_iter()
+            .chain(resource_uniforms.iter().map(|uniform| uniform.layout()))
+            .chain(frame_uniforms.iter().map(|uniform| uniform.layout()))
             .chain(object_uniforms.iter().map(|uniform| uniform.layout()))
             .collect::<Vec<_>>();
         
@@ -191,6 +205,7 @@ impl RenderingPipelineBuilder {
             pipeline,
             pipeline_layout,
             vk_descriptor_pool,
+            resource_uniforms,
             frame_uniforms,
             object_uniforms,
         ))
@@ -209,23 +224,41 @@ impl RenderingPipelineBuilder {
         vk_device: &vulkanalia::Device,
         swapchain_images: &[vulkanalia::vk::Image],
     ) -> PResult<vulkanalia::vk::DescriptorPool> {
-        let descriptor_set_count = (self.frame_uniforms.len() + self.object_uniforms.len()) * swapchain_images.len();
-        
-        let per_frame_ds_count = vulkanalia::vk::DescriptorPoolSize::builder()
-            .type_(vulkanalia::vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count((self.frame_uniforms.len() * swapchain_images.len()) as u32);
+        let descriptor_set_count = (
+            self.resource_uniforms.len() +
+            self.frame_uniforms.len() +
+            self.object_uniforms.len()
+        ) * swapchain_images.len();
 
-        let per_object_ds_count = vulkanalia::vk::DescriptorPoolSize::builder()
-            .type_(vulkanalia::vk::DescriptorType::STORAGE_BUFFER)
-            .descriptor_count((self.object_uniforms.len() * swapchain_images.len()) as u32);
- 
-        // we cannot pass size 0 to the pool builder, so check for that.
-        let pool_sizes = match (self.frame_uniforms.len() > 0, self.object_uniforms.len() > 0) {
-            (true, true) => vec![per_frame_ds_count, per_object_ds_count],
-            (true, false) => vec![per_frame_ds_count],
-            (false, true) => vec![per_object_ds_count],
-            (false, false) => vec![],
-        };
+        // for each layout type, we count how many descriptor sets we need.
+        let mut ds_count_map = HashMap::with_capacity(3);
+        // resources uniforms
+        self.resource_uniforms.iter().for_each(|builder| {
+            match ds_count_map.get_mut(&builder.descriptor_type()) {
+                Some(count) => *count += swapchain_images.len(),
+                None => { ds_count_map.insert(builder.descriptor_type(), swapchain_images.len()); },
+            }
+        });
+        // frame uniforms
+        self.frame_uniforms.iter().for_each(|builder| {
+            match ds_count_map.get_mut(&builder.descriptor_type()) {
+                Some(count) => *count += swapchain_images.len(),
+                None => { ds_count_map.insert(builder.descriptor_type(), swapchain_images.len()); },
+            }
+        });
+        // object uniforms
+        self.object_uniforms.iter().for_each(|builder| {
+            match ds_count_map.get_mut(&builder.descriptor_type()) {
+                Some(count) => *count += swapchain_images.len(),
+                None => { ds_count_map.insert(builder.descriptor_type(), swapchain_images.len()); },
+            }
+        });
+        
+        let pool_sizes = ds_count_map.into_iter().map(|(ds_type, count)| {
+            vulkanalia::vk::DescriptorPoolSize::builder()
+                .type_(ds_type)
+                .descriptor_count(count as u32)
+        }).collect::<Vec<_>>();
 
         let info = vulkanalia::vk::DescriptorPoolCreateInfo::builder()
             .pool_sizes(&pool_sizes)
@@ -242,7 +275,11 @@ impl RenderingPipelineBuilder {
     ) {
         // add the uniform builder to the list. 
         // use the current length of the uniforms as a binding, so they respect their index.
-        self.frame_uniforms.push(Box::new(UniformBufferBuilder::<T>::new(stage, self.frame_uniforms.len() as u32)));
+        self.frame_uniforms.push(Box::new(UniformBufferBuilder::<T>::new(
+            stage,
+            vulkanalia::vk::DescriptorType::UNIFORM_BUFFER, // per frame uniforms uses uniform buffers
+            self.frame_uniforms.len() as u32
+        )));
     }
 
 
@@ -252,7 +289,11 @@ impl RenderingPipelineBuilder {
     ) {
         // add the uniform builder to the list. 
         // use the current length of the uniforms as a binding, so they respect their index.
-        self.object_uniforms.push(Box::new(UniformBufferBuilder::<T>::new(stage, self.object_uniforms.len() as u32)));
+        self.object_uniforms.push(Box::new(UniformBufferBuilder::<T>::new(
+            stage,
+            vulkanalia::vk::DescriptorType::STORAGE_BUFFER, // per object uniforms uses storage buffers
+            self.object_uniforms.len() as u32
+        )));
     }
 
 }
@@ -265,13 +306,16 @@ impl Default for RenderingPipelineBuilder {
         RenderingPipelineBuilder { 
             vertex: (DEFAULT_VERT.iter().map(|v| *v).collect(), DEFAULT_VERT.len() * 4), // x4 because we are using u32, and length is in byte
             fragment: (DEFAULT_FRAG.iter().map(|v| *v).collect(), DEFAULT_FRAG.len() * 4), // x4 because we are using u32, and length is in byte
+            resource_uniforms: vec![
+                Box::new(TextureUniformBuilder::new(0, vulkanalia::vk::ShaderStageFlags::FRAGMENT))
+            ],
             frame_uniforms: vec![
-                Box::new(UniformBufferBuilder::<CameraUniformObject>::new(vulkanalia::vk::ShaderStageFlags::VERTEX, 0)),
-                Box::new(UniformBufferBuilder::<MainDirectionnalLight>::new(vulkanalia::vk::ShaderStageFlags::FRAGMENT, 0)),
+                Box::new(UniformBufferBuilder::<CameraUniformObject>::new(vulkanalia::vk::ShaderStageFlags::VERTEX, vulkanalia::vk::DescriptorType::UNIFORM_BUFFER, 0)),
+                Box::new(UniformBufferBuilder::<MainDirectionnalLight>::new(vulkanalia::vk::ShaderStageFlags::FRAGMENT, vulkanalia::vk::DescriptorType::UNIFORM_BUFFER, 0)),
             ],
             object_uniforms: vec![
-                Box::new(UniformBufferBuilder::<ModelMatrixUniformObject>::new(vulkanalia::vk::ShaderStageFlags::VERTEX, 0)),
-                Box::new(UniformBufferBuilder::<PhongMaterialProperties>::new(vulkanalia::vk::ShaderStageFlags::FRAGMENT, 0)),
+                Box::new(UniformBufferBuilder::<ModelMatrixUniformObject>::new(vulkanalia::vk::ShaderStageFlags::VERTEX, vulkanalia::vk::DescriptorType::STORAGE_BUFFER, 0)),
+                Box::new(UniformBufferBuilder::<PhongMaterialProperties>::new(vulkanalia::vk::ShaderStageFlags::FRAGMENT, vulkanalia::vk::DescriptorType::STORAGE_BUFFER, 0)),
             ],
         }
     }

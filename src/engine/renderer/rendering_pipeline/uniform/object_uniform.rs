@@ -19,6 +19,7 @@ pub trait ObjectUniformBuilder: Debug {
         vk_descriptor_pool: vulkanalia::vk::DescriptorPool,
         swapchain_images_count: usize,
     ) -> PResult<Box<dyn ObjectUniform>>;
+    fn descriptor_type(&self) -> vulkanalia::vk::DescriptorType;
 }
 
 impl<T: AsPerObjectUniform + Debug + 'static> ObjectUniformBuilder for UniformBufferBuilder<T> {
@@ -32,8 +33,11 @@ impl<T: AsPerObjectUniform + Debug + 'static> ObjectUniformBuilder for UniformBu
             vk_device,
             vk_descriptor_pool,
             swapchain_images_count,
-            vulkanalia::vk::DescriptorType::STORAGE_BUFFER,
         )?))
+    }
+
+    fn descriptor_type(&self) -> vulkanalia::vk::DescriptorType {
+        self.descriptor_type()
     }
 }
 

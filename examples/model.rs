@@ -9,6 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut resources = ProppellantResources::default();
     resources.meshes_mut().register_mesh(id("quad"), Mesh::flat_quad(2.0));
+    resources.meshes_mut().register_mesh(id("cube"), Mesh::cube(0.6));
     let texture_id = resources.textures_mut().register_texture(id("image"), include_bytes!("model/texture.jpg"))?;
 
     let mut engine = PropellantEngine::default()
@@ -18,12 +19,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let _cam = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(0., 1., -4.)),
-        Camera::main(800., 450., 0.1, 100., 1.5)
+        Camera::main_perspective(800., 450., 0.1, 100., 1.5)
+    );
+    let _quad = create_entity!(engine.world_mut();
+        Transform::origin().translated(glam::vec3(0., 1., 0.)),
+        MeshRenderer::new(
+            id("quad"),
+            Material::default().with_prop(PhongMaterialProperties::default().textured(texture_id))
+        )
     );
     let _cube = create_entity!(engine.world_mut();
-        Transform::origin().translated(glam::vec3(0., 1., 0.)),
-        MeshRenderer::new(id("quad"), Material::default())
-    );
+    Transform::origin().translated(glam::vec3(0., -1., 0.)),
+    MeshRenderer::new(
+        id("cube"),
+        Material::default().with_prop(PhongMaterialProperties::default().colored(glam::vec3(0., 0.6, 0.)))
+    )
+);
 
     engine.world_mut().register_system(Rotater::new(), 11);
 
