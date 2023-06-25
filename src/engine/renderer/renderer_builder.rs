@@ -8,5 +8,6 @@ pub trait VulkanRendererBuilder {
     fn build(
         self: Box<Self>,
         vk_interface: &mut VulkanInterface,
+        window: &winit::window::Window,
     ) -> PResult<Box<dyn VulkanRenderer>>;
 }

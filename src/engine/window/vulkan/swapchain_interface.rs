@@ -141,7 +141,7 @@ impl SwapchainInterface {
         let image_views = Self::create_image_views(device, &images, format.format)?;
 
         // destroy everything
-        unsafe {self.destroy(device);}
+        self.destroy(device);
         
         // assign every new field.
         self.swapchain = swapchain;
@@ -181,6 +181,10 @@ impl SwapchainInterface {
         }).collect::<Result<Vec<_>, _>>()?)
     }
 
+    pub fn swapchain(&self) -> vulkanalia::vk::SwapchainKHR {
+        self.swapchain
+    }
+
     pub fn format(&self) -> vulkanalia::vk::Format {
         self.format
     }
@@ -198,11 +202,13 @@ impl SwapchainInterface {
     }
     
     /// Destroys the swapchain and all the image views.
-    pub unsafe fn destroy(&self, device: &vulkanalia::Device) {
-        self.image_views
-            .iter()
-            .for_each(|v| device.destroy_image_view(*v, None));
-        device.destroy_swapchain_khr(self.swapchain, None);
+    pub fn destroy(&self, device: &vulkanalia::Device) {
+        unsafe {
+            self.image_views
+                .iter()
+                .for_each(|v| device.destroy_image_view(*v, None));
+            device.destroy_swapchain_khr(self.swapchain, None);
+        }
     }
 }
 

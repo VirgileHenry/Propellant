@@ -224,7 +224,7 @@ impl ResourceUniform for TextureUniform {
         self.layout
     }
     
-    fn set(&mut self, _image_index: usize) -> vulkanalia::vk::DescriptorSet {
+    fn set(&self, _image_index: usize) -> vulkanalia::vk::DescriptorSet {
         match &self.descriptor_set {
             VulkanSyncState::Sane(set) => *set,
             VulkanSyncState::Syncing(sets) => {

@@ -14,7 +14,9 @@ fn main() {
         .with_title("Custom Pipeline".to_string())
         .with_renderer(
             DefaultVulkanRendererBuilder::default()
-                .with_pipeline(RenderingPipelineBuilder::default())
+                .with_pipeline(
+                    RenderingPipelineBuilder::new()
+                )
         );
 
     let mut engine = PropellantEngine::default()

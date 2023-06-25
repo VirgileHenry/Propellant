@@ -18,7 +18,7 @@ pub trait ResourceUniformBuilder: Debug {
 
 pub trait ResourceUniform : Debug {
     fn recreate(&mut self, vk_device: &vulkanalia::Device, descriptor_pool: vulkanalia::vk::DescriptorPool, resources: &crate::ProppellantResources) -> PResult<()>;
-    fn set(&mut self, image_index: usize) -> vulkanalia::vk::DescriptorSet;
+    fn set(&self, image_index: usize) -> vulkanalia::vk::DescriptorSet;
     fn layout(&self) -> vulkanalia::vk::DescriptorSetLayout;
     fn destroy(&mut self, vk_device: &vulkanalia::Device);
 }

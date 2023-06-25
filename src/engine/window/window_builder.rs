@@ -26,8 +26,8 @@ impl PropellantWindowBuilder {
             .with_inner_size(winit::dpi::LogicalSize::new(self.inner_size.0 as u32, self.inner_size.1 as u32))
             .build(event_loop).unwrap();
         // name of the app
-        let mut vk_interface: VulkanInterface = VulkanInterface::create(&window, &self.device_prefs, self.app_name)?;
-        let renderer = self.renderer.build(&mut vk_interface)?;
+        let mut vk_interface = VulkanInterface::create(&window, &self.device_prefs, self.app_name)?;
+        let renderer = self.renderer.build(&mut vk_interface, &window)?;
 
         Ok(PropellantWindow {
             vk_interface,

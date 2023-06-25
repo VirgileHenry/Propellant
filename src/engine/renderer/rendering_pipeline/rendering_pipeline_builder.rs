@@ -1,28 +1,27 @@
-use std::collections::HashMap;
 
 use crate::{
     engine::{
         errors::{
-            PropellantError,
             PResult
         },
-        window::vulkan::transfer_command_manager::TransferCommandManager,
-        renderer::graphics_pipeline::graphics_pipeline_builder::GraphicsPipelineBuilder
+        window::vulkan::queues::QueueFamilyIndices,
+        renderer::graphics_pipeline::graphics_pipeline_builder::GraphicsPipelineBuilder, consts::PROPELLANT_DEBUG_FEATURES
     }, 
     id
 };
 
-use self::{rendering_pipeline_layer::RenderingPipelineLayer, rendering_pipeline_builder_states::{RenderingPipelineBuilderStateWaitingPipelineLayer, RenderingPipelineBuilderStateWaitingFramebufferLayer, RenderingPipelineBuilderStateReady}};
+use self::{rendering_pipeline_layer::RenderingPipelineLayer, rendering_pipeline_builder_states::{RenderingPipelineBuilderStateWaitingPipelineLayer, RenderingPipelineBuilderStateWaitingFramebufferLayer, RenderingPipelineBuilderStateReady}, intermediate_render_target_builder::IntermediateRenderTargetBuilder};
 
 use super::RenderingPipeline;
 
 pub(crate) mod rendering_pipeline_builder_states;
 pub(crate) mod rendering_pipeline_layer;
+pub(crate) mod intermediate_render_target_builder;
 
 pub struct RenderingPipelineBuilder<T> {
     phantom: std::marker::PhantomData<T>,
     pipelines: Vec<RenderingPipelineLayer>,
-    framebuffers: Vec<()>,
+    framebuffers: Vec<IntermediateRenderTargetBuilder>,
 }
 
 impl RenderingPipelineBuilder<RenderingPipelineBuilderStateWaitingPipelineLayer> {
@@ -48,7 +47,7 @@ impl RenderingPipelineBuilder<RenderingPipelineBuilderStateWaitingPipelineLayer>
 
 impl RenderingPipelineBuilder<RenderingPipelineBuilderStateWaitingFramebufferLayer> {
 
-    pub fn with_framebuffer_layer(self, layer: ()) -> Self {
+    pub fn with_framebuffer_layer(self, layer: IntermediateRenderTargetBuilder) -> Self {
         let mut layers = self.framebuffers;
         layers.push(layer);
 
@@ -60,6 +59,12 @@ impl RenderingPipelineBuilder<RenderingPipelineBuilderStateWaitingFramebufferLay
     }
 
     pub fn finish(self) -> RenderingPipelineBuilder<RenderingPipelineBuilderStateReady> {
+        // check the layout of the pipeline is correct
+        if PROPELLANT_DEBUG_FEATURES {
+            assert!(self.pipelines.len() > 0, "[PROPELLANT DEBUG] Tried to create a rendering pipeline with no layers.");
+            assert!(self.pipelines.len() == self.framebuffers.len() + 1, "[PROPELLANT DEBUG] Tried to create a rendering pipeline with an incorrect number of layers / intermediate render targets.");
+        }
+
         RenderingPipelineBuilder {
             phantom: std::marker::PhantomData,
             pipelines: self.pipelines,
@@ -74,26 +79,28 @@ impl RenderingPipelineBuilder<RenderingPipelineBuilderStateReady> {
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
-        swapchain_extent: vulkanalia::vk::Extent2D,
-        swapchain_images: &[vulkanalia::vk::Image],
-        render_pass: vulkanalia::vk::RenderPass,
-        transfer_manager: &mut TransferCommandManager,
+        window: &winit::window::Window,
+        surface: vulkanalia::vk::SurfaceKHR,
+        queue_indices: QueueFamilyIndices,
     ) -> PResult<RenderingPipeline> {
-        Ok(RenderingPipeline::new(
-            self.pipelines[0]
-                .iter()
-                .map(|(k, v)|
-                    v.build(
-                        vk_instance,
-                        vk_device,
-                        vk_physical_device,
-                        transfer_manager,
-                        swapchain_extent,
-                        swapchain_images,
-                        render_pass,
-                    ).map(|p| (k, p))
-                ).collect::<Result<HashMap<_, _>, PropellantError>>()?
-        ))
+        RenderingPipeline::create(
+            self,
+            vk_instance,
+            window,
+            surface,
+            vk_device,
+            vk_physical_device,
+            queue_indices,
+        )
+    }
+
+    pub fn transition_layers(&self) -> impl Iterator<Item = (&RenderingPipelineLayer, &IntermediateRenderTargetBuilder)> {
+        let layer_count = self.pipelines.len();
+        self.pipelines.iter().zip(self.framebuffers.iter()).take(layer_count - 1)
+    }
+
+    pub fn last_layer(&self) -> &RenderingPipelineLayer {
+        self.pipelines.last().unwrap()
     }
 }
 

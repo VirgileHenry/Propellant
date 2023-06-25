@@ -26,6 +26,7 @@ pub enum PropellantError {
     OutOfMemory,
     EventLoopClosed,
     NoMainCamera,
+    NoResources,
 }
 
 
@@ -82,6 +83,7 @@ impl Debug for PropellantError {
             PropellantError::OutOfMemory => write!(f, "Out of memory."),
             PropellantError::EventLoopClosed => write!(f, "Event loop closed."),
             PropellantError::NoMainCamera => write!(f, "No main camera."),
+            PropellantError::NoResources => write!(f, "No resources."),
         }
 
 

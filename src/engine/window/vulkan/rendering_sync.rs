@@ -104,11 +104,13 @@ impl<const MAX_FRAMES_IN_FLIGHT: usize> RenderingSync<MAX_FRAMES_IN_FLIGHT> {
         self.images_in_flight.resize(new_length, vulkanalia::vk::Fence::null());
     }
 
-    pub unsafe fn destroy(&mut self, vk_device: &vulkanalia::Device) {
-        for i in 0..MAX_FRAMES_IN_FLIGHT {
-            vk_device.destroy_semaphore(self.image_available[i], None);
-            vk_device.destroy_semaphore(self.render_finished[i], None);
-            vk_device.destroy_fence(self.frames_in_flight[i], None);
+    pub fn destroy(&mut self, vk_device: &vulkanalia::Device) {
+        unsafe {
+            for i in 0..MAX_FRAMES_IN_FLIGHT {
+                vk_device.destroy_semaphore(self.image_available[i], None);
+                vk_device.destroy_semaphore(self.render_finished[i], None);
+                vk_device.destroy_fence(self.frames_in_flight[i], None);
+            }
         }
         // do not clean up the images in flight fences, as they are copies of the frames in flight fences.
     }

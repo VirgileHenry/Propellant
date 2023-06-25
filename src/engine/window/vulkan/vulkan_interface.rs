@@ -9,13 +9,8 @@ use crate::engine::renderer::rendering_pipeline::RenderingPipeline;
 use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
 use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RenderingPipelineBuilderStateReady;
 
-use foundry::ComponentTable;
-
-use super::rendering_command_manager::RenderingCommandManager;
 use super::physical_device_prefs::PhysicalDevicePreferences;
 use super::queues::QueueFamilyIndices;
-use super::rendering_sync::RenderingSync;
-use super::swapchain_interface::SwapchainInterface;
 use super::swapchain_support::SwapchainSupport;
 use super::transfer_command_manager::TransferCommandManager;
 
@@ -23,7 +18,6 @@ use vulkanalia::vk::EntryV1_0;
 use vulkanalia::vk::InstanceV1_0;
 use vulkanalia::vk::DeviceV1_0;
 use vulkanalia::vk::HasBuilder;
-use vulkanalia::vk::KhrSwapchainExtension;
 use vulkanalia::vk::KhrSurfaceExtension;
 
 /// Extensions that are required to run the propellant engine, if we are using the window and vulkan.
@@ -31,7 +25,6 @@ pub(crate) const REQUIRED_DEVICE_EXTENSIONS: &[vulkanalia::vk::ExtensionName] = 
     vulkanalia::vk::KHR_SWAPCHAIN_EXTENSION.name,
     vulkanalia::vk::EXT_DESCRIPTOR_INDEXING_EXTENSION.name,
 ];
-pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 4;
 
 pub struct VulkanInterface {
     pub entry: vulkanalia::Entry,
@@ -41,12 +34,7 @@ pub struct VulkanInterface {
     pub queue: vulkanalia::vk::Queue,
     pub indices: QueueFamilyIndices,
     pub surface: vulkanalia::vk::SurfaceKHR,
-    pub swapchain: SwapchainInterface,
-    pub render_pass: vulkanalia::vk::RenderPass,
-    pub framebuffers: Vec<vulkanalia::vk::Framebuffer>,
-    pub rendering_manager: RenderingCommandManager,
     pub transfer_manager: TransferCommandManager,
-    pub rendering_sync: RenderingSync<MAX_FRAMES_IN_FLIGHT>,
 }
 
 impl VulkanInterface {
@@ -113,22 +101,10 @@ impl VulkanInterface {
         let indices = unsafe { QueueFamilyIndices::get(&instance, physical_device, surface)? };
         // create the actual device with the info
         let (device, queue) = Self::create_logical_device(&instance, physical_device, indices)?;
-        // create the swap chain 
-        let swapchain = SwapchainInterface::create(&instance, window, surface, physical_device, &device, indices)?;
-        let swapchain_images = unsafe { device.get_swapchain_images_khr(*swapchain)? };
-        // create the render pass
-        let render_pass = Self::create_render_pass(&device, swapchain.format())?;
 
-        // create the frame buffers
-        let framebuffers = Self::create_framebuffers(&device, &swapchain.image_views(), render_pass, swapchain.extent())?;
-
-        // create the command pool and buffers
-        let rendering_manager = RenderingCommandManager::create(&device, swapchain_images.len(), indices)?;
+        // the transfer manager is able to send data to the gpu.
         let transfer_manager = TransferCommandManager::create(&device, indices)?;
-
-        let rendering_sync = RenderingSync::create(&device, swapchain_images.len())?;
-
-
+        
         Ok(VulkanInterface {
             entry,
             instance,
@@ -137,12 +113,7 @@ impl VulkanInterface {
             queue,
             indices,
             surface,
-            swapchain,
-            render_pass,
-            framebuffers,
-            rendering_manager,
             transfer_manager,
-            rendering_sync,
         })
 
     }
@@ -225,104 +196,19 @@ impl VulkanInterface {
         Ok((vk_device, vk_queue))
     }
 
-    fn create_render_pass(
-        device: &vulkanalia::Device,
-        swapchain_format: vulkanalia::vk::Format
-    ) -> PResult<vulkanalia::vk::RenderPass> {
-        // create the color attachment
-        let color_attachment = vulkanalia::vk::AttachmentDescription::builder()
-            .format(swapchain_format)
-            .samples(vulkanalia::vk::SampleCountFlags::_1)
-            .load_op(vulkanalia::vk::AttachmentLoadOp::CLEAR)
-            .store_op(vulkanalia::vk::AttachmentStoreOp::STORE)
-            .stencil_load_op(vulkanalia::vk::AttachmentLoadOp::DONT_CARE)
-            .stencil_store_op(vulkanalia::vk::AttachmentStoreOp::DONT_CARE)
-            .initial_layout(vulkanalia::vk::ImageLayout::UNDEFINED)
-            .final_layout(vulkanalia::vk::ImageLayout::PRESENT_SRC_KHR);
-        // create the color attachment reference
-        let color_attachment_ref = vulkanalia::vk::AttachmentReference::builder()
-            .attachment(0)
-            .layout(vulkanalia::vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
-        // create the subpass
-        let color_attachments = &[color_attachment_ref];
-        let subpass = vulkanalia::vk::SubpassDescription::builder()
-            .pipeline_bind_point(vulkanalia::vk::PipelineBindPoint::GRAPHICS)
-            .color_attachments(color_attachments);
-        // create the subpass dependency
-        let dependency = vulkanalia::vk::SubpassDependency::builder()
-            .src_subpass(vulkanalia::vk::SUBPASS_EXTERNAL)
-            .dst_subpass(0)
-            .src_stage_mask(vulkanalia::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .src_access_mask(vulkanalia::vk::AccessFlags::empty())
-            .dst_stage_mask(vulkanalia::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .dst_access_mask(vulkanalia::vk::AccessFlags::COLOR_ATTACHMENT_WRITE);
-        // create the render pass
-        let attachments = &[color_attachment];
-        let subpasses = &[subpass];
-        let dependencies = &[dependency];
-        let info = vulkanalia::vk::RenderPassCreateInfo::builder()
-            .attachments(attachments)
-            .subpasses(subpasses)
-            .dependencies(dependencies);
-        
-        Ok(unsafe {
-            device.create_render_pass(&info, None)?
-        })
-    }
-
-    fn create_framebuffers(
-        device: &vulkanalia::Device,
-        image_views: &Vec<vulkanalia::vk::ImageView>,
-        render_pass: vulkanalia::vk::RenderPass,
-        extent: vulkanalia::vk::Extent2D
-    ) -> PResult<Vec<vulkanalia::vk::Framebuffer>> {
-        Ok(image_views
-            .iter()
-            .map(|i| {
-                let attachments = &[*i];
-                let create_info = vulkanalia::vk::FramebufferCreateInfo::builder()
-                    .render_pass(render_pass)
-                    .attachments(attachments)
-                    .width(extent.width)
-                    .height(extent.height)
-                    .layers(1);
-
-                unsafe {
-                    device.create_framebuffer(&create_info, None)
-                }
-            })
-            .collect::<Result<Vec<_>, _>>()?)
-    }
-
-    /// Recompute the draw commands buffers with the components.
-    /// If the scene graphics have changed, this must be called in order to see any changes.
-    pub fn rebuild_frame_draw_commands(
-        &mut self,
-        components: &ComponentTable,
-        pipeline_lib: &mut RenderingPipeline,
-        image_index: usize
-    ) -> PResult<()> {
-        self.rendering_manager.register_frame_commands(
-            &self.device,
-            &self.swapchain,
-            self.render_pass,
-            &self.framebuffers,
-            components,
-            pipeline_lib,
-            image_index,
-        )
-    }
-
     /// Build a rendering pipeline builder into a rendering pipeline that can be used.
-    pub fn build_pipeline_lib(&mut self, pipeline_lib: &RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>) -> PResult<RenderingPipeline> {
+    pub fn build_pipeline_lib(
+        &mut self,
+        window: &winit::window::Window,
+        pipeline_lib: &RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>
+    ) -> PResult<RenderingPipeline> {
         pipeline_lib.build(
             &self.instance,
             &self.device,
             self.physical_device,
-            self.swapchain.extent(),
-            &self.swapchain.images(),
-            self.render_pass,
-            &mut self.transfer_manager,
+            window,
+            self.surface,
+            self.indices,
         )
     }
 
@@ -337,28 +223,7 @@ impl VulkanInterface {
 
     #[allow(unreachable_code, unused_variables)] // temp, while we make this working.
     pub fn swapchain_recreation_request(&mut self, window: &winit::window::Window) -> PResult<()> {
-        // ! fixme this whole thing does not work ! still out of date khr !
-        return Ok(());
-        // first, wait for any remaining work
-        unsafe { self.device.device_wait_idle()?; }
-        // destroy all previous fields
-        // framebuffers
-        self.framebuffers.iter().for_each(|f| unsafe { self.device.destroy_framebuffer(*f, None); });
-        // command buffers
-        self.rendering_manager.free_command_buffers(&self.device);
-        // render pass
-        unsafe {self.device.destroy_render_pass(self.render_pass, None);}
-        // now recreate everything !
-        // swapchain -> this will delete the old swapchain
-        self.swapchain.recreate(&self.instance, window, self.surface, self.physical_device, &self.device, self.indices)?;
-        // render pass
-        self.render_pass = Self::create_render_pass(&self.device, self.swapchain.format())?;
-        // framebuffers
-        self.framebuffers = Self::create_framebuffers(&self.device, self.swapchain.image_views(), self.render_pass, self.swapchain.extent())?;
-        // command buffers
-        self.rendering_manager.recreate_command_buffers(&self.device, &self.framebuffers)?;
-        // resize in flight image
-        self.rendering_sync.resize_images_in_flight(self.swapchain.images().len());
+        // todo 
         Ok(())
     }
 
@@ -375,13 +240,6 @@ impl Drop for VulkanInterface {
             // we have to wait for any remaining work here, to avoid destroying in flight frames
             self.device.device_wait_idle().unwrap(); // todo : handle failure here ?
             self.transfer_manager.destroy(&self.device);
-            self.rendering_sync.destroy(&self.device);
-            self.rendering_manager.destroy(&self.device);
-            self.framebuffers
-                .iter()
-                .for_each(|f| self.device.destroy_framebuffer(*f, None));
-            self.swapchain.destroy(&self.device);
-            self.device.destroy_render_pass(self.render_pass, None);
             self.device.destroy_device(None);
             self.instance.destroy_surface_khr(self.surface, None);
             self.instance.destroy_instance(None);

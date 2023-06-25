@@ -12,6 +12,7 @@ use self::rendering_pipeline::RenderingPipeline;
 use self::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
 use self::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RenderingPipelineBuilderStateReady;
 use super::errors::PResult;
+use super::errors::PropellantError;
 use super::flags::RequireMemoryTransfersFlag;
 use super::flags::RequireResourcesLoadingFlag;
 use super::flags::RequireSceneRebuildFlag;
@@ -36,7 +37,7 @@ pub trait VulkanRenderer {
         &mut self, 
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
-        vj_physical_device: vulkanalia::vk::PhysicalDevice,
+        vk_physical_device: vulkanalia::vk::PhysicalDevice,
         extent: vulkanalia::vk::Extent2D,
         images: &[vulkanalia::vk::Image],
         render_pass: vulkanalia::vk::RenderPass
@@ -57,17 +58,24 @@ enum SyncingState {
 /// Default Vulkan renderer.
 /// Perform basic drawing operation using the vk interface and the components.
 pub struct DefaultVulkanRenderer {
-    pipeline_lib: RenderingPipeline,
-    pipeline_lib_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>,
+    rendering_pipeline: RenderingPipeline,
+    rendering_pipeline_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>,
     syncing_state: SyncingState,
 }
 
 impl DefaultVulkanRenderer {
-    pub fn new(vk_interface: &mut VulkanInterface, rendering_pipeline_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>) -> PResult<DefaultVulkanRenderer> {
-        let pipeline_lib = vk_interface.build_pipeline_lib(&rendering_pipeline_builder)?;
+    pub fn new(
+        vk_interface: &mut VulkanInterface,
+        window: &winit::window::Window,
+        rendering_pipeline_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>
+    ) -> PResult<DefaultVulkanRenderer> {
+        let pipeline_lib = vk_interface.build_pipeline_lib(
+            window,
+            &rendering_pipeline_builder
+        )?;
         Ok(DefaultVulkanRenderer {
-            pipeline_lib,
-            pipeline_lib_builder: rendering_pipeline_builder,
+            rendering_pipeline: pipeline_lib,
+            rendering_pipeline_builder,
             syncing_state: SyncingState::Sane,
         })
     }
@@ -92,7 +100,7 @@ impl DefaultVulkanRenderer {
                     &mut vk_interface.transfer_manager,
                 )?;
                 // rebuild the resources uniforms.
-                for (_, pipeline) in self.pipeline_lib.get_pipelines_mut() {
+                for (_, pipeline) in self.rendering_pipeline.get_pipelines_mut() {
                     pipeline.rebuild_resources_uniforms(&vk_interface.device, resource_lib)?;
                 }
                 // ask for memory transfers
@@ -110,7 +118,7 @@ impl DefaultVulkanRenderer {
                 image_index,
             )?;
             // set the syncing state : we will update the data for the current frame, but not the one for in flight frames.
-            let mut unsynced_frames = vec![false; vk_interface.swapchain.images().len()];
+            let mut unsynced_frames = vec![false; self.rendering_pipeline.swapchain_image_count()];
             unsynced_frames[image_index] = true;
             self.syncing_state = SyncingState::Syncing(unsynced_frames);
         }
@@ -149,7 +157,7 @@ impl DefaultVulkanRenderer {
     ) -> PResult<()> {
 
         // map all the uniform buffers
-        self.pipeline_lib.get_pipelines_mut().for_each(
+        self.rendering_pipeline.get_pipelines_mut().for_each(
             |(_, pipeline)| match pipeline.map_all_uniform_buffers(vk_device, image_index) {
                 Ok(_) => {/* all good */}
                 Err(e) => {
@@ -161,7 +169,7 @@ impl DefaultVulkanRenderer {
         );
 
         // upload all per frame objects memory
-        for (_, pipeline) in self.pipeline_lib.get_pipelines_mut() {
+        for (_, pipeline) in self.rendering_pipeline.get_pipelines_mut() {
             pipeline.update_frame_uniform_buffers(components, image_index)?;
         }
 
@@ -172,7 +180,7 @@ impl DefaultVulkanRenderer {
                 continue;
             }
             // get the pipeline, update to it's uniforms buffers
-            match self.pipeline_lib.get_pipeline_mut(mesh_renderer.pipeline_id()) {
+            match self.rendering_pipeline.get_pipeline_mut(mesh_renderer.pipeline_id()) {
                 Some(pipeline) => {pipeline.update_uniform_buffers(mesh_renderer.instance(), transform, mesh_renderer.material(), image_index)?;},
                 None => {
                     if cfg!(debug_assertions) {
@@ -183,7 +191,7 @@ impl DefaultVulkanRenderer {
         }
 
         // unmap all the uniform buffers
-        self.pipeline_lib.get_pipelines_mut().for_each(
+        self.rendering_pipeline.get_pipelines_mut().for_each(
             |(_, pipeline)| pipeline.unmap_all_uniform_buffers(vk_device, image_index)
         );
 
@@ -198,7 +206,7 @@ impl DefaultVulkanRenderer {
     ) -> PResult<()> {
         // for each mesh in each pipeline, count the number of instances
         // hashmap : pipeline_id -> mesh_id -> (instance_count, mesh_offset, instance counter)
-        let mut instance_count: HashMap<u64, BTreeMap<u64, (usize, usize, usize)>> = HashMap::with_capacity(self.pipeline_lib.pipeline_count());
+        let mut instance_count: HashMap<u64, BTreeMap<u64, (usize, usize, usize)>> = HashMap::with_capacity(self.rendering_pipeline.pipeline_count());
         for (_, (_, mesh_renderer)) in component_iterator!(components; mut Transform, MeshRenderer) {
             match instance_count.get_mut(&mesh_renderer.pipeline_id()) {
                 Some(meshes) => match meshes.get_mut(&mesh_renderer.mesh_id()) {
@@ -244,7 +252,7 @@ impl DefaultVulkanRenderer {
 
         // ask each pipeline to rebuild, providing the hashmap.
         instance_count.into_iter().for_each(|(pipeline_id, map, )| {
-            match self.pipeline_lib.get_pipeline_mut(pipeline_id) {
+            match self.rendering_pipeline.get_pipeline_mut(pipeline_id) {
                 Some(pipeline) => match pipeline.resize_uniforms_buffers(
                         map,
                         image_index,
@@ -269,7 +277,7 @@ impl DefaultVulkanRenderer {
 
         // finally, update all uniform buffers for static objects into the buffers, as they may have moved.
         // map all the uniform buffers
-        self.pipeline_lib.get_pipelines_mut().for_each(
+        self.rendering_pipeline.get_pipelines_mut().for_each(
             |(_, pipeline)| match pipeline.map_all_uniform_buffers(&vk_interface.device, image_index) {
                 Ok(_) => {/* all good */}
                 Err(e) => {
@@ -280,11 +288,13 @@ impl DefaultVulkanRenderer {
             }
         );
 
+        let swapchain_image_count = self.rendering_pipeline.swapchain_image_count();
+
         for (entity, (tf, mesh_renderer)) in component_iterator!(components; mut Transform, MeshRenderer) {
             if mesh_renderer.is_static() {
-                match self.pipeline_lib.get_pipeline_mut(mesh_renderer.pipeline_id()) {
+                match self.rendering_pipeline.get_pipeline_mut(mesh_renderer.pipeline_id()) {
                     Some(pipeline) => {
-                        for i in 0..vk_interface.swapchain.images().len() {
+                        for i in 0..swapchain_image_count {
                             pipeline.update_uniform_buffers(mesh_renderer.instance(), tf, mesh_renderer.material(), i).unwrap();
                         }
                     }
@@ -298,13 +308,17 @@ impl DefaultVulkanRenderer {
         }
 
         // unmap all the uniform buffers
-        self.pipeline_lib.get_pipelines_mut().for_each(
+        self.rendering_pipeline.get_pipelines_mut().for_each(
             |(_, pipeline)| pipeline.unmap_all_uniform_buffers(&vk_interface.device, image_index)
         );
 
         // finally, recreate the command buffers
         // directly return the result
-        vk_interface.rebuild_frame_draw_commands(components, &mut self.pipeline_lib, image_index)
+        let resources = match components.get_singleton::<ProppellantResources>() {
+            Some(resources) => resources,
+            None => return Err(PropellantError::NoResources),
+        };
+        self.rendering_pipeline.register_draw_commands(&vk_interface.device, resources, image_index)
     }
 }
 
@@ -318,18 +332,18 @@ impl VulkanRenderer for DefaultVulkanRenderer {
             // wait for the frame on this fence to finish.
             // if we have less than MAX_FRAMES_IN_FLIGHT frames in flight, this will do nothing.
             // otherwise, this will wait for the oldest frame to finish.
-            vk_interface.rendering_sync.wait_for_frame_flight_fence(&vk_interface.device)?;
+            self.rendering_pipeline.rendering_sync_mut().wait_for_frame_flight_fence(&vk_interface.device)?;
             // get the image index
             let image_index = vk_interface.device
                 .acquire_next_image_khr(
-                    *vk_interface.swapchain,
+                    self.rendering_pipeline.swapchain().swapchain(),
                     u64::max_value(),
-                    vk_interface.rendering_sync.image_available_semaphore(),
+                    self.rendering_pipeline.rendering_sync().image_available_semaphore(),
                     vulkanalia::vk::Fence::null(),
                 )?.0 as usize;
 
             // wait for any in flight image
-            vk_interface.rendering_sync.wait_for_in_flight_image(image_index, &vk_interface.device)?;
+            self.rendering_pipeline.rendering_sync_mut().wait_for_in_flight_image(image_index, &vk_interface.device)?;
 
             // look for flags
             self.handle_rendering_flags(vk_interface, components, image_index)?;
@@ -338,10 +352,10 @@ impl VulkanRenderer for DefaultVulkanRenderer {
             self.update_uniform_buffer(&vk_interface.device, image_index, components)?;
 
             // create the draw command
-            let wait_semaphores = &[vk_interface.rendering_sync.image_available_semaphore(),];
+            let wait_semaphores = &[self.rendering_pipeline.rendering_sync().image_available_semaphore(),];
             let wait_stages = &[vulkanalia::vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-            let command_buffers = &[vk_interface.rendering_manager.command_buffer(image_index)];
-            let signal_semaphores = &[vk_interface.rendering_sync.render_finished_semaphore()];
+            let command_buffers = &[self.rendering_pipeline.command_manager().command_buffer(image_index)];
+            let signal_semaphores = &[self.rendering_pipeline.rendering_sync().render_finished_semaphore()];
             let submit_info = vulkanalia::vk::SubmitInfo::builder()
                 .wait_semaphores(wait_semaphores)
                 .wait_dst_stage_mask(wait_stages)
@@ -349,17 +363,17 @@ impl VulkanRenderer for DefaultVulkanRenderer {
                 .signal_semaphores(signal_semaphores);
             
             // reset the fence for this frame
-            vk_interface.rendering_sync.reset_in_flight_frame_fence(&vk_interface.device)?;
+            self.rendering_pipeline.rendering_sync().reset_in_flight_frame_fence(&vk_interface.device)?;
             
             // submit our draw command
             vk_interface.device.queue_submit(
                 vk_interface.queue,
                 &[submit_info],
-                vk_interface.rendering_sync.frame_in_flight_fence(),
+                self.rendering_pipeline.rendering_sync().frame_in_flight_fence(),
             )?;
             
             // present the image
-            let swapchains = &[*vk_interface.swapchain];
+            let swapchains = &[self.rendering_pipeline.swapchain().swapchain()];
             let image_indices = &[image_index as u32];
             let present_info = vulkanalia::vk::PresentInfoKHR::builder()
                 .wait_semaphores(signal_semaphores)
@@ -369,7 +383,7 @@ impl VulkanRenderer for DefaultVulkanRenderer {
             let result = vk_interface.device.queue_present_khr(vk_interface.queue, &present_info)?;
             
             // adavance the frame
-            vk_interface.rendering_sync.advance_frame();
+            self.rendering_pipeline.rendering_sync_mut().advance_frame();
 
             Ok(result)
         }
@@ -380,8 +394,8 @@ impl VulkanRenderer for DefaultVulkanRenderer {
         pipeline_lib: RenderingPipeline,
         pipeline_lib_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>
     ) {
-        self.pipeline_lib = pipeline_lib;
-        self.pipeline_lib_builder = pipeline_lib_builder;
+        self.rendering_pipeline = pipeline_lib;
+        self.rendering_pipeline_builder = pipeline_lib_builder;
     }
 
     #[allow(unused_variables)]
@@ -400,6 +414,6 @@ impl VulkanRenderer for DefaultVulkanRenderer {
     }
 
     fn destroy(&mut self, vk_device: &vulkanalia::Device) {
-        self.pipeline_lib.destroy(vk_device);
+        self.rendering_pipeline.destroy(vk_device);
     }
 }

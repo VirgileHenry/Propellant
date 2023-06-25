@@ -60,7 +60,7 @@ impl GraphicsPipeline {
     }
 
     pub fn register_draw_commands(
-        &mut self,
+        &self,
         vk_device: &vulkanalia::Device,
         image_index: usize,
         command_buffer: vulkanalia::vk::CommandBuffer,
@@ -78,7 +78,7 @@ impl GraphicsPipeline {
         // bind all descriptor sets
         let empty_ds = Vec::with_capacity(0);
         let ds = empty_ds.into_iter()
-            .chain(self.resource_uniforms.iter_mut().map(|uniform| uniform.set(image_index)))
+            .chain(self.resource_uniforms.iter().map(|uniform| uniform.set(image_index)))
             .chain(self.frame_uniforms.iter().map(|uniform| uniform.set(image_index)))
             .chain(self.object_uniforms.iter().map(|uniform| uniform.set(image_index)))
             .collect::<Vec<_>>();

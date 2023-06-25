@@ -40,14 +40,7 @@ impl PropellantWindow {
         // signal the vk interface to recreate the swapchain.
         self.vk_interface.swapchain_recreation_request(&self.window)?;
         // rebuild the pipeline !
-        self.renderer.on_swapchain_recreation(
-            &self.vk_interface.instance,
-            &self.vk_interface.device,
-            self.vk_interface.physical_device,
-            self.vk_interface.swapchain.extent(),
-            &self.vk_interface.swapchain.images(),
-            self.vk_interface.render_pass,
-        )?;
+        
         Ok(())
     }
 

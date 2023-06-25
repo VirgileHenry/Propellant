@@ -5,25 +5,25 @@ use crate::engine::renderer::graphics_pipeline::graphics_pipeline_builder::Graph
 
 
 pub struct RenderingPipelineLayer{
-    layer: HashMap<u64, GraphicsPipelineBuilder>,
+    pipelines: HashMap<u64, GraphicsPipelineBuilder>,
 }
 
 impl RenderingPipelineLayer {
     pub fn new() -> Self {
         RenderingPipelineLayer {
-            layer: HashMap::new(),
+            pipelines: HashMap::new(),
         }
     }
 
     pub fn with_pipeline(self, id: u64, pipeline: GraphicsPipelineBuilder) -> Self {
-        let mut layer = self.layer;
+        let mut layer = self.pipelines;
         layer.insert(id, pipeline);
         RenderingPipelineLayer {
-            layer,
+            pipelines: layer,
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (u64, &GraphicsPipelineBuilder)> {
-        self.layer.iter().map(|(key, pipeline)| (*key, pipeline))
+    pub fn pipelines(&self) -> &HashMap<u64, GraphicsPipelineBuilder> {
+        &self.pipelines
     }
 }

@@ -1,14 +1,8 @@
 
-
-use foundry::ComponentTable;
 use vulkanalia::vk::DeviceV1_0;
 use vulkanalia::vk::HasBuilder;
 
-use crate::ProppellantResources;
 use crate::engine::errors::PResult;
-use crate::engine::errors::PropellantError;
-use crate::engine::errors::debug_error::DebugError;
-use crate::engine::renderer::rendering_pipeline::RenderingPipeline;
 
 pub struct RenderingCommandManager {
     command_pool: vulkanalia::vk::CommandPool,
@@ -83,59 +77,22 @@ impl RenderingCommandManager {
         self.command_buffers[index]
     }
 
-    pub fn register_frame_commands(
-        &mut self,
+    pub fn start_recording_command_buffer(
+        &self,
         vk_device: &vulkanalia::Device,
-        swapchain: &super::swapchain_interface::SwapchainInterface,
-        render_pass: vulkanalia::vk::RenderPass,
-        framebuffers: &Vec<vulkanalia::vk::Framebuffer>,
-        components: &ComponentTable,
-        pipeline_lib: &mut RenderingPipeline,
         image_index: usize,
     ) -> PResult<()> {
-
-        // get the mesh lib (to draw the meshes, duh)
-        let resources = match components.get_singleton::<ProppellantResources>() {
-            Some(lib) => lib,
-            None => return Err(PropellantError::DebugError(DebugError::MissingResourceLibrary)),
-        };
-
-        // loop through the command buffers, and register the commands
-        let command_buffer = self.command_buffers[image_index];
-
         let info = vulkanalia::vk::CommandBufferBeginInfo::builder();
-        
-        unsafe { vk_device.begin_command_buffer(command_buffer, &info)? };
-        let render_area = vulkanalia::vk::Rect2D::builder()
-            .offset(vulkanalia::vk::Offset2D::default())
-            .extent(swapchain.extent());
+        unsafe { vk_device.begin_command_buffer(self.command_buffers[image_index], &info)? };
+        Ok(())
+    }
 
-        let color_clear_value = vulkanalia::vk::ClearValue {
-            color: vulkanalia::vk::ClearColorValue {
-                float32: [0., 0., 0., 1.0],
-            },
-        };
-
-        let clear_values = &[color_clear_value];
-        let info = vulkanalia::vk::RenderPassBeginInfo::builder()
-            .render_pass(render_pass)
-            .framebuffer(framebuffers[image_index])
-            .render_area(render_area)
-            .clear_values(clear_values);
-        
-        unsafe { vk_device.cmd_begin_render_pass(command_buffer, &info, vulkanalia::vk::SubpassContents::INLINE) };
-        
-        // for each pipeline
-        for (_, pipeline) in pipeline_lib.get_pipelines_mut() {
-            pipeline.register_draw_commands(
-                vk_device,
-                image_index,
-                command_buffer,
-                resources,
-            );
-        }
-        unsafe { vk_device.cmd_end_render_pass(command_buffer) };
-        unsafe { vk_device.end_command_buffer(command_buffer)? };
+    pub fn end_recording_command_buffer(
+        &self,
+        vk_device: &vulkanalia::Device,
+        image_index: usize,
+    ) -> PResult<()> {
+        unsafe { vk_device.end_command_buffer(self.command_buffers[image_index])? };
         Ok(())
     }
     

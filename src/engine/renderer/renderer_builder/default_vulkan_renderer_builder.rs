@@ -29,8 +29,9 @@ impl VulkanRendererBuilder for DefaultVulkanRendererBuilder {
     fn build(
             self: Box<Self>,
             vk_interface: &mut VulkanInterface,
+            window: &winit::window::Window,
         ) -> PResult<Box<dyn VulkanRenderer>> {
-        Ok(Box::new(DefaultVulkanRenderer::new(vk_interface, self.rendering_pipeline)?))
+        Ok(Box::new(DefaultVulkanRenderer::new(vk_interface, window, self.rendering_pipeline)?))
     }
 
 }
