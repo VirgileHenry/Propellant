@@ -17,7 +17,7 @@ pub struct RenderingSync<const MAX_FRAMES_IN_FLIGHT: usize> {
 impl<const MAX_FRAMES_IN_FLIGHT: usize> RenderingSync<MAX_FRAMES_IN_FLIGHT> {
     pub fn create(
         vk_device: &vulkanalia::Device,
-        swapchain_images: &Vec<vulkanalia::vk::Image>
+        swapchain_images_count: usize,
     ) -> PResult<RenderingSync<MAX_FRAMES_IN_FLIGHT>> {
         // create the sync objects
         let mut image_available = [vulkanalia::vk::Semaphore::null(); MAX_FRAMES_IN_FLIGHT];
@@ -37,7 +37,7 @@ impl<const MAX_FRAMES_IN_FLIGHT: usize> RenderingSync<MAX_FRAMES_IN_FLIGHT> {
             }
         }
 
-        let images_in_flight = swapchain_images.iter().map(|_| vulkanalia::vk::Fence::null()).collect::<Vec<_>>();
+        let images_in_flight = (0..swapchain_images_count).map(|_| vulkanalia::vk::Fence::null()).collect::<Vec<_>>();
         
         Ok(RenderingSync {
             image_available,

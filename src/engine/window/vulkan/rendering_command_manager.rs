@@ -19,7 +19,7 @@ impl RenderingCommandManager {
     /// Creates a new command pool and buffers.
     pub fn create(
         vk_device: &vulkanalia::Device,
-        framebuffers: &Vec<vulkanalia::vk::Framebuffer>,
+        swapchain_image_count: usize,
         indices: super::queues::QueueFamilyIndices,
     ) -> PResult<RenderingCommandManager> {
         // create the frame buffers
@@ -32,7 +32,7 @@ impl RenderingCommandManager {
         let allocate_info = vulkanalia::vk::CommandBufferAllocateInfo::builder()
             .command_pool(command_pool)
             .level(vulkanalia::vk::CommandBufferLevel::PRIMARY)
-            .command_buffer_count(framebuffers.len() as u32);
+            .command_buffer_count(swapchain_image_count as u32);
         
         let command_buffers = unsafe{ vk_device.allocate_command_buffers(&allocate_info)? };
 

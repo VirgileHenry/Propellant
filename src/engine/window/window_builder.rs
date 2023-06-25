@@ -1,10 +1,8 @@
 use crate::engine::consts::ENGINE_VERSION;
 use crate::engine::engine_events::PropellantEvent;
 use crate::engine::errors::PResult;
-use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
-use crate::engine::renderer::graphics_pipeline::graphics_pipeline_builder::GraphicsPipelineBuilder;
-use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RenderingPipelineBuilderStateReady;
-use crate::engine::renderer::{DefaultVulkanRenderer, VulkanRenderer};
+use crate::engine::renderer::renderer_builder::VulkanRendererBuilder;
+use crate::engine::renderer::renderer_builder::default_vulkan_renderer_builder::DefaultVulkanRendererBuilder;
 use super::PropellantWindow;
 use super::vulkan::physical_device_prefs::{PhysicalDevicePreferences, DefaultPhysicalDevicePreferences};
 use super::vulkan::vulkan_interface::VulkanInterface;
@@ -16,8 +14,7 @@ use super::vulkan::vulkan_interface::VulkanInterface;
 pub struct PropellantWindowBuilder {
     app_name: String,
     device_prefs: Box<dyn PhysicalDevicePreferences>,
-    renderer: Box<dyn VulkanRenderer>,
-    pipeline_lib: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>,
+    renderer: Box<dyn VulkanRendererBuilder>,
     inner_size: (usize, usize),
 }
 
@@ -30,9 +27,8 @@ impl PropellantWindowBuilder {
             .build(event_loop).unwrap();
         // name of the app
         let mut vk_interface: VulkanInterface = VulkanInterface::create(&window, &self.device_prefs, self.app_name)?;
-        let mut renderer = self.renderer;
+        let renderer = self.renderer.build(&mut vk_interface)?;
 
-        renderer.use_pipeline_lib(vk_interface.build_pipeline_lib(&self.pipeline_lib)?, self.pipeline_lib);
         Ok(PropellantWindow {
             vk_interface,
             window,
@@ -40,25 +36,18 @@ impl PropellantWindowBuilder {
         })
     }
 
-    pub fn with_app_name(mut self, app_name: String) -> PropellantWindowBuilder {
-        self.app_name = app_name;
-        self
+    pub fn with_title(self, app_name: String) -> PropellantWindowBuilder {
+        PropellantWindowBuilder { app_name, ..self }
     }
 
-    pub fn with_device_prefs(mut self, device_prefs: Box<dyn PhysicalDevicePreferences>) -> PropellantWindowBuilder {
-        self.device_prefs = device_prefs;
-        self
+    pub fn with_device_prefs(self, device_prefs: Box<dyn PhysicalDevicePreferences>) -> PropellantWindowBuilder {
+        PropellantWindowBuilder { device_prefs, ..self }
     }
 
-    pub fn with_renderer(mut self, renderer: Box<dyn VulkanRenderer>) -> PropellantWindowBuilder {
-        self.renderer = renderer;
-        self
+    pub fn with_renderer(self, renderer: Box<dyn VulkanRendererBuilder>) -> PropellantWindowBuilder {
+        PropellantWindowBuilder { renderer, ..self }
     }
 
-    pub fn with_pipeline(mut self, pipeline: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>) -> PropellantWindowBuilder {
-        self.pipeline_lib = pipeline;
-        self
-    }
 }
 
 impl Default for PropellantWindowBuilder {
@@ -66,8 +55,7 @@ impl Default for PropellantWindowBuilder {
         PropellantWindowBuilder {
             app_name: format!("Propellant Engine V{}.{}.{}", ENGINE_VERSION.0, ENGINE_VERSION.1, ENGINE_VERSION.2),
             device_prefs: Box::new(DefaultPhysicalDevicePreferences),
-            renderer: Box::new(DefaultVulkanRenderer::default()),
-            pipeline_lib: RenderingPipelineBuilder::default(),
+            renderer: DefaultVulkanRendererBuilder::default(),
             inner_size: (800, 450),
         }
     }

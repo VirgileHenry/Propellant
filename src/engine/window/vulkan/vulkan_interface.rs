@@ -123,10 +123,10 @@ impl VulkanInterface {
         let framebuffers = Self::create_framebuffers(&device, &swapchain.image_views(), render_pass, swapchain.extent())?;
 
         // create the command pool and buffers
-        let rendering_manager = RenderingCommandManager::create(&device, &framebuffers, indices)?;
+        let rendering_manager = RenderingCommandManager::create(&device, swapchain_images.len(), indices)?;
         let transfer_manager = TransferCommandManager::create(&device, indices)?;
 
-        let rendering_sync = RenderingSync::create(&device, &swapchain_images)?;
+        let rendering_sync = RenderingSync::create(&device, swapchain_images.len())?;
 
 
         Ok(VulkanInterface {

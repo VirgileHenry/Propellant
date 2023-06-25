@@ -31,6 +31,10 @@ pub use engine::{
         directionnal_light::DirectionnalLight,
     },
     flags::*,
+    renderer::{
+        renderer_builder::default_vulkan_renderer_builder::DefaultVulkanRendererBuilder,
+        rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder,
+    },
 };
 
 pub use utils::id::{

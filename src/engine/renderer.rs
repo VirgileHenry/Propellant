@@ -24,6 +24,7 @@ use vulkanalia::vk::DeviceV1_0;
 pub(crate) mod rendering_pipeline;
 pub(crate) mod graphics_pipeline;
 pub(crate) mod shaders;
+pub(crate) mod renderer_builder;
 
 pub trait VulkanRenderer {
     /// Render the scene using the vulkan interface and the components.
@@ -61,17 +62,16 @@ pub struct DefaultVulkanRenderer {
     syncing_state: SyncingState,
 }
 
-impl Default for DefaultVulkanRenderer {
-    fn default() -> Self {
-        DefaultVulkanRenderer {
-            pipeline_lib: RenderingPipeline::empty(),
-            pipeline_lib_builder: RenderingPipelineBuilder::default(),
-            syncing_state: SyncingState::Sane,
-        }
-    }
-}
-
 impl DefaultVulkanRenderer {
+    pub fn new(vk_interface: &mut VulkanInterface, rendering_pipeline_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>) -> PResult<DefaultVulkanRenderer> {
+        let pipeline_lib = vk_interface.build_pipeline_lib(&rendering_pipeline_builder)?;
+        Ok(DefaultVulkanRenderer {
+            pipeline_lib,
+            pipeline_lib_builder: rendering_pipeline_builder,
+            syncing_state: SyncingState::Sane,
+        })
+    }
+
     /// Checks flags in the singleton components.
     fn handle_rendering_flags(
         &mut self,

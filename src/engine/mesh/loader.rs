@@ -66,7 +66,7 @@ impl Mesh {
                 Ok(_) => {
                     vertices.push(match Vertex::load_from(&vertex_buffer) {
                         Ok(vert) => vert,
-                        Err(e) => {
+                        Err(_) => {
                             return Err(LoadingError::from(MeshLoadingError::InvalidData).into())
                         },
                     })
