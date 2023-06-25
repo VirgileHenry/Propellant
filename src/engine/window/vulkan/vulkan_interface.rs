@@ -5,8 +5,9 @@ use crate::engine::errors::debug_error::DebugError;
 use crate::engine::errors::loading_errors::LoadingError;
 use crate::engine::errors::rendering_error::RenderingError;
 use crate::engine::errors::{PropellantError, PResult};
-use crate::engine::renderer::pipeline_lib::GraphicPipelineLib;
-use crate::engine::renderer::pipeline_lib::pipeline_lib_builder::GraphicPipelineLibBuilder;
+use crate::engine::renderer::rendering_pipeline::RenderingPipeline;
+use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
+use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RenderingPipelineBuilderStateReady;
 
 use foundry::ComponentTable;
 
@@ -30,7 +31,7 @@ pub(crate) const REQUIRED_DEVICE_EXTENSIONS: &[vulkanalia::vk::ExtensionName] = 
     vulkanalia::vk::KHR_SWAPCHAIN_EXTENSION.name,
     vulkanalia::vk::EXT_DESCRIPTOR_INDEXING_EXTENSION.name,
 ];
-pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 2;
+pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 4;
 
 pub struct VulkanInterface {
     pub entry: vulkanalia::Entry,
@@ -298,7 +299,7 @@ impl VulkanInterface {
     pub fn rebuild_frame_draw_commands(
         &mut self,
         components: &ComponentTable,
-        pipeline_lib: &mut GraphicPipelineLib,
+        pipeline_lib: &mut RenderingPipeline,
         image_index: usize
     ) -> PResult<()> {
         self.rendering_manager.register_frame_commands(
@@ -313,7 +314,7 @@ impl VulkanInterface {
     }
 
     /// Build a rendering pipeline builder into a rendering pipeline that can be used.
-    pub fn build_pipeline_lib(&mut self, pipeline_lib: &GraphicPipelineLibBuilder) -> PResult<GraphicPipelineLib> {
+    pub fn build_pipeline_lib(&mut self, pipeline_lib: &RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>) -> PResult<RenderingPipeline> {
         pipeline_lib.build(
             &self.instance,
             &self.device,

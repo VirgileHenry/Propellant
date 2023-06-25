@@ -1,8 +1,9 @@
 use crate::engine::consts::ENGINE_VERSION;
 use crate::engine::engine_events::PropellantEvent;
 use crate::engine::errors::PResult;
-use crate::engine::renderer::pipeline_lib::pipeline_lib_builder::GraphicPipelineLibBuilder;
 use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
+use crate::engine::renderer::graphics_pipeline::graphics_pipeline_builder::GraphicsPipelineBuilder;
+use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RenderingPipelineBuilderStateReady;
 use crate::engine::renderer::{DefaultVulkanRenderer, VulkanRenderer};
 use super::PropellantWindow;
 use super::vulkan::physical_device_prefs::{PhysicalDevicePreferences, DefaultPhysicalDevicePreferences};
@@ -16,7 +17,7 @@ pub struct PropellantWindowBuilder {
     app_name: String,
     device_prefs: Box<dyn PhysicalDevicePreferences>,
     renderer: Box<dyn VulkanRenderer>,
-    pipeline_lib: GraphicPipelineLibBuilder,
+    pipeline_lib: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>,
     inner_size: (usize, usize),
 }
 
@@ -54,8 +55,8 @@ impl PropellantWindowBuilder {
         self
     }
 
-    pub fn with_pipeline(mut self, id: u64, pipeline: RenderingPipelineBuilder) -> PropellantWindowBuilder {
-        self.pipeline_lib.register_pipeline(id, pipeline);
+    pub fn with_pipeline(mut self, pipeline: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>) -> PropellantWindowBuilder {
+        self.pipeline_lib = pipeline;
         self
     }
 }
@@ -66,7 +67,7 @@ impl Default for PropellantWindowBuilder {
             app_name: format!("Propellant Engine V{}.{}.{}", ENGINE_VERSION.0, ENGINE_VERSION.1, ENGINE_VERSION.2),
             device_prefs: Box::new(DefaultPhysicalDevicePreferences),
             renderer: Box::new(DefaultVulkanRenderer::default()),
-            pipeline_lib: GraphicPipelineLibBuilder::default(),
+            pipeline_lib: RenderingPipelineBuilder::default(),
             inner_size: (800, 450),
         }
     }

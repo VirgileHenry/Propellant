@@ -5,7 +5,7 @@ use crate::id;
 use self::phong_material::PhongMaterialProperties;
 
 use super::{
-    renderer::rendering_pipeline::uniform::object_uniform::AsPerObjectUniform,
+    renderer::graphics_pipeline::uniform::object_uniform::AsPerObjectUniform,
     errors::{
         PResult, PropellantError,
         rendering_error::RenderingError

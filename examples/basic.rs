@@ -16,11 +16,15 @@ fn main() {
     
 
     let _cam = create_entity!(engine.world_mut();
-        Transform::origin().translated(glam::vec3(0., 3., -4.)),
+        Transform::origin().translated(glam::vec3(0., -3., -4.)),
         Camera::main_perspective(800., 450., 0.1, 100., 1.5)
     );
     // sun 
-    engine.world_mut().add_singleton(DirectionnalLight::new(glam::vec3(1., 1., 1.), glam::vec3(1., 1., 1.), glam::vec3(1., 1., 1.)));
+    engine.world_mut().add_singleton(DirectionnalLight::new(
+        glam::vec3(1., 1., 1.),
+        glam::vec3(1., 1., 1.),
+        glam::vec3(-1., -1., -1.)
+    ));
     let _cube = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(-1., 1., 0.)),
         MeshRenderer::new(

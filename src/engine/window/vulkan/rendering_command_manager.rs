@@ -8,7 +8,7 @@ use crate::ProppellantResources;
 use crate::engine::errors::PResult;
 use crate::engine::errors::PropellantError;
 use crate::engine::errors::debug_error::DebugError;
-use crate::engine::renderer::pipeline_lib::GraphicPipelineLib;
+use crate::engine::renderer::rendering_pipeline::RenderingPipeline;
 
 pub struct RenderingCommandManager {
     command_pool: vulkanalia::vk::CommandPool,
@@ -90,7 +90,7 @@ impl RenderingCommandManager {
         render_pass: vulkanalia::vk::RenderPass,
         framebuffers: &Vec<vulkanalia::vk::Framebuffer>,
         components: &ComponentTable,
-        pipeline_lib: &mut GraphicPipelineLib,
+        pipeline_lib: &mut RenderingPipeline,
         image_index: usize,
     ) -> PResult<()> {
 

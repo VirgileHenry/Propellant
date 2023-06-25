@@ -8,8 +8,9 @@ use crate::MeshRenderer;
 use crate::ProppellantResources;
 use crate::Transform;
 use crate::VulkanInterface;
-use self::pipeline_lib::GraphicPipelineLib;
-use self::pipeline_lib::pipeline_lib_builder::GraphicPipelineLibBuilder;
+use self::rendering_pipeline::RenderingPipeline;
+use self::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
+use self::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RenderingPipelineBuilderStateReady;
 use super::errors::PResult;
 use super::flags::RequireMemoryTransfersFlag;
 use super::flags::RequireResourcesLoadingFlag;
@@ -20,15 +21,15 @@ use vulkanalia::vk::HasBuilder;
 use vulkanalia::vk::KhrSwapchainExtension;
 use vulkanalia::vk::DeviceV1_0;
 
-pub(crate) mod pipeline_lib;
 pub(crate) mod rendering_pipeline;
+pub(crate) mod graphics_pipeline;
 pub(crate) mod shaders;
 
 pub trait VulkanRenderer {
     /// Render the scene using the vulkan interface and the components.
     fn render(&mut self, vk_interface: &mut VulkanInterface, components: &mut ComponentTable, delta_time: f32)-> PResult<vulkanalia::vk::SuccessCode>;
     /// Register a pipeline lib to use for rendering.
-    fn use_pipeline_lib(&mut self, pipeline_lib: GraphicPipelineLib, pipeline_lib_builder: GraphicPipelineLibBuilder);
+    fn use_pipeline_lib(&mut self, pipeline_lib: RenderingPipeline, pipeline_lib_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>);
     /// Called when the surface is out of date.
     fn on_swapchain_recreation(
         &mut self, 
@@ -55,16 +56,16 @@ enum SyncingState {
 /// Default Vulkan renderer.
 /// Perform basic drawing operation using the vk interface and the components.
 pub struct DefaultVulkanRenderer {
-    pipeline_lib: GraphicPipelineLib,
-    pipeline_lib_builder: GraphicPipelineLibBuilder,
+    pipeline_lib: RenderingPipeline,
+    pipeline_lib_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>,
     syncing_state: SyncingState,
 }
 
 impl Default for DefaultVulkanRenderer {
     fn default() -> Self {
         DefaultVulkanRenderer {
-            pipeline_lib: GraphicPipelineLib::empty(),
-            pipeline_lib_builder: GraphicPipelineLibBuilder::default(),
+            pipeline_lib: RenderingPipeline::empty(),
+            pipeline_lib_builder: RenderingPipelineBuilder::default(),
             syncing_state: SyncingState::Sane,
         }
     }
@@ -376,8 +377,8 @@ impl VulkanRenderer for DefaultVulkanRenderer {
 
     fn use_pipeline_lib(
         &mut self,
-        pipeline_lib: GraphicPipelineLib,
-        pipeline_lib_builder: GraphicPipelineLibBuilder
+        pipeline_lib: RenderingPipeline,
+        pipeline_lib_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>
     ) {
         self.pipeline_lib = pipeline_lib;
         self.pipeline_lib_builder = pipeline_lib_builder;

@@ -16,7 +16,7 @@ pub enum LoadingError {
     /// Error while transitionning a texture to a new layout.
     TextureLayoutTransitionMissing,
     /// Unable to load a mesh.
-    MeshLoading(MeshLoadingError)
+    MeshLoading(MeshLoadingError),
 }
 
 impl Display for LoadingError {

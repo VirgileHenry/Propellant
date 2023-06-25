@@ -6,16 +6,21 @@ use rand::Rng;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut resources = ProppellantResources::default();
-    resources.meshes_mut().register_mesh(id("cube1"), Mesh::cube(0.01));
-    resources.meshes_mut().register_mesh(id("cube2"), Mesh::cube(0.02));
-    resources.meshes_mut().register_mesh(id("cube3"), Mesh::cube(0.03));
-    resources.meshes_mut().register_mesh(id("cube4"), Mesh::cube(0.05));
+    resources.meshes_mut().register_mesh(id("cube1"), Mesh::cube(0.1));
+    resources.meshes_mut().register_mesh(id("cube2"), Mesh::cube(0.2));
+    resources.meshes_mut().register_mesh(id("cube3"), Mesh::cube(0.3));
+    resources.meshes_mut().register_mesh(id("cube4"), Mesh::cube(0.5));
 
     let mut engine = PropellantEngine::default()
         .with_window()?
         .with_resources(resources);
     
-
+    // sun 
+    engine.world_mut().add_singleton(DirectionnalLight::new(
+        glam::vec3(1., 1., 1.),
+        glam::vec3(1., 1., 1.),
+        glam::vec3(-1., -1., -1.)
+    ));
     let _cam = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(0., 1., -4.)),
         Camera::main_perspective(800., 450., 0.1, 100., 1.5)
