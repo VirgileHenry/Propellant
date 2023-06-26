@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut resources = ProppellantResources::default();
     resources.meshes_mut().register_mesh(id("quad"), Mesh::flat_quad(10.0));
-    resources.meshes_mut().register_mesh(id("cat"), Mesh::load_mesh("D:/Dev/rust/propellant/examples/model/cat.gmesh")?);
+    resources.meshes_mut().register_mesh(id("cat"), Mesh::from_bytes(include_bytes!("model/cat.gmesh"))?);
     let cat_texture_index = resources.textures_mut().register_texture(id("cat"), include_bytes!("model/cat_texture.png"))?;
     let quad_texture_index = resources.textures_mut().register_texture(id("quad"), include_bytes!("model/texture.jpg"))?;
 
@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
     let _cat = create_entity!(engine.world_mut();
-        Transform::origin().translated(glam::vec3(0., 5., 0.)),
+        Transform::origin().translated(glam::vec3(0., -1., 0.)),
         MeshRenderer::new(
             id("cat"),
             Material::default().with_prop(PhongMaterialProperties::default().colored(glam::vec3(1., 1., 1.)).textured(cat_texture_index))
