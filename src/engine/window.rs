@@ -1,7 +1,7 @@
-use foundry::{ComponentTable, Updatable, System, AsAny};
+use foundry::{ComponentTable, Updatable, System, AsAny, component_iterator};
 use crate::{
     engine::consts::PROPELLANT_DEBUG_FEATURES,
-    ProppellantResources
+    ProppellantResources, RequireSceneRebuildFlag, RequireResourcesLoadingFlag, Camera
 };
 
 use self::vulkan::vulkan_interface::VulkanInterface;
@@ -23,23 +23,47 @@ impl PropellantWindow {
 
     /// handle window events. This does not need to be a self func, as the window threw the event.
     /// Further more, the window can be found in the comp table.
-    pub fn handle_event(&mut self, event: winit::event::WindowEvent, control_flow: &mut winit::event_loop::ControlFlow, _components: &mut ComponentTable) {
+    pub fn handle_event(&mut self, event: winit::event::WindowEvent, control_flow: &mut winit::event_loop::ControlFlow, components: &mut ComponentTable) {
         match event {
             winit::event::WindowEvent::CloseRequested => control_flow.set_exit(),
             winit::event::WindowEvent::Resized(_) => {
-                match self.vk_swapchain_recreation_request() {
-                    Ok(_) => {},
-                    Err(e) => println!("{e} while recreating swapchain."),
+                match self.handle_window_resize() {
+                    Ok(_) => {
+                        // ask for scene recreation
+                        components.add_singleton(RequireSceneRebuildFlag);
+                        components.add_singleton(RequireResourcesLoadingFlag::ALL);
+                        // resize main cameras
+                        for (_, camera) in component_iterator!(components; mut Camera) {
+                            if camera.is_main() {
+                                camera.resize(self.window.inner_size().height as f32, self.window.inner_size().width as f32);
+                            }
+                        }
+
+                    },
+                    Err(e) => println!("{e} handling window resize event."),
                 };
             }
             _ => {},
         }
     }
 
-    pub fn vk_swapchain_recreation_request(&mut self) -> PResult<()> {
-        // signal the vk interface to recreate the swapchain.
-        self.vk_interface.swapchain_recreation_request(&self.window)?;
+    pub fn handle_window_resize(&mut self) -> PResult<()> {
+        // wait idle for remaining ops
+        self.vk_interface.wait_idle()?;
+        // destroy the previous rendering pipeline, using the old surface
+        self.renderer.destroy_pipeline(&self.vk_interface.device);
+        // signal the recreate the surface
+        let new_surface = self.vk_interface.recreate_surface(&self.window)?;
         // rebuild the pipeline !
+        self.renderer.recreate_rendering_pipeline(
+            &self.window,
+            new_surface,
+            &self.vk_interface.instance,
+            &self.vk_interface.device,
+            self.vk_interface.physical_device,
+            self.vk_interface.indices,
+        )?;
+        // the commands buffer have been destroyed, so recreate them and the scene
         
         Ok(())
     }

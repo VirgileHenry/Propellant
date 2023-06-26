@@ -16,6 +16,7 @@ use super::errors::PropellantError;
 use super::flags::RequireMemoryTransfersFlag;
 use super::flags::RequireResourcesLoadingFlag;
 use super::flags::RequireSceneRebuildFlag;
+use super::window::vulkan::queues::QueueFamilyIndices;
 
 use vulkanalia::vk::Handle;
 use vulkanalia::vk::HasBuilder;
@@ -30,18 +31,18 @@ pub(crate) mod renderer_builder;
 pub trait VulkanRenderer {
     /// Render the scene using the vulkan interface and the components.
     fn render(&mut self, vk_interface: &mut VulkanInterface, components: &mut ComponentTable, delta_time: f32)-> PResult<vulkanalia::vk::SuccessCode>;
-    /// Register a pipeline lib to use for rendering.
-    fn use_pipeline_lib(&mut self, pipeline_lib: RenderingPipeline, pipeline_lib_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>);
-    /// Called when the surface is out of date.
-    fn on_swapchain_recreation(
+    /// Called when the surface is out of date. Does not destroy the previous pipeline, this is done via the `destroy_pipeline` method.
+    fn recreate_rendering_pipeline(
         &mut self, 
+        window: &winit::window::Window,
+        surface: vulkanalia::vk::SurfaceKHR,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
-        extent: vulkanalia::vk::Extent2D,
-        images: &[vulkanalia::vk::Image],
-        render_pass: vulkanalia::vk::RenderPass
+        queue_indices: QueueFamilyIndices,
     ) -> PResult<()>;
+    /// Destroy the current rendering pipeline.
+    fn destroy_pipeline(&mut self, vk_device: &vulkanalia::Device);
     /// Clean up of all the vulkan resources.
     fn destroy(&mut self, vk_device: &vulkanalia::Device);
 }
@@ -389,28 +390,30 @@ impl VulkanRenderer for DefaultVulkanRenderer {
         }
     }
 
-    fn use_pipeline_lib(
+    fn recreate_rendering_pipeline(
         &mut self,
-        pipeline_lib: RenderingPipeline,
-        pipeline_lib_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>
-    ) {
-        self.rendering_pipeline = pipeline_lib;
-        self.rendering_pipeline_builder = pipeline_lib_builder;
-    }
-
-    #[allow(unused_variables)]
-    fn on_swapchain_recreation(
-        &mut self,
+        window: &winit::window::Window,
+        surface: vulkanalia::vk::SurfaceKHR,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
-        extent: vulkanalia::vk::Extent2D,
-        images: &[vulkanalia::vk::Image],
-        render_pass: vulkanalia::vk::RenderPass,
+        queue_indices: QueueFamilyIndices,
     ) -> PResult<()> {
-        // todo we need to rebuild our pipeline !
-        // self.pipeline_lib = self.pipeline_lib_builder.clone().build(vk_instance, vk_device, vk_physical_device, extent, images, render_pass)?;
+        // recreate a pipeline
+        self.rendering_pipeline = RenderingPipeline::create(
+            &self.rendering_pipeline_builder,
+            vk_instance,
+            window,
+            surface,
+            vk_device,
+            vk_physical_device,
+            queue_indices,
+        )?;
         Ok(())
+    }
+
+    fn destroy_pipeline(&mut self, vk_device: &vulkanalia::Device) {
+        self.rendering_pipeline.destroy(vk_device);
     }
 
     fn destroy(&mut self, vk_device: &vulkanalia::Device) {

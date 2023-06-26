@@ -13,9 +13,19 @@ fn main() {
     let window = PropellantWindowBuilder::default()
         .with_title("Custom Pipeline".to_string())
         .with_renderer(
+            // create a custom renderer
             DefaultVulkanRendererBuilder::default()
                 .with_pipeline(
+                    // set the rendering pipeline
+                    // new rendering pipeline
                     RenderingPipelineBuilder::new()
+                        .with_pipeline_layer(
+                            // add a graphic layer with the default graphics pipeline
+                            RenderingPipelineLayer::new()
+                                .with_pipeline(id("default"), GraphicsPipelineBuilder::default())
+                        )
+                        // finish the construction of the rendering pipeline (set it to a buildable state)
+                        .finish()
                 )
         );
 

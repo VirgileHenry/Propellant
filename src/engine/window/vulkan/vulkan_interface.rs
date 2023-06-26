@@ -221,10 +221,13 @@ impl VulkanInterface {
         Ok(())
     }
 
-    #[allow(unreachable_code, unused_variables)] // temp, while we make this working.
-    pub fn swapchain_recreation_request(&mut self, window: &winit::window::Window) -> PResult<()> {
-        // todo 
-        Ok(())
+    pub fn recreate_surface(&mut self, window: &winit::window::Window) -> PResult<vulkanalia::vk::SurfaceKHR> {
+        // destroy previous surface
+        unsafe { self.instance.destroy_surface_khr(self.surface, None); }
+        // create new surface
+        self.surface = unsafe {vulkanalia::window::create_surface(&self.instance, &window, &window)?};
+        // return the recreated surface
+        Ok(self.surface)
     }
 
     pub fn wait_idle(&mut self) -> PResult<()> {

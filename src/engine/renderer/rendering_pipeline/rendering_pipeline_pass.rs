@@ -7,6 +7,7 @@ use crate::engine::{renderer::graphics_pipeline::GraphicsPipeline, errors::PResu
 use vulkanalia::vk::HasBuilder;
 use vulkanalia::vk::DeviceV1_0;
 
+use super::intermediate_render_targets::IntermediateRenderTarget;
 use super::rendering_pipeline_builder::intermediate_render_target_builder::IntermediateRenderTargetBuilder;
 
 enum RenderingPipelinePassTarget {
@@ -14,14 +15,14 @@ enum RenderingPipelinePassTarget {
     /// The image and views are owned by the swapchain.
     Swapchain(Vec<vulkanalia::vk::Framebuffer>),
     /// We are targetting an intermediate render target, and own the image and views.
-    Intermediate(Vec<(vulkanalia::vk::Image, vulkanalia::vk::ImageView, vulkanalia::vk::Framebuffer)>),
+    Intermediate(Vec<IntermediateRenderTarget>),
 }
 
 impl RenderingPipelinePassTarget {
     pub fn framebuffer(&self, index: usize) -> vulkanalia::vk::Framebuffer {
         match self {
             RenderingPipelinePassTarget::Swapchain(framebuffers) => framebuffers[index],
-            RenderingPipelinePassTarget::Intermediate(framebuffers) => framebuffers[index].2,
+            RenderingPipelinePassTarget::Intermediate(framebuffers) => framebuffers[index].framebuffer(),
         }
     }
 }
@@ -227,13 +228,9 @@ impl RenderingPipelinePass {
                     }
                 }
             },
-            RenderingPipelinePassTarget::Intermediate(images) => {
-                for (image, image_view, framebuffer) in images {
-                    unsafe {
-                        vk_device.destroy_image_view(*image_view, None);
-                        vk_device.destroy_image(*image, None);
-                        vk_device.destroy_framebuffer(*framebuffer, None);
-                    }
+            RenderingPipelinePassTarget::Intermediate(intermediate_render_targets) => {
+                for irt in intermediate_render_targets.iter_mut() {
+                    irt.destroy(vk_device);
                 }
             }
         }

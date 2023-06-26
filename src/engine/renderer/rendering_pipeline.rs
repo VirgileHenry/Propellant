@@ -7,7 +7,7 @@ pub(crate) mod rendering_pipeline_builder;
 pub(crate) mod intermediate_render_targets;
 pub(crate) mod rendering_pipeline_pass;
 
-pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 4;
+pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 1;
 
 pub struct RenderingPipeline {
     render_passes: Vec<RenderingPipelinePass>,
@@ -59,13 +59,13 @@ impl RenderingPipeline {
         ).collect::<PResult<Vec<_>>>()?;
 
         // create sync system and transfer manager
-        let rendering_manager = RenderingCommandManager::create(vk_device, swapchain.images().len(), queue_indices)?;
+        let command_manager = RenderingCommandManager::create(vk_device, swapchain.images().len(), queue_indices)?;
         let rendering_sync = RenderingSync::create(vk_device, swapchain.images().len())?;
 
         Ok(RenderingPipeline {
             render_passes,
             swapchain,
-            command_manager: rendering_manager,
+            command_manager,
             rendering_sync,
         })
     }

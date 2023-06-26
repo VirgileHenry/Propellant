@@ -21,3 +21,5 @@ impl RequireResourcesLoadingFlag {
 
 /// There are new data in the transfer manager that we should load to the gpu.
 pub struct RequireMemoryTransfersFlag;
+
+pub struct RequireCommandBufferRebuildFlag;

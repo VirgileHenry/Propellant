@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let _cam = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(0., -4., -8.)),
-        Camera::main_perspective(800., 450., 0.1, 100., 1.5)
+        Camera::main_perspective(450., 800., 0.1, 100., 1.5)
     );
     // sun 
     engine.world_mut().add_singleton(DirectionnalLight::new(
@@ -36,12 +36,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
     let _cat = create_entity!(engine.world_mut();
-    Transform::origin().translated(glam::vec3(0., 5., 0.)),
-    MeshRenderer::new(
-        id("cat"),
-        Material::default().with_prop(PhongMaterialProperties::default().colored(glam::vec3(1., 1., 1.)).textured(cat_texture_index))
-    )
-);
+        Transform::origin().translated(glam::vec3(0., 5., 0.)),
+        MeshRenderer::new(
+            id("cat"),
+            Material::default().with_prop(PhongMaterialProperties::default().colored(glam::vec3(1., 1., 1.)).textured(cat_texture_index))
+        )
+    );
 
     engine.world_mut().register_system(Rotater::new(), 11);
 

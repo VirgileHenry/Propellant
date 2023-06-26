@@ -34,6 +34,8 @@ pub use engine::{
     renderer::{
         renderer_builder::default_vulkan_renderer_builder::DefaultVulkanRendererBuilder,
         rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder,
+        rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_layer::RenderingPipelineLayer,
+        graphics_pipeline::graphics_pipeline_builder::GraphicsPipelineBuilder,
     },
 };
 

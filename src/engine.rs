@@ -172,7 +172,7 @@ impl PropellantEngine {
                         // get to the window, and ask swap chain recreation.
                         match self.world.get_singleton_mut::<PropellantWindow>() {
                             Some(window) => {
-                                match window.vk_swapchain_recreation_request() {
+                                match window.handle_window_resize() {
                                     Ok(_) => {},
                                     Err(e) => println!("{e}"),
                                 };
