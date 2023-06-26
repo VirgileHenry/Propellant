@@ -36,10 +36,25 @@ impl Vertex {
 }
 
 impl Mesh {
-    
+    /// Loads a mesh from raw bytes data.
+    /// The expected format of the data is :
+    /// 
+    /// - 1 u32 for the vertex count (4 bytes)
+    /// - 1 u32 for the triangle count (4 bytes)
+    /// - vertex_count * 32 bytes for the vertices:
+    ///     - 3 floats (12 bytes) for the position
+    ///     - 3 floats (12 bytes) for the normal
+    ///     - 2 floats (8 bytes) for the uv
+    /// - triangle_count * 12 bytes for the triangles:
+    ///     - u32 (4 bytes) for the first vertex index
+    ///     - u32 (4 bytes) for the second vertex index
+    ///     - u32 (4 bytes) for the third vertex index
+    /// 
+    /// So for example, \[0u8; 8\] is an empty mesh (0 vertex, 0 triangle so no data behind.)
     pub fn from_bytes(bytes: &[u8]) -> PResult<Mesh> {
 
         let mut buffer_offset = 0;
+        // closure to read from our buffer and increment the offset.
         let mut read_buffer = |size: usize| {
             let result = &bytes[buffer_offset..buffer_offset + size];
             buffer_offset += size;
