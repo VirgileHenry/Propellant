@@ -52,9 +52,7 @@ impl RenderingPipelinePass {
 
     pub fn create_final_pass(
         pipelines: &mut HashMap<u64, GraphicsPipelineBuilder>,
-        vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
-        vk_physical_device: vulkanalia::vk::PhysicalDevice,
         swapchain: &SwapchainInterface,
     ) -> PResult<RenderingPipelinePass> {
         // build the render pass and the framebuffers, targetting the swapchain images
@@ -131,11 +129,11 @@ impl RenderingPipelinePass {
         Ok(())
     }
 
-    pub fn prepare_recreation(
+    pub fn recreation_cleanup(
         &mut self,
         vk_device: &vulkanalia::Device
     ) {
-        self.pipelines.values_mut().for_each(|pipeline| pipeline.prepare_recreation(vk_device));
+        self.pipelines.values_mut().for_each(|pipeline| pipeline.recreation_cleanup(vk_device));
         match self.target {
             RenderingPipelinePassTarget::Swapchain(ref mut framebuffers) => {
                 for framebuffer in framebuffers.drain(..) {

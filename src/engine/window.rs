@@ -1,7 +1,7 @@
 use foundry::{ComponentTable, Updatable, System, AsAny, component_iterator};
 use crate::{
     engine::consts::PROPELLANT_DEBUG_FEATURES,
-    ProppellantResources, RequireSceneRebuildFlag, RequireResourcesLoadingFlag, Camera
+    ProppellantResources, Camera, RequireCommandBufferRebuildFlag
 };
 
 use self::vulkan::vulkan_interface::VulkanInterface;
@@ -29,9 +29,8 @@ impl PropellantWindow {
             winit::event::WindowEvent::Resized(_) => {
                 match self.handle_window_resize() {
                     Ok(_) => {
-                        // ask for scene recreation
-                        components.add_singleton(RequireSceneRebuildFlag);
-                        components.add_singleton(RequireResourcesLoadingFlag::ALL);
+                        // command buffer will get invalidated.
+                        components.add_singleton(RequireCommandBufferRebuildFlag);
                         // resize main cameras
                         for (_, camera) in component_iterator!(components; mut Camera) {
                             if camera.is_main() {
@@ -49,7 +48,7 @@ impl PropellantWindow {
 
     pub fn handle_window_resize(&mut self) -> PResult<()> {
         self.vk_interface.wait_idle()?;
-        self.renderer.prepare_recreation(&self.vk_interface.device);
+        self.renderer.recreation_cleanup(&self.vk_interface.device);
         let new_surface = self.vk_interface.recreate_surface(&self.window)?;
         self.renderer.recreate_rendering_pipeline(
             &self.window,
@@ -58,9 +57,7 @@ impl PropellantWindow {
             &self.vk_interface.device,
             self.vk_interface.physical_device,
             self.vk_interface.indices,
-        )?;
-        // the commands buffer have been destroyed, so recreate them and the scene
-        
+        )?;        
         Ok(())
     }
 

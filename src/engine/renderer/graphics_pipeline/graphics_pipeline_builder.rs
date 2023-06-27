@@ -9,7 +9,6 @@ use crate::engine::renderer::shaders::DEFAULT_VERT;
 
 use vulkanalia::vk::HasBuilder;
 use vulkanalia::vk::DeviceV1_0;
-use vulkanalia::vk::Handle;
 
 use super::GraphicsPipeline;
 use super::uniform::frame_uniform::AsPerFrameUniform;

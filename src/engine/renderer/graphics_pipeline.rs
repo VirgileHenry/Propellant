@@ -170,7 +170,7 @@ impl GraphicsPipeline {
         })
     }
 
-    pub fn prepare_recreation(
+    pub fn recreation_cleanup(
         &mut self,
         vk_device: &vulkanalia::Device,
     ) {

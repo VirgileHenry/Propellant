@@ -1,3 +1,4 @@
+use std::any::TypeId;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 
@@ -5,6 +6,7 @@ use foundry::ComponentTable;
 use foundry::component_iterator;
 
 use crate::MeshRenderer;
+use crate::PropellantFlag;
 use crate::ProppellantResources;
 use crate::RequireCommandBufferRebuildFlag;
 use crate::Transform;
@@ -12,6 +14,7 @@ use crate::VulkanInterface;
 use self::rendering_pipeline::RenderingPipeline;
 use self::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
 use self::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RenderingPipelineBuilderStateReady;
+use super::consts::PROPELLANT_DEBUG_FEATURES;
 use super::errors::PResult;
 use super::errors::PropellantError;
 use super::flags::RequireMemoryTransfersFlag;
@@ -43,18 +46,61 @@ pub trait VulkanRenderer {
         queue_indices: QueueFamilyIndices,
     ) -> PResult<()>;
     /// Destroy the current rendering pipeline.
-    fn prepare_recreation(&mut self, vk_device: &vulkanalia::Device);
+    fn recreation_cleanup(&mut self, vk_device: &vulkanalia::Device);
     /// Clean up of all the vulkan resources.
     fn destroy(&mut self, vk_device: &vulkanalia::Device);
 }
 
 
 #[derive(Debug)]
-enum SyncingState {
-    /// All good
-    Sane,
-    /// we are syncing, with the list of unsynced frames.
-    Syncing(Vec<bool>)
+struct SyncingState {
+    /// for each flag type id, a vec of synced frames.
+    /// If the flag is not in the map, the renderer is synced accross all frames for this flag.
+    syncing_frames: HashMap<TypeId, (u64, Vec<bool>)>,
+}
+
+impl SyncingState {
+    pub fn new() -> SyncingState {
+        SyncingState {
+            syncing_frames: HashMap::new(),
+        }
+    }
+
+    fn check_flag<F: PropellantFlag + 'static>(
+        &mut self,
+        current_frame: usize,
+        frame_count: usize,
+        components: &mut ComponentTable
+    ) -> Option<F> {
+        match components.remove_singleton::<F>() {
+            Some(flag) => {
+                // if the flag is in the map, we need sync. insert a new sync vec and return true.
+                let mut syncing_state = vec![true; frame_count];
+                syncing_state[current_frame] = true;
+                let _ = self.syncing_frames.insert(std::any::TypeId::of::<F>(), (flag.flag(), vec![false; frame_count]));
+                Some(flag)
+            },
+            None => {
+                // flag not in the components, check for syncing in our map.
+                match self.syncing_frames.remove(&std::any::TypeId::of::<F>()) {
+                    Some((flag, mut sync_vec)) => {
+                        // check if we need to sync, then check if all frames are synced in which case we remove the flag from the map.
+                        let result = !sync_vec[current_frame]; 
+                        sync_vec[current_frame] = true;
+                        if !sync_vec.iter().all(|synced| *synced) {
+                            self.syncing_frames.insert(std::any::TypeId::of::<F>(), (flag, sync_vec));
+                        }
+                        if result {
+                            Some(F::from_flag(flag))
+                        } else {
+                            None
+                        }
+                    },
+                    None => None, // no sync required at all.
+                }
+            },
+        }
+    }
 }
 
 /// Default Vulkan renderer.
@@ -76,7 +122,7 @@ impl DefaultVulkanRenderer {
         )?;
         Ok(DefaultVulkanRenderer {
             rendering_pipeline: pipeline_lib,
-            syncing_state: SyncingState::Sane,
+            syncing_state: SyncingState::new(),
         })
     }
 
@@ -85,77 +131,59 @@ impl DefaultVulkanRenderer {
         &mut self,
         vk_interface: &mut VulkanInterface,
         components: &mut ComponentTable,
-        image_index: usize,
+        current_frame: usize,
     ) -> PResult<()> {
-        // it is important that some flag are ordered.
-        // for example, first build the meshes, then the scene.
-        match (components.remove_singleton::<RequireResourcesLoadingFlag>(), components.get_singleton_mut::<ProppellantResources>()) {
-            (Some(flags), Some(resource_lib)) => {
-                // load meshes
-                resource_lib.load_resources(
-                    flags,
-                    &vk_interface.instance,
-                    &vk_interface.device,
-                    vk_interface.physical_device,
-                    &mut vk_interface.transfer_manager,
-                )?;
-                // rebuild the resources uniforms.
-                for (_, pipeline) in self.rendering_pipeline.get_pipelines_mut() {
-                    pipeline.rebuild_resources_uniforms(&vk_interface.device, resource_lib)?;
+        // ! Some flag handling much be done in a specific order.
+
+        if let Some(flags) = self.syncing_state.check_flag::<RequireResourcesLoadingFlag>(current_frame, self.rendering_pipeline.swapchain_image_count(), components) {
+            match components.get_singleton_mut::<ProppellantResources>() {
+                Some(resource_lib) => {
+                    // load meshes
+                    resource_lib.load_resources(
+                        flags,
+                        &vk_interface.instance,
+                        &vk_interface.device,
+                        vk_interface.physical_device,
+                        &mut vk_interface.transfer_manager,
+                    )?;
+                    // rebuild the resources uniforms.
+                    for (_, pipeline) in self.rendering_pipeline.get_pipelines_mut() {
+                        pipeline.rebuild_resources_uniforms(&vk_interface.device, resource_lib)?;
+                    }
+                    // ask for memory transfers
+                    components.add_singleton(RequireMemoryTransfersFlag);
+                },
+                None => {
+                    if PROPELLANT_DEBUG_FEATURES {
+                        println!("[PROPELLANT DEBUG] Resources reloading flag found, but no resource lib found.");
+                    }
                 }
-                // ask for memory transfers
-                // this should be the last thing we do, so the compiler see we stop using the resource lib and we can insert comps
-                components.add_singleton(RequireMemoryTransfersFlag);
             }
-            _ => {}
         }
-        // look for rebuild flags
-        if let Some(_) = components.remove_singleton::<RequireSceneRebuildFlag>() {
-            // rebuild the scene
+
+        if let Some(_) = self.syncing_state.check_flag::<RequireSceneRebuildFlag>(current_frame, self.rendering_pipeline.swapchain_image_count(), components) {
             self.scene_recreation(
                 vk_interface,
                 components,
-                image_index,
+                current_frame,
             )?;
-            // remove other rebuild commands flags, since we will do it anyway
-            components.remove_singleton::<RequireCommandBufferRebuildFlag>();
-            // set the syncing state : we will update the data for the current frame, but not the one for in flight frames.
-            let mut unsynced_frames = vec![false; self.rendering_pipeline.swapchain_image_count()];
-            unsynced_frames[image_index] = true;
-            self.syncing_state = SyncingState::Syncing(unsynced_frames);
         }
-        // no rebuild flags, check if there is syncing to do !
-        if match &mut self.syncing_state {
-            SyncingState::Sane => false,
-            SyncingState::Syncing(synced_frames) => {
-                let result = !synced_frames[image_index];
-                synced_frames[image_index] = true;
-                if synced_frames.iter().all(|b| *b) {
-                    self.syncing_state = SyncingState::Sane;
+
+        if let Some(_) = self.syncing_state.check_flag::<RequireCommandBufferRebuildFlag>(current_frame, self.rendering_pipeline.swapchain_image_count(), components) {
+            match components.get_singleton_mut::<ProppellantResources>() {
+                Some(resource_lib) => {
+                    self.rendering_pipeline.register_draw_commands(
+                        &vk_interface.device,
+                        &resource_lib,
+                        current_frame
+                    )?;
+                },
+                None => {
+                    if PROPELLANT_DEBUG_FEATURES {
+                        println!("[PROPELLANT DEBUG] Reregister draw commands flag found, but no resource lib found.");
+                    }
                 }
-                result
             }
-        } {
-            self.scene_recreation(
-                vk_interface,
-                components,
-                image_index,
-            )?;
-            // remove other rebuild commands flags, since we will do it anyway
-            components.remove_singleton::<RequireCommandBufferRebuildFlag>();
-        }
-        // look for commands recreation flags
-        // todo : sync accross frames. tis is badly done right now.
-        match (components.remove_singleton::<RequireCommandBufferRebuildFlag>(), components.get_singleton_mut::<ProppellantResources>()) {
-            (Some(_), Some(resources)) => {
-                // load meshes
-                self.rendering_pipeline.register_draw_commands(
-                    &vk_interface.device,
-                    resources,
-                    image_index
-                )?;
-            }
-            _ => {}
         }
 
         // look for memory transfer flags
@@ -427,8 +455,8 @@ impl VulkanRenderer for DefaultVulkanRenderer {
         Ok(())
     }
 
-    fn prepare_recreation(&mut self, vk_device: &vulkanalia::Device) {
-        self.rendering_pipeline.prepare_recreation(vk_device);
+    fn recreation_cleanup(&mut self, vk_device: &vulkanalia::Device) {
+        self.rendering_pipeline.recreation_cleanup(vk_device);
     }
 
     fn destroy(&mut self, vk_device: &vulkanalia::Device) {

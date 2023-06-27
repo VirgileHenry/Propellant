@@ -55,9 +55,7 @@ impl RenderingPipeline {
             std::iter::once(
                 RenderingPipelinePass::create_final_pass(
                     last_layer.pipelines_mut(),
-                    vk_instance,
                     vk_device,
-                    vk_physical_device,
                     &swapchain,
                 )
             )
@@ -140,11 +138,11 @@ impl RenderingPipeline {
     }
 
     /// Destroy all surface related objects to prepare recreation.
-    pub fn prepare_recreation(
+    pub fn recreation_cleanup(
         &mut self,
         vk_device: &vulkanalia::Device,
     ) {
-        self.render_passes.iter_mut().for_each(|renderpass| renderpass.prepare_recreation(vk_device));
+        self.render_passes.iter_mut().for_each(|renderpass| renderpass.recreation_cleanup(vk_device));
         self.swapchain.destroy(vk_device);
     }
 
