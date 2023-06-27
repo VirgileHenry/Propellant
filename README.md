@@ -33,10 +33,40 @@ Then, import the propellant engine library, create an engine instance and run it
 use propellant::*;
 
 fn main() {
-    let mut engine = PropellantEngine::default()
+    let mut engine = PropellantEngine::default();
+
     engine.main_loop();
 }
 ```
+
+As mentionned, the engine will not embark anything that you did not asked for. This example will create an empty engine (without even a window). To add a window, you must specify it at the engine creation :
+
+```rust
+use propellant::*;
+
+fn main() {
+    let mut engine = PropellantEngine::default()
+        .with_window().unwrap();
+
+    engine.main_loop();
+}
+```
+
+This will add a default window, with a default renderer. This can be changed by providing a builder to the window creation:
+
+```rust
+use propellant::*;
+
+fn main() {
+    let window = PropellantWindowBuilder::default()
+        .with_title("My window title".to_string());
+
+    let mut engine = PropellantEngine::default()
+        .with_builded_window(window).unwrap();
+    
+    engine.main_loop();
+}
+```       
 
 For more details about how to import resources, create entities and systems, have a look at the provided examples.
 
