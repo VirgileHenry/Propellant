@@ -27,7 +27,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     engine.world_mut().register_system(ObjectLoader::new(), 11);
-    engine.world_mut().register_system(System::new(Box::new(FPSCounter{timer: -3., frames: 0}), foundry::UpdateFrequency::PerFrame), 12);
 
 
     engine.main_loop();
@@ -89,24 +88,3 @@ impl Updatable for ObjectLoader {
     }
 }
 
-
-
-#[derive(AsAny)]
-struct FPSCounter {
-    timer: f32,
-    frames: usize,
-}
-
-impl Updatable for FPSCounter {
-    fn update(&mut self, _components: &mut foundry::ComponentTable, delta: f32) {
-        self.timer += delta;
-        if self.timer > 0. {
-            self.frames += 1;
-        }
-        if self.timer > 1. {
-            println!("{} FPS - (frame time: {}ms)", self.frames, 1000. / self.frames as f32);
-            self.frames = 0;
-            self.timer = 0.;
-        }
-    }
-}
