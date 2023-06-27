@@ -6,6 +6,7 @@ use foundry::component_iterator;
 
 use crate::MeshRenderer;
 use crate::ProppellantResources;
+use crate::RequireCommandBufferRebuildFlag;
 use crate::Transform;
 use crate::VulkanInterface;
 use self::rendering_pipeline::RenderingPipeline;
@@ -42,7 +43,7 @@ pub trait VulkanRenderer {
         queue_indices: QueueFamilyIndices,
     ) -> PResult<()>;
     /// Destroy the current rendering pipeline.
-    fn destroy_pipeline(&mut self, vk_device: &vulkanalia::Device);
+    fn prepare_recreation(&mut self, vk_device: &vulkanalia::Device);
     /// Clean up of all the vulkan resources.
     fn destroy(&mut self, vk_device: &vulkanalia::Device);
 }
@@ -60,7 +61,6 @@ enum SyncingState {
 /// Perform basic drawing operation using the vk interface and the components.
 pub struct DefaultVulkanRenderer {
     rendering_pipeline: RenderingPipeline,
-    rendering_pipeline_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>,
     syncing_state: SyncingState,
 }
 
@@ -72,11 +72,10 @@ impl DefaultVulkanRenderer {
     ) -> PResult<DefaultVulkanRenderer> {
         let pipeline_lib = vk_interface.build_pipeline_lib(
             window,
-            &rendering_pipeline_builder
+            rendering_pipeline_builder
         )?;
         Ok(DefaultVulkanRenderer {
             rendering_pipeline: pipeline_lib,
-            rendering_pipeline_builder,
             syncing_state: SyncingState::Sane,
         })
     }
@@ -118,6 +117,8 @@ impl DefaultVulkanRenderer {
                 components,
                 image_index,
             )?;
+            // remove other rebuild commands flags, since we will do it anyway
+            components.remove_singleton::<RequireCommandBufferRebuildFlag>();
             // set the syncing state : we will update the data for the current frame, but not the one for in flight frames.
             let mut unsynced_frames = vec![false; self.rendering_pipeline.swapchain_image_count()];
             unsynced_frames[image_index] = true;
@@ -140,6 +141,21 @@ impl DefaultVulkanRenderer {
                 components,
                 image_index,
             )?;
+            // remove other rebuild commands flags, since we will do it anyway
+            components.remove_singleton::<RequireCommandBufferRebuildFlag>();
+        }
+        // look for commands recreation flags
+        // todo : sync accross frames. tis is badly done right now.
+        match (components.remove_singleton::<RequireCommandBufferRebuildFlag>(), components.get_singleton_mut::<ProppellantResources>()) {
+            (Some(_), Some(resources)) => {
+                // load meshes
+                self.rendering_pipeline.register_draw_commands(
+                    &vk_interface.device,
+                    resources,
+                    image_index
+                )?;
+            }
+            _ => {}
         }
 
         // look for memory transfer flags
@@ -400,11 +416,10 @@ impl VulkanRenderer for DefaultVulkanRenderer {
         queue_indices: QueueFamilyIndices,
     ) -> PResult<()> {
         // recreate a pipeline
-        self.rendering_pipeline = RenderingPipeline::create(
-            &self.rendering_pipeline_builder,
-            vk_instance,
+        self.rendering_pipeline.recreate(
             window,
             surface,
+            vk_instance,
             vk_device,
             vk_physical_device,
             queue_indices,
@@ -412,8 +427,8 @@ impl VulkanRenderer for DefaultVulkanRenderer {
         Ok(())
     }
 
-    fn destroy_pipeline(&mut self, vk_device: &vulkanalia::Device) {
-        self.rendering_pipeline.destroy(vk_device);
+    fn prepare_recreation(&mut self, vk_device: &vulkanalia::Device) {
+        self.rendering_pipeline.prepare_recreation(vk_device);
     }
 
     fn destroy(&mut self, vk_device: &vulkanalia::Device) {

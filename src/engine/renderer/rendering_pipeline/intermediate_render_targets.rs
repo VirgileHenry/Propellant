@@ -1,4 +1,7 @@
-use crate::engine::{window::vulkan::vulkan_image::VulkanImage, errors::PResult};
+use crate::engine::{
+    window::vulkan::vulkan_image::VulkanImage,
+    errors::PResult
+};
 
 use vulkanalia::vk::DeviceV1_0;
 

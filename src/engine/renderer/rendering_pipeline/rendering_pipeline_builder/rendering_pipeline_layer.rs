@@ -26,4 +26,8 @@ impl RenderingPipelineLayer {
     pub fn pipelines(&self) -> &HashMap<u64, GraphicsPipelineBuilder> {
         &self.pipelines
     }
+
+    pub fn pipelines_mut(&mut self) -> &mut HashMap<u64, GraphicsPipelineBuilder> {
+        &mut self.pipelines
+    }
 }

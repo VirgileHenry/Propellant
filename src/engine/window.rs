@@ -48,13 +48,9 @@ impl PropellantWindow {
     }
 
     pub fn handle_window_resize(&mut self) -> PResult<()> {
-        // wait idle for remaining ops
         self.vk_interface.wait_idle()?;
-        // destroy the previous rendering pipeline, using the old surface
-        self.renderer.destroy_pipeline(&self.vk_interface.device);
-        // signal the recreate the surface
+        self.renderer.prepare_recreation(&self.vk_interface.device);
         let new_surface = self.vk_interface.recreate_surface(&self.window)?;
-        // rebuild the pipeline !
         self.renderer.recreate_rendering_pipeline(
             &self.window,
             new_surface,

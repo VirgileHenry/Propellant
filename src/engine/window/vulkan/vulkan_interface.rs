@@ -200,7 +200,7 @@ impl VulkanInterface {
     pub fn build_pipeline_lib(
         &mut self,
         window: &winit::window::Window,
-        pipeline_lib: &RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>
+        pipeline_lib: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>
     ) -> PResult<RenderingPipeline> {
         pipeline_lib.build(
             &self.instance,

@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use crate::{
     Transform,
@@ -8,21 +9,26 @@ use crate::{
 };
 
 use vulkanalia::vk::DeviceV1_0;
+use vulkanalia::vk::HasBuilder;
+use vulkanalia::vk::Handle;
 
+use self::graphic_pipeline_state::GraphicPipelineCreationState;
 use self::uniform::{
     frame_uniform::FrameUniform,
     object_uniform::ObjectUniform, 
     resource_uniform::ResourceUniform
 };
 
-pub(crate) mod graphics_pipeline_builder;
-pub(crate) mod uniform;
 pub(crate) mod attachments;
+pub(crate) mod graphics_pipeline_builder;
+pub(crate) mod graphic_pipeline_state;
+pub(crate) mod uniform;
 
 pub struct GraphicsPipeline {
     pipeline: vulkanalia::vk::Pipeline,
-    layout: vulkanalia::vk::PipelineLayout,
+    pipeline_layout: vulkanalia::vk::PipelineLayout,
     descriptor_pool: vulkanalia::vk::DescriptorPool,
+    creation_state: GraphicPipelineCreationState,
     resource_uniforms: Vec<Box<dyn ResourceUniform>>,
     frame_uniforms: Vec<Box<dyn FrameUniform>>,
     object_uniforms: Vec<Box<dyn ObjectUniform>>,
@@ -31,24 +37,194 @@ pub struct GraphicsPipeline {
 }
 
 impl GraphicsPipeline {
-    pub fn new(
-        pipeline: vulkanalia::vk::Pipeline,
-        layout: vulkanalia::vk::PipelineLayout,
+    pub fn create(
+        vk_device: &vulkanalia::Device,
+        vertex_binding_description: Vec<vulkanalia::vk::VertexInputBindingDescription>,
+        vertex_attribute_description: Vec<vulkanalia::vk::VertexInputAttributeDescription>,
+        shader_stages: HashMap<vulkanalia::vk::ShaderStageFlags, vulkanalia::vk::ShaderModule>,
+        swapchain_extent: vulkanalia::vk::Extent2D,
+        pipeline_layout: vulkanalia::vk::PipelineLayout,
+        render_pass: vulkanalia::vk::RenderPass,
         descriptor_pool: vulkanalia::vk::DescriptorPool,
         resource_uniforms: Vec<Box<dyn ResourceUniform>>,
         frame_uniforms: Vec<Box<dyn FrameUniform>>,
         object_uniforms: Vec<Box<dyn ObjectUniform>>,
-    ) -> GraphicsPipeline {
-        GraphicsPipeline {
+    ) -> PResult<GraphicsPipeline> {
+
+        let vertex_input_state = vulkanalia::vk::PipelineVertexInputStateCreateInfo::builder()
+            .vertex_binding_descriptions(&vertex_binding_description)
+            .vertex_attribute_descriptions(&vertex_attribute_description)
+            .build();
+        
+        // here, default values to draw triangles. Maybe to rework at some point ? 
+        let input_assembly_state = vulkanalia::vk::PipelineInputAssemblyStateCreateInfo::builder()
+            .topology(vulkanalia::vk::PrimitiveTopology::TRIANGLE_LIST)
+            .primitive_restart_enable(false)
+            .build();
+        
+        
+        // create a default sized viewport.
+        // here, we could draw to only part of the screen for local multiplayer.
+        let viewport = vulkanalia::vk::Viewport::builder()
+            .x(0.0)
+            .y(0.0)
+            .width(swapchain_extent.width as f32)
+            .height(swapchain_extent.height as f32)
+            .min_depth(0.0)
+            .max_depth(1.0);
+        
+        // scissors are like masks, here use the entire screen to draw everything
+        let scissor = vulkanalia::vk::Rect2D::builder()
+            .offset(vulkanalia::vk::Offset2D { x: 0, y: 0 })
+            .extent(swapchain_extent);       
+        
+        // they are put into arrays, as they could be mutliple of them, but this require a specific extension.
+        let viewports = &[viewport];
+        let scissors = &[scissor];
+        let viewport_state = vulkanalia::vk::PipelineViewportStateCreateInfo::builder()
+            .viewports(viewports)
+            .scissors(scissors);
+        
+        // create the rasterizer
+        let rasterization_state = vulkanalia::vk::PipelineRasterizationStateCreateInfo::builder()
+            .depth_clamp_enable(false)
+            .rasterizer_discard_enable(false)
+            .polygon_mode(vulkanalia::vk::PolygonMode::FILL) // can be set to fill here !
+            .line_width(1.0)
+            .cull_mode(vulkanalia::vk::CullModeFlags::BACK)
+            .front_face(vulkanalia::vk::FrontFace::CLOCKWISE)
+            .depth_bias_enable(false)
+            .build();
+        
+        // multisampling state: antialiasing here
+        let multisample_state = vulkanalia::vk::PipelineMultisampleStateCreateInfo::builder()
+            .sample_shading_enable(false)
+            .rasterization_samples(vulkanalia::vk::SampleCountFlags::_1)
+            .build();
+        
+        // color blending. transparency and alpha color blending can be done here !
+        let color_attachment = vulkanalia::vk::PipelineColorBlendAttachmentState::builder()
+            .color_write_mask(vulkanalia::vk::ColorComponentFlags::all())
+            .blend_enable(false)
+            .build();
+
+        // todo : depth attachment 
+
+        let color_blend_attachments = vec![color_attachment];
+        let color_blend_state = vulkanalia::vk::PipelineColorBlendStateCreateInfo::builder()
+            .logic_op_enable(false)
+            .logic_op(vulkanalia::vk::LogicOp::COPY)
+            .attachments(&color_blend_attachments)
+            .blend_constants([0.0, 0.0, 0.0, 0.0])
+            .build();        
+
+        // create the pipeline ! 
+        let stages = shader_stages.iter().map(|(stage, shader_module)|
+            vulkanalia::vk::PipelineShaderStageCreateInfo::builder()
+                .stage(*stage)
+                .module(*shader_module)
+                .name(b"main\0")
+                .build()
+        ).collect::<Vec<_>>();
+
+        let creation_state = GraphicPipelineCreationState {
+            stages,
+            vertex_input_state,
+            vertex_binding_description,
+            vertex_attribute_description,
+            input_assembly_state,
+            rasterization_state,
+            multisample_state,
+            color_blend_state,
+            color_blend_attachments,
+        };
+
+        let info = vulkanalia::vk::GraphicsPipelineCreateInfo::builder()
+            .stages(&creation_state.stages)
+            .vertex_input_state(&creation_state.vertex_input_state)
+            .input_assembly_state(&creation_state.input_assembly_state)
+            .viewport_state(&viewport_state)
+            .rasterization_state(&creation_state.rasterization_state)
+            .multisample_state(&creation_state.multisample_state)
+            .color_blend_state(&creation_state.color_blend_state)
+            .layout(pipeline_layout)
+            .render_pass(render_pass)
+            .subpass(0)
+            .base_pipeline_handle(vulkanalia::vk::Pipeline::null()) // Optional.
+            .base_pipeline_index(-1); // Optional.
+
+        let pipeline = unsafe {
+            vk_device.create_graphics_pipelines(vulkanalia::vk::PipelineCache::null(), &[info], None)?.0
+        };
+
+        Ok(GraphicsPipeline {
             pipeline,
-            layout,
+            pipeline_layout,
             descriptor_pool,
+            creation_state,
             resource_uniforms,
             frame_uniforms,
             object_uniforms,
             instance_count: 0,
             rendering_map: BTreeMap::new(),
+        })
+    }
+
+    pub fn prepare_recreation(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+    ) {
+        unsafe {
+            vk_device.destroy_pipeline(self.pipeline, None);
         }
+    }
+
+    pub fn recreate(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+        swapchain_extent: vulkanalia::vk::Extent2D,
+        render_pass: vulkanalia::vk::RenderPass,
+    ) -> PResult<()> {
+        // create a default sized viewport.
+        let viewport = vulkanalia::vk::Viewport::builder()
+            .x(0.0)
+            .y(0.0)
+            .width(swapchain_extent.width as f32)
+            .height(swapchain_extent.height as f32)
+            .min_depth(0.0)
+            .max_depth(1.0);
+        
+        // scissors are like masks, here use the entire screen to draw everything
+        let scissor = vulkanalia::vk::Rect2D::builder()
+            .offset(vulkanalia::vk::Offset2D { x: 0, y: 0 })
+            .extent(swapchain_extent);       
+        
+        // they are put into arrays, as they could be mutliple of them, but this require a specific extension.
+        let viewports = &[viewport];
+        let scissors = &[scissor];
+        let viewport_state = vulkanalia::vk::PipelineViewportStateCreateInfo::builder()
+            .viewports(viewports)
+            .scissors(scissors);
+        
+        let info = vulkanalia::vk::GraphicsPipelineCreateInfo::builder()
+            .stages(&self.creation_state.stages)
+            .vertex_input_state(&self.creation_state.vertex_input_state)
+            .input_assembly_state(&self.creation_state.input_assembly_state)
+            .viewport_state(&viewport_state)
+            .rasterization_state(&self.creation_state.rasterization_state)
+            .multisample_state(&self.creation_state.multisample_state)
+            .color_blend_state(&self.creation_state.color_blend_state)
+            .layout(self.pipeline_layout)
+            .render_pass(render_pass)
+            .subpass(0)
+            .base_pipeline_handle(vulkanalia::vk::Pipeline::null()) // Optional.
+            .base_pipeline_index(-1); // Optional.
+
+        self.pipeline = unsafe {
+            vk_device.create_graphics_pipelines(vulkanalia::vk::PipelineCache::null(), &[info], None)?.0
+        };
+
+        Ok(())
     }
 
     pub fn pipeline(&self) -> vulkanalia::vk::Pipeline {
@@ -56,7 +232,7 @@ impl GraphicsPipeline {
     }
 
     pub fn layout(&self) -> vulkanalia::vk::PipelineLayout {
-        self.layout
+        self.pipeline_layout
     }
 
     pub fn register_draw_commands(
@@ -87,7 +263,7 @@ impl GraphicsPipeline {
             vk_device.cmd_bind_descriptor_sets(
                 command_buffer,
                 vulkanalia::vk::PipelineBindPoint::GRAPHICS,
-                self.layout,
+                self.pipeline_layout,
                 0,
                 &ds,
                 &[]
@@ -237,7 +413,7 @@ impl GraphicsPipeline {
     }
 
     pub fn destroy(&mut self, vk_device: &vulkanalia::Device) {
-        // clean up uniforms
+        self.creation_state.destroy(vk_device);
         for resource_uniform in self.resource_uniforms.iter_mut() {
             resource_uniform.destroy(vk_device);
         }
@@ -250,7 +426,7 @@ impl GraphicsPipeline {
         unsafe {
             vk_device.destroy_descriptor_pool(self.descriptor_pool, None);
             vk_device.destroy_pipeline(self.pipeline, None);
-            vk_device.destroy_pipeline_layout(self.layout, None);
+            vk_device.destroy_pipeline_layout(self.pipeline_layout, None);
         }
     }
 

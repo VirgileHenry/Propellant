@@ -8,10 +8,12 @@ use propellant::*;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut resources = ProppellantResources::default();
+    
     resources.meshes_mut().register_mesh(id("quad"), Mesh::flat_quad(10.0));
     resources.meshes_mut().register_mesh(id("cat"), Mesh::from_bytes(include_bytes!("model/cat.gmesh"))?);
-    let cat_texture_index = resources.textures_mut().register_texture(id("cat"), include_bytes!("model/cat_texture.png"))?;
+    
     let quad_texture_index = resources.textures_mut().register_texture(id("quad"), include_bytes!("model/texture.jpg"))?;
+    let cat_texture_index = resources.textures_mut().register_texture(id("cat"), include_bytes!("model/cat_texture.png"))?;
 
     let mut engine = PropellantEngine::default()
         .with_window().unwrap()

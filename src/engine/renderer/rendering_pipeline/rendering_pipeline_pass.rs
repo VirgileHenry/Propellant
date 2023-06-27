@@ -15,14 +15,14 @@ enum RenderingPipelinePassTarget {
     /// The image and views are owned by the swapchain.
     Swapchain(Vec<vulkanalia::vk::Framebuffer>),
     /// We are targetting an intermediate render target, and own the image and views.
-    Intermediate(Vec<IntermediateRenderTarget>),
+    Intermediate(IntermediateRenderTarget),
 }
 
 impl RenderingPipelinePassTarget {
-    pub fn framebuffer(&self, index: usize) -> vulkanalia::vk::Framebuffer {
+    pub fn framebuffer(&self, image_index: usize) -> vulkanalia::vk::Framebuffer {
         match self {
-            RenderingPipelinePassTarget::Swapchain(framebuffers) => framebuffers[index],
-            RenderingPipelinePassTarget::Intermediate(framebuffers) => framebuffers[index].framebuffer(),
+            RenderingPipelinePassTarget::Swapchain(framebuffers) => framebuffers[image_index],
+            RenderingPipelinePassTarget::Intermediate(framebuffers) => framebuffers.framebuffer(),
         }
     }
 }
@@ -35,12 +35,12 @@ pub struct RenderingPipelinePass {
     /// These are the framebuffers of the swapchain if this is the final pass.
     target: RenderingPipelinePassTarget,
     /// renderpass object.
-    renderpass: vulkanalia::vk::RenderPass,
+    render_pass: vulkanalia::vk::RenderPass,
 }
 
 impl RenderingPipelinePass {
     pub fn create_transition_pass(
-        pipelines: &HashMap<u64, GraphicsPipelineBuilder>,
+        pipelines: &mut HashMap<u64, GraphicsPipelineBuilder>,
         target: &IntermediateRenderTargetBuilder,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
@@ -51,7 +51,7 @@ impl RenderingPipelinePass {
     }
 
     pub fn create_final_pass(
-        pipelines: &HashMap<u64, GraphicsPipelineBuilder>,
+        pipelines: &mut HashMap<u64, GraphicsPipelineBuilder>,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
@@ -69,22 +69,20 @@ impl RenderingPipelinePass {
             swapchain.extent()
         )?;
         // build the pipelines
-        let pipelines = pipelines.iter().map(|(id, pipeline)| {
+        let pipelines = pipelines.drain().map(|(id, pipeline)| {
             // create the pipeline hash map for this layer.
             pipeline.build(
-                vk_instance,
                 vk_device,
-                vk_physical_device,
                 swapchain.extent(),
                 &swapchain.images(),
                 renderpass
-            ).and_then(|result| Ok((*id, result)))
+            ).and_then(|result| Ok((id, result)))
         }).collect::<PResult<HashMap<u64, GraphicsPipeline>>>()?;
 
         Ok(RenderingPipelinePass {
             pipelines,
             target: RenderingPipelinePassTarget::Swapchain(framebuffers),
-            renderpass,
+            render_pass: renderpass,
         })
 
     }
@@ -112,7 +110,7 @@ impl RenderingPipelinePass {
         let clear_values = &[color_clear_value];
 
         let info = vulkanalia::vk::RenderPassBeginInfo::builder()
-            .render_pass(self.renderpass)
+            .render_pass(self.render_pass)
             .framebuffer(self.target.framebuffer(image_index))
             .render_area(render_area)
             .clear_values(clear_values);
@@ -130,6 +128,56 @@ impl RenderingPipelinePass {
         }
         unsafe { vk_device.cmd_end_render_pass(command_buffer) };
 
+        Ok(())
+    }
+
+    pub fn prepare_recreation(
+        &mut self,
+        vk_device: &vulkanalia::Device
+    ) {
+        self.pipelines.values_mut().for_each(|pipeline| pipeline.prepare_recreation(vk_device));
+        match self.target {
+            RenderingPipelinePassTarget::Swapchain(ref mut framebuffers) => {
+                for framebuffer in framebuffers.drain(..) {
+                    unsafe { vk_device.destroy_framebuffer(framebuffer, None) };
+                }
+            },
+            RenderingPipelinePassTarget::Intermediate(ref mut intermediate) => {
+                intermediate.destroy(vk_device);
+            }
+        }
+        unsafe { vk_device.destroy_render_pass(self.render_pass, None) };
+    }
+
+    pub fn recreate(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+        swapchain: &SwapchainInterface,
+    ) -> PResult<()> {
+        match self.target {
+            RenderingPipelinePassTarget::Swapchain(ref mut framebuffers) => {
+                self.render_pass = Self::create_final_render_pass(
+                    vk_device,
+                    swapchain.format(),
+                )?;
+                framebuffers.append(&mut Self::create_final_framebuffers(
+                    vk_device,
+                    swapchain.image_views(),
+                    self.render_pass,
+                    swapchain.extent(),
+                )?);
+            },
+            RenderingPipelinePassTarget::Intermediate(ref mut intermediate) => {
+                unimplemented!()
+            }
+        }
+        for pipeline in self.pipelines.values_mut() {
+            pipeline.recreate(
+                vk_device,
+                swapchain.extent(),
+                self.render_pass,
+            )?;
+        }
         Ok(())
     }
     
@@ -218,7 +266,7 @@ impl RenderingPipelinePass {
             pipeline.destroy(vk_device);
         }
         unsafe {
-            vk_device.destroy_render_pass(self.renderpass, None);
+            vk_device.destroy_render_pass(self.render_pass, None);
         }
         match &mut self.target {
             RenderingPipelinePassTarget::Swapchain(framebuffers) => {
@@ -228,10 +276,8 @@ impl RenderingPipelinePass {
                     }
                 }
             },
-            RenderingPipelinePassTarget::Intermediate(intermediate_render_targets) => {
-                for irt in intermediate_render_targets.iter_mut() {
-                    irt.destroy(vk_device);
-                }
+            RenderingPipelinePassTarget::Intermediate(intermediate_render_target) => {
+                intermediate_render_target.destroy(vk_device);
             }
         }
     }

@@ -75,7 +75,7 @@ impl RenderingPipelineBuilder<RenderingPipelineBuilderStateWaitingFramebufferLay
 
 impl RenderingPipelineBuilder<RenderingPipelineBuilderStateReady> {
     pub fn build(
-        &self,
+        self,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
@@ -94,14 +94,18 @@ impl RenderingPipelineBuilder<RenderingPipelineBuilderStateReady> {
         )
     }
 
-    pub fn transition_layers(&self) -> impl Iterator<Item = (&RenderingPipelineLayer, &IntermediateRenderTargetBuilder)> {
-        let layer_count = self.pipelines.len();
-        self.pipelines.iter().zip(self.framebuffers.iter()).take(layer_count - 1)
+    pub fn layers(self) -> (impl Iterator<Item = (RenderingPipelineLayer, IntermediateRenderTargetBuilder)>, RenderingPipelineLayer) {
+        let transition_layer_count = self.pipelines.len() - 1;
+        let mut layers_iter = self.pipelines.into_iter();
+        let mut transtion_pipelines = Vec::with_capacity(transition_layer_count);
+        for _ in 0..transition_layer_count {
+            transtion_pipelines.push(layers_iter.next().unwrap());
+        }
+        let transition_layers = transtion_pipelines.into_iter().zip(self.framebuffers.into_iter());
+        let final_layer = layers_iter.next().unwrap();
+        (transition_layers, final_layer)
     }
 
-    pub fn last_layer(&self) -> &RenderingPipelineLayer {
-        self.pipelines.last().unwrap()
-    }
 }
 
 

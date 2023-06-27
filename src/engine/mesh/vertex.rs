@@ -29,7 +29,7 @@ impl Vertex {
 
     /// Tells the attribute descriptions to vulkan.
     /// There are three of them, as for now: position, normal and uv.
-    pub fn attribute_description() -> [vulkanalia::vk::VertexInputAttributeDescription; 3] {
+    pub fn attribute_description() -> Vec<vulkanalia::vk::VertexInputAttributeDescription> {
         let pos = vulkanalia::vk::VertexInputAttributeDescription::builder()
             .binding(0)
             .location(0)
@@ -48,6 +48,6 @@ impl Vertex {
             .format(vulkanalia::vk::Format::R32G32_SFLOAT)
             .offset(2 * std::mem::size_of::<glam::Vec3>() as u32)
             .build();
-        [pos, norm, uvs]
+        vec![pos, norm, uvs]
     }
 }

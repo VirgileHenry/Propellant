@@ -18,13 +18,13 @@ pub struct RenderingPipeline {
 
 impl RenderingPipeline {
     pub fn create(
-        builder: &RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>,
+        builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>,
         vk_instance: &vulkanalia::Instance,
         window: &winit::window::Window,
         surface: vulkanalia::vk::SurfaceKHR,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
-        queue_indices: QueueFamilyIndices
+        queue_indices: QueueFamilyIndices,
     ) -> PResult<RenderingPipeline> {
 
         let swapchain = SwapchainInterface::create(
@@ -36,11 +36,16 @@ impl RenderingPipeline {
             queue_indices
         )?;
 
-        let render_passes = builder.transition_layers().into_iter().map(|(layer, target)| {
+        let (
+            transition_layers,
+            mut last_layer
+        ) = builder.layers();
+
+        let render_passes = transition_layers.map(|(mut layer, target)| {
             assert!(false, "TODO: implement transition layers");
             RenderingPipelinePass::create_transition_pass(
-                layer.pipelines(),
-                target,
+                layer.pipelines_mut(),
+                &target,
                 vk_instance,
                 vk_device,
                 vk_physical_device,
@@ -49,7 +54,7 @@ impl RenderingPipeline {
         }).chain(
             std::iter::once(
                 RenderingPipelinePass::create_final_pass(
-                    builder.last_layer().pipelines(),
+                    last_layer.pipelines_mut(),
                     vk_instance,
                     vk_device,
                     vk_physical_device,
@@ -130,6 +135,41 @@ impl RenderingPipeline {
 
         // end recording
         self.command_manager.end_recording_command_buffer(vk_device, image_index)?;
+
+        Ok(())
+    }
+
+    /// Destroy all surface related objects to prepare recreation.
+    pub fn prepare_recreation(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+    ) {
+        self.render_passes.iter_mut().for_each(|renderpass| renderpass.prepare_recreation(vk_device));
+        self.swapchain.destroy(vk_device);
+    }
+
+    /// rebuild all surface related objects from a new surface and window.
+    pub fn recreate(
+        &mut self,
+        window: &winit::window::Window,
+        surface: vulkanalia::vk::SurfaceKHR,
+        vk_instance: &vulkanalia::Instance,
+        vk_device: &vulkanalia::Device,
+        vk_physical_device: vulkanalia::vk::PhysicalDevice,
+        queue_indices: QueueFamilyIndices,
+    ) -> PResult<()> {
+        self.swapchain = SwapchainInterface::create(
+            vk_instance,
+            window,
+            surface,
+            vk_physical_device,
+            vk_device,
+            queue_indices
+        )?;
+        
+        for renderpass in self.render_passes.iter_mut() {
+            renderpass.recreate(vk_device, &self.swapchain)?;
+        }
 
         Ok(())
     }

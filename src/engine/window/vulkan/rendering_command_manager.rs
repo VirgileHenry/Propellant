@@ -96,7 +96,7 @@ impl RenderingCommandManager {
         Ok(())
     }
     
-    /// Free the command buffers. This is also perfomed by the destroy method.
+    /// Free the command buffers. This is also performed by the destroy method.
     pub fn free_command_buffers(
         &mut self,
         vk_device: &vulkanalia::Device,
@@ -105,7 +105,7 @@ impl RenderingCommandManager {
     }
 
     /// Destroys the associated objects. 
-    /// Note that this also free the command buffers, so no need to call this first.
+    /// Note that this also free the command buffers.
     pub fn destroy(
         &mut self,
         vk_device: &vulkanalia::Device,
