@@ -8,7 +8,6 @@ use vulkanalia::vk::HasBuilder;
 use vulkanalia::vk::DeviceV1_0;
 
 use super::intermediate_render_targets::IntermediateRenderTarget;
-use super::rendering_pipeline_builder::intermediate_render_target_builder::IntermediateRenderTargetBuilder;
 
 enum RenderingPipelinePassTarget {
     /// We are targetting the swapchain, and only own the framebuffers.
@@ -27,7 +26,7 @@ impl RenderingPipelinePassTarget {
     }
 }
 
-pub struct RenderingPipelinePass {
+pub struct GraphicRenderpass {
     /// The pipelines for this pass.
     /// todo : add abstraction to handle both graphics and compute pipelines.
     pipelines: HashMap<u64, GraphicsPipeline>,
@@ -38,23 +37,14 @@ pub struct RenderingPipelinePass {
     render_pass: vulkanalia::vk::RenderPass,
 }
 
-impl RenderingPipelinePass {
-    pub fn create_transition_pass(
-        pipelines: &mut HashMap<u64, GraphicsPipelineBuilder>,
-        target: &IntermediateRenderTargetBuilder,
-        vk_instance: &vulkanalia::Instance,
-        vk_device: &vulkanalia::Device,
-        vk_physical_device: vulkanalia::vk::PhysicalDevice,
-        swapchain: &SwapchainInterface,
-    ) -> PResult<RenderingPipelinePass> {
-        unimplemented!()
-    }
+impl GraphicRenderpass {
+
 
     pub fn create_final_pass(
         pipelines: &mut HashMap<u64, GraphicsPipelineBuilder>,
         vk_device: &vulkanalia::Device,
         swapchain: &SwapchainInterface,
-    ) -> PResult<RenderingPipelinePass> {
+    ) -> PResult<GraphicRenderpass> {
         // build the render pass and the framebuffers, targetting the swapchain images
         let renderpass = Self::create_final_render_pass(
             vk_device,
@@ -72,12 +62,12 @@ impl RenderingPipelinePass {
             pipeline.build(
                 vk_device,
                 swapchain.extent(),
-                &swapchain.images(),
+                swapchain.images().len(),
                 renderpass
             ).and_then(|result| Ok((id, result)))
         }).collect::<PResult<HashMap<u64, GraphicsPipeline>>>()?;
 
-        Ok(RenderingPipelinePass {
+        Ok(GraphicRenderpass {
             pipelines,
             target: RenderingPipelinePassTarget::Swapchain(framebuffers),
             render_pass: renderpass,
@@ -165,7 +155,7 @@ impl RenderingPipelinePass {
                     swapchain.extent(),
                 )?);
             },
-            RenderingPipelinePassTarget::Intermediate(ref mut intermediate) => {
+            RenderingPipelinePassTarget::Intermediate(ref mut _intermediate) => {
                 unimplemented!()
             }
         }
@@ -279,4 +269,8 @@ impl RenderingPipelinePass {
             }
         }
     }
+}
+
+pub trait RenderPass {
+
 }

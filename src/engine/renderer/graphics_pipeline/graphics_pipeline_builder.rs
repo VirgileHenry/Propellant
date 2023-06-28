@@ -54,7 +54,7 @@ impl GraphicsPipelineBuilder {
         self,
         vk_device: &vulkanalia::Device,
         swapchain_extent: vulkanalia::vk::Extent2D,
-        swapchain_images: &[vulkanalia::vk::Image],
+        frame_count: usize,
         render_pass: vulkanalia::vk::RenderPass
     ) -> PResult<GraphicsPipeline> {
         // create shader modules (compile byte code)
@@ -66,7 +66,7 @@ impl GraphicsPipelineBuilder {
         shader_stages.insert(vulkanalia::vk::ShaderStageFlags::FRAGMENT, frag_shader_module);
 
         // create the descriptor pool, to allocate descriptor sets.
-        let vk_descriptor_pool = self.create_descriptor_pool(vk_device, swapchain_images)?;
+        let vk_descriptor_pool = self.create_descriptor_pool(vk_device, frame_count)?;
 
         // create the uniforms
         let resource_uniforms = self.resource_uniforms.iter().map(|builder|
@@ -74,11 +74,11 @@ impl GraphicsPipelineBuilder {
         ).collect::<PResult<Vec<_>>>()?;
 
         let frame_uniforms = self.frame_uniforms.iter().map(|builder|
-            builder.build(vk_device, vk_descriptor_pool, swapchain_images.len())
+            builder.build(vk_device, vk_descriptor_pool, frame_count)
         ).collect::<PResult<Vec<_>>>()?;
 
         let object_uniforms = self.object_uniforms.iter().map(|builder|
-            builder.build(vk_device, vk_descriptor_pool, swapchain_images.len())
+            builder.build(vk_device, vk_descriptor_pool, frame_count)
         ).collect::<PResult<Vec<_>>>()?;
 
         let empty_ds: Vec<vulkanalia::vk::DescriptorSetLayout> = Vec::with_capacity(0);
@@ -130,35 +130,35 @@ impl GraphicsPipelineBuilder {
     fn create_descriptor_pool(
         &self,
         vk_device: &vulkanalia::Device,
-        swapchain_images: &[vulkanalia::vk::Image],
+        frame_count: usize,
     ) -> PResult<vulkanalia::vk::DescriptorPool> {
         let descriptor_set_count = (
             self.resource_uniforms.len() +
             self.frame_uniforms.len() +
             self.object_uniforms.len()
-        ) * swapchain_images.len();
+        ) * frame_count;
 
         // for each layout type, we count how many descriptor sets we need.
         let mut ds_count_map = HashMap::with_capacity(3);
         // resources uniforms
         self.resource_uniforms.iter().for_each(|builder| {
             match ds_count_map.get_mut(&builder.descriptor_type()) {
-                Some(count) => *count += swapchain_images.len(),
-                None => { ds_count_map.insert(builder.descriptor_type(), swapchain_images.len()); },
+                Some(count) => *count += frame_count,
+                None => { ds_count_map.insert(builder.descriptor_type(), frame_count); },
             }
         });
         // frame uniforms
         self.frame_uniforms.iter().for_each(|builder| {
             match ds_count_map.get_mut(&builder.descriptor_type()) {
-                Some(count) => *count += swapchain_images.len(),
-                None => { ds_count_map.insert(builder.descriptor_type(), swapchain_images.len()); },
+                Some(count) => *count += frame_count,
+                None => { ds_count_map.insert(builder.descriptor_type(), frame_count); },
             }
         });
         // object uniforms
         self.object_uniforms.iter().for_each(|builder| {
             match ds_count_map.get_mut(&builder.descriptor_type()) {
-                Some(count) => *count += swapchain_images.len(),
-                None => { ds_count_map.insert(builder.descriptor_type(), swapchain_images.len()); },
+                Some(count) => *count += frame_count,
+                None => { ds_count_map.insert(builder.descriptor_type(), frame_count); },
             }
         });
         

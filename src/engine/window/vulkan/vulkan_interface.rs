@@ -7,7 +7,7 @@ use crate::engine::errors::rendering_error::RenderingError;
 use crate::engine::errors::{PropellantError, PResult};
 use crate::engine::renderer::rendering_pipeline::RenderingPipeline;
 use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
-use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RenderingPipelineBuilderStateReady;
+use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RPBSReady;
 
 use super::physical_device_prefs::PhysicalDevicePreferences;
 use super::queues::QueueFamilyIndices;
@@ -200,7 +200,7 @@ impl VulkanInterface {
     pub fn build_pipeline_lib(
         &mut self,
         window: &winit::window::Window,
-        pipeline_lib: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>
+        pipeline_lib: RenderingPipelineBuilder<RPBSReady>
     ) -> PResult<RenderingPipeline> {
         pipeline_lib.build(
             &self.instance,

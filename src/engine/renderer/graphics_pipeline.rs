@@ -62,9 +62,6 @@ impl GraphicsPipeline {
             .primitive_restart_enable(false)
             .build();
         
-        
-        // create a default sized viewport.
-        // here, we could draw to only part of the screen for local multiplayer.
         let viewport = vulkanalia::vk::Viewport::builder()
             .x(0.0)
             .y(0.0)
@@ -76,7 +73,7 @@ impl GraphicsPipeline {
         // scissors are like masks, here use the entire screen to draw everything
         let scissor = vulkanalia::vk::Rect2D::builder()
             .offset(vulkanalia::vk::Offset2D { x: 0, y: 0 })
-            .extent(swapchain_extent);       
+            .extent(swapchain_extent);
         
         // they are put into arrays, as they could be mutliple of them, but this require a specific extension.
         let viewports = &[viewport];

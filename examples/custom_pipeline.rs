@@ -19,13 +19,9 @@ fn main() {
                     // set the rendering pipeline
                     // new rendering pipeline
                     RenderingPipelineBuilder::new()
-                        .with_pipeline_layer(
-                            // add a graphic layer with the default graphics pipeline
-                            RenderingPipelineLayer::new()
-                                .with_pipeline(id("default"), GraphicsPipelineBuilder::default())
-                        )
+                        .with_graphic_pipeline(id("default"), GraphicsPipelineBuilder::default())
                         // finish the construction of the rendering pipeline (set it to a buildable state)
-                        .finish()
+                        .with_final_rt(FinalRenderTargetBuilder::default())
                 )
         );
 

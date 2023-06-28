@@ -13,7 +13,7 @@ use crate::Transform;
 use crate::VulkanInterface;
 use self::rendering_pipeline::RenderingPipeline;
 use self::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
-use self::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RenderingPipelineBuilderStateReady;
+use self::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RPBSReady;
 use super::consts::PROPELLANT_DEBUG_FEATURES;
 use super::errors::PResult;
 use super::errors::PropellantError;
@@ -114,7 +114,7 @@ impl DefaultVulkanRenderer {
     pub fn new(
         vk_interface: &mut VulkanInterface,
         window: &winit::window::Window,
-        rendering_pipeline_builder: RenderingPipelineBuilder<RenderingPipelineBuilderStateReady>
+        rendering_pipeline_builder: RenderingPipelineBuilder<RPBSReady>
     ) -> PResult<DefaultVulkanRenderer> {
         let pipeline_lib = vk_interface.build_pipeline_lib(
             window,

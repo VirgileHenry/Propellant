@@ -26,7 +26,7 @@ impl PropellantWindow {
     pub fn handle_event(&mut self, event: winit::event::WindowEvent, control_flow: &mut winit::event_loop::ControlFlow, components: &mut ComponentTable) {
         match event {
             winit::event::WindowEvent::CloseRequested => control_flow.set_exit(),
-            winit::event::WindowEvent::Resized(_) => {
+            winit::event::WindowEvent::Resized(new_size) => {
                 match self.handle_window_resize() {
                     Ok(_) => {
                         // command buffer will get invalidated.
@@ -34,7 +34,7 @@ impl PropellantWindow {
                         // resize main cameras
                         for (_, camera) in component_iterator!(components; mut Camera) {
                             if camera.is_main() {
-                                camera.resize(self.window.inner_size().height as f32, self.window.inner_size().width as f32);
+                                camera.resize(new_size.height as f32, new_size.width as f32);
                             }
                         }
 

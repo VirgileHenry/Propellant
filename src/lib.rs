@@ -36,6 +36,8 @@ pub use engine::{
         rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder,
         rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_layer::RenderingPipelineLayer,
         graphics_pipeline::graphics_pipeline_builder::GraphicsPipelineBuilder,
+        rendering_pipeline::final_render_target::FinalRenderTargetBuilder,
+        rendering_pipeline::intermediate_render_targets::IntermediateRenderTargetBuilder,
     },
 };
 
