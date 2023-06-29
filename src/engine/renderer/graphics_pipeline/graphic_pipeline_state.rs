@@ -9,6 +9,7 @@ pub struct GraphicPipelineCreationState {
     pub rasterization_state: vulkanalia::vk::PipelineRasterizationStateCreateInfo,
     pub multisample_state: vulkanalia::vk::PipelineMultisampleStateCreateInfo,
     pub color_blend_state: vulkanalia::vk::PipelineColorBlendStateCreateInfo,
+    pub depth_stencil_state: vulkanalia::vk::PipelineDepthStencilStateCreateInfo,
     pub color_blend_attachments: Vec<vulkanalia::vk::PipelineColorBlendAttachmentState>,
 }
 

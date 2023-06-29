@@ -81,20 +81,28 @@ impl TransferCommandManager {
         let info = vulkanalia::vk::CommandBufferAllocateInfo::builder()
             .level(vulkanalia::vk::CommandBufferLevel::PRIMARY)
             .command_pool(self.command_pool)
-            .command_buffer_count(self.transfer_queue.len() as u32);
+            .command_buffer_count(1);
 
-        let command_buffers = unsafe { vk_device.allocate_command_buffers(&info)? };
+        let command_buffer = unsafe { vk_device.allocate_command_buffers(&info)?[0] };
 
-        for (transfer, command_buffer) in self.transfer_queue.iter().zip(command_buffers.iter()) {
+        let info = vulkanalia::vk::CommandBufferBeginInfo::builder()
+            .flags(vulkanalia::vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
+        unsafe { vk_device.begin_command_buffer(command_buffer, &info)? };
+
+        for transfer in self.transfer_queue.iter() {
             match transfer {
-                TransferCommand::CopyBuffer(staging, destination, size) => Self::record_buffer_transfer(vk_device, *command_buffer, staging, *destination, *size)?,
-                TransferCommand::CopyImage(staging, destination, width, height) => Self::record_image_transfer(vk_device, *command_buffer, staging, *destination, *width, *height)?,
-                TransferCommand::TransitionImageLayout(image, format, old_layout, new_layout) => Self::record_pipeline_barrier(vk_device, *command_buffer, *image, *format,  *old_layout, *new_layout)?,
+                TransferCommand::CopyBuffer(staging, destination, size) => Self::record_buffer_transfer(vk_device, command_buffer, staging, *destination, *size)?,
+                TransferCommand::CopyImage(staging, destination, width, height) => Self::record_image_transfer(vk_device, command_buffer, staging, *destination, *width, *height)?,
+                TransferCommand::TransitionImageLayout(image, format, old_layout, new_layout) => Self::record_pipeline_barrier(vk_device, command_buffer, *image, *format,  *old_layout, *new_layout)?,
             }
         }
 
+        unsafe { vk_device.end_command_buffer(command_buffer)? };
+
         // execute all registered commands.
-        let info = vulkanalia::vk::SubmitInfo::builder().command_buffers(command_buffers.as_slice());            
+        let command_buffers = &[command_buffer];
+        let info = vulkanalia::vk::SubmitInfo::builder().command_buffers(command_buffers);            
         
         unsafe {
             vk_device.queue_submit(queue, &[info], vulkanalia::vk::Fence::null())?;
@@ -103,7 +111,7 @@ impl TransferCommandManager {
         
 
         // free the command buffers
-        unsafe { vk_device.free_command_buffers(self.command_pool, &command_buffers) };
+        unsafe { vk_device.free_command_buffers(self.command_pool, command_buffers) };
 
         // finally, drain the queue (emptying it) and free the staging buffers.
         for mut transfer in self.transfer_queue.drain(..) {
@@ -119,16 +127,10 @@ impl TransferCommandManager {
         staging: &VulkanBuffer,
         destination: vulkanalia::vk::Buffer,
         size: vulkanalia::vk::DeviceSize,
-    ) -> PResult<()> {
-        let info = vulkanalia::vk::CommandBufferBeginInfo::builder()
-            .flags(vulkanalia::vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+    ) -> PResult<()> {        
 
-        unsafe { vk_device.begin_command_buffer(command_buffer, &info)? };
-        
         let regions = vulkanalia::vk::BufferCopy::builder().size(size);
-        
         unsafe { vk_device.cmd_copy_buffer(command_buffer, staging.buffer(), destination, &[regions]) };
-        unsafe { vk_device.end_command_buffer(command_buffer)? };
 
         Ok(())
     }
@@ -141,11 +143,6 @@ impl TransferCommandManager {
         width: u32,
         height: u32,
     ) -> PResult<()> {
-        // begin command buffer
-        let info = vulkanalia::vk::CommandBufferBeginInfo::builder()
-            .flags(vulkanalia::vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-
-        unsafe { vk_device.begin_command_buffer(command_buffer, &info)? };
 
         // switch the image layout to transfer destination, using a barrier.
         Self::record_pipeline_barrier(vk_device, command_buffer, destination,
@@ -185,9 +182,6 @@ impl TransferCommandManager {
             vulkanalia::vk::ImageLayout::TRANSFER_DST_OPTIMAL,
             vulkanalia::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
         )?;
-
-        // end command buffer
-        unsafe { vk_device.end_command_buffer(command_buffer)? };
 
         Ok(())
     }

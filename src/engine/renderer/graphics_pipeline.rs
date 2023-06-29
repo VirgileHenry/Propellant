@@ -19,7 +19,6 @@ use self::uniform::{
     resource_uniform::ResourceUniform
 };
 
-pub(crate) mod attachments;
 pub(crate) mod graphics_pipeline_builder;
 pub(crate) mod graphic_pipeline_state;
 pub(crate) mod uniform;
@@ -105,15 +104,21 @@ impl GraphicsPipeline {
             .blend_enable(false)
             .build();
 
-        // todo : depth attachment 
-
         let color_blend_attachments = vec![color_attachment];
         let color_blend_state = vulkanalia::vk::PipelineColorBlendStateCreateInfo::builder()
             .logic_op_enable(false)
             .logic_op(vulkanalia::vk::LogicOp::COPY)
             .attachments(&color_blend_attachments)
             .blend_constants([0.0, 0.0, 0.0, 0.0])
-            .build();        
+            .build(); 
+
+        let depth_stencil_state = vulkanalia::vk::PipelineDepthStencilStateCreateInfo::builder()
+            .depth_test_enable(true)
+            .depth_write_enable(true)
+            .depth_compare_op(vulkanalia::vk::CompareOp::LESS)
+            .depth_bounds_test_enable(false)
+            .stencil_test_enable(false)
+            .build();
 
         // create the pipeline ! 
         let stages = shader_stages.iter().map(|(stage, shader_module)|
@@ -133,6 +138,7 @@ impl GraphicsPipeline {
             rasterization_state,
             multisample_state,
             color_blend_state,
+            depth_stencil_state,
             color_blend_attachments,
         };
 
@@ -144,6 +150,7 @@ impl GraphicsPipeline {
             .rasterization_state(&creation_state.rasterization_state)
             .multisample_state(&creation_state.multisample_state)
             .color_blend_state(&creation_state.color_blend_state)
+            .depth_stencil_state(&depth_stencil_state)
             .layout(pipeline_layout)
             .render_pass(render_pass)
             .subpass(0)
@@ -211,6 +218,7 @@ impl GraphicsPipeline {
             .rasterization_state(&self.creation_state.rasterization_state)
             .multisample_state(&self.creation_state.multisample_state)
             .color_blend_state(&self.creation_state.color_blend_state)
+            .depth_stencil_state(&self.creation_state.depth_stencil_state)
             .layout(self.pipeline_layout)
             .render_pass(render_pass)
             .subpass(0)

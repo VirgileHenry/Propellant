@@ -139,7 +139,11 @@ impl RenderingPipelineBuilder<RPBSReady> {
 
 }
 
-
+impl From<RenderingPipelineBuilder<RPBSReady>> for RPBSReady {
+    fn from(builder: RenderingPipelineBuilder<RPBSReady>) -> Self {
+        builder.state_data
+    }
+}
 
 impl Default for RenderingPipelineBuilder<RPBSReady> {
     fn default() -> Self {

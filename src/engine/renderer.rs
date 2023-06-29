@@ -17,7 +17,6 @@ use self::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_bui
 use super::consts::PROPELLANT_DEBUG_FEATURES;
 use super::errors::PResult;
 use super::errors::PropellantError;
-use super::flags::RequireMemoryTransfersFlag;
 use super::flags::RequireResourcesLoadingFlag;
 use super::flags::RequireSceneRebuildFlag;
 use super::window::vulkan::queues::QueueFamilyIndices;
@@ -150,8 +149,6 @@ impl DefaultVulkanRenderer {
                     for (_, pipeline) in self.rendering_pipeline.get_pipelines_mut() {
                         pipeline.rebuild_resources_uniforms(&vk_interface.device, resource_lib)?;
                     }
-                    // ask for memory transfers
-                    components.add_singleton(RequireMemoryTransfersFlag);
                 },
                 None => {
                     if PROPELLANT_DEBUG_FEATURES {
@@ -187,9 +184,7 @@ impl DefaultVulkanRenderer {
         }
 
         // look for memory transfer flags
-        if let Some(_) = components.remove_singleton::<RequireMemoryTransfersFlag>() {
-            vk_interface.process_memory_transfers()?;
-        }
+        vk_interface.chack_and_process_memory_transfers()?;
 
         Ok(())
     }
