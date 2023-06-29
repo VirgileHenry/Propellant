@@ -9,7 +9,6 @@ use crate::engine::{
             VulkanImage,
             vulkan_image_view::create_image_view
         },
-        transfer_command_manager::TransferCommandManager
     }
 };
 

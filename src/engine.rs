@@ -22,6 +22,7 @@ use self::{
 };
 
 pub(crate) mod common_components;
+pub(crate) mod common_systems;
 pub(crate) mod consts;
 pub(crate) mod engine_events;
 pub(crate) mod errors;

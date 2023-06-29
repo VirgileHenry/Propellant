@@ -3,7 +3,12 @@ pub(crate) mod utils;
 
 // expose our types
 pub use engine::{
-    common_components::camera::Camera,
+    common_components::{
+        camera::Camera,
+    },
+    common_systems::{
+        fps_limiter::FpsLimiter,
+    },
     PropellantEngine,
     engine_events::{
         input_handler::InputHandler,
