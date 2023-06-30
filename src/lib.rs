@@ -3,19 +3,15 @@ pub(crate) mod utils;
 
 // expose our types
 pub use engine::{
+    PropellantEngine,
     common_components::{
         camera::Camera,
     },
-    common_systems::{
-        fps_limiter::FpsLimiter,
-    },
-    PropellantEngine,
-    engine_events::{
+    common_systems::fps_limiter::FpsLimiter,
+    inputs::{
+        input_context::InputContext,
+        input_handler::input_handler_builder::InputHandlerBuilder,
         input_handler::InputHandler,
-        input_listener::{
-            InputListener,
-            input_button::InputButton,
-        },
     },
     mesh::{
         Mesh,
@@ -25,6 +21,7 @@ pub use engine::{
         Material,
         phong_material::PhongMaterialProperties,
     },
+    engine_events::PropellantEvent,
     resources::ProppellantResources,
     window::{
         PropellantWindow,
@@ -45,6 +42,9 @@ pub use engine::{
         rendering_pipeline::intermediate_render_targets::IntermediateRenderTargetBuilder,
     },
 };
+
+pub use foundry;
+pub use glam;
 
 pub use utils::id::{
     id,

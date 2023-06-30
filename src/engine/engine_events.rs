@@ -1,5 +1,3 @@
-pub(crate) mod input_handler;
-pub(crate) mod input_listener;
 
 
 /// Events to send to the event loop.
@@ -7,5 +5,6 @@ pub(crate) mod input_listener;
 pub enum PropellantEvent {
     CloseApplicationRequest,
     SwapchainRecreationRequest,
+    SwitchInputContext(u64),
 }
 

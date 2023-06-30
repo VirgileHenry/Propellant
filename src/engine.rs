@@ -1,24 +1,24 @@
-use std::collections::BTreeMap;
 
 use foundry::World;
-use crate::id;
+use crate::{id, InputHandlerBuilder};
 
 use self::{
-    engine_events::{
-        PropellantEvent,
-        input_handler::InputHandler,
-        input_listener::InputListener
-    },
+    engine_events::PropellantEvent,
     window::{
         PropellantWindow,
         window_builder::PropellantWindowBuilder
     },
-    errors::PResult,
+    errors::{PResult, PropellantError},
     flags::{
         RequireResourcesLoadingFlag,
         RequireSceneRebuildFlag
     },
     resources::ProppellantResources,
+    inputs::{
+        input_system::InputSystem,
+        input_handler::InputHandler
+    }, 
+    consts::PROPELLANT_DEBUG_FEATURES,
 };
 
 pub(crate) mod common_components;
@@ -27,6 +27,7 @@ pub(crate) mod consts;
 pub(crate) mod engine_events;
 pub(crate) mod errors;
 pub(crate) mod flags;
+pub(crate) mod inputs;
 pub(crate) mod lights;
 pub(crate) mod material;
 pub(crate) mod mesh;
@@ -109,20 +110,18 @@ impl PropellantEngine {
         self
     }
 
-    /// Adds a event handler singletin to the engine
-    pub fn with_empty_input_handler(mut self) -> PropellantEngine {
-        let event_loop = self.event_loop.take().unwrap();
-        self.world.add_singleton(InputHandler::empty(&event_loop));
-        self.event_loop = Some(event_loop);
-        self
-    }
-
-    /// Adds an event handler with the specified input listeners to the engine.
-    pub fn with_input_handler(mut self, inputs: BTreeMap<u64, Box<dyn InputListener>>) -> PropellantEngine {
-        let event_loop = self.event_loop.take().unwrap();
-        self.world.add_singleton(InputHandler::from_inputs(&event_loop, inputs));
-        self.event_loop = Some(event_loop);
-        self
+    /// Add an input handler to the engine, and register the input system.
+    /// The start context id must a id of a input context in the input handler.
+    pub fn with_input_handler(mut self, mut input_handler: InputHandlerBuilder, start_context_id: u64) -> PResult<PropellantEngine> {
+        let start_context = input_handler.remove_context(start_context_id).ok_or_else(|| PropellantError::NoResources)?;
+        let input_system = InputSystem::new(start_context_id, start_context);
+        // register both the input system and the input handler.
+        self.world.register_system(input_system, id("input_system"));
+        self.world.add_singleton(input_handler.build(match &self.event_loop {
+            Some(proxy) => proxy.create_proxy(),
+            None => return Err(PropellantError::NoResources),
+        }));
+        Ok(self)
     }
 
     /// Main loop of the app.
@@ -149,8 +148,15 @@ impl PropellantEngine {
                 },
                 // device events are treated by the input handler, if any
                 winit::event::Event::DeviceEvent { device_id, event } => {
-                    match self.world.get_singleton_mut::<InputHandler>() {
-                        Some(input_handler) => input_handler.handle_input(event, device_id),
+                    match self.world.get_system_mut(id("input_system")) {
+                        Some(input_system_wrapper) => match input_system_wrapper.try_get_updatable_mut::<InputSystem>() {
+                            Some(input_system) => input_system.handle_device_event(device_id, event),
+                            None => {
+                                if PROPELLANT_DEBUG_FEATURES {
+                                    println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
+                                }
+                            }
+                        },
                         None => {},
                     }
                 }
@@ -177,6 +183,32 @@ impl PropellantEngine {
                                     Ok(_) => {},
                                     Err(e) => println!("{e}"),
                                 };
+                            },
+                            None => {},
+                        }
+                    },
+                    PropellantEvent::SwitchInputContext(ctx_id) => {
+                        match self.world.get_system_and_world_mut(id("input_system")) {
+                            Some((input_system_wrapper, comps)) => match input_system_wrapper.try_get_updatable_mut::<InputSystem>() {
+                                Some(input_system) => {
+                                    match comps.get_singleton_mut::<InputHandler>() {
+                                        Some(input_handler) => {
+                                            match input_handler.get_context(ctx_id) {
+                                                Some((ctx_id, ctx)) => input_system.switch_context(ctx_id, ctx),
+                                                None => { if PROPELLANT_DEBUG_FEATURES {
+                                                    println!("[PROPELLANT DEBUG] Unable to get input context with id: {}", ctx_id);
+                                                } }
+                                            }
+                                        },
+                                        _ => { if PROPELLANT_DEBUG_FEATURES {
+                                            println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
+                                        } }
+                                    }
+                                    input_system.on_become_active(comps);
+                                },
+                                None => if PROPELLANT_DEBUG_FEATURES {
+                                    println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
+                                }                                
                             },
                             None => {},
                         }
