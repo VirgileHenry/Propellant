@@ -39,6 +39,7 @@ impl RenderingPipeline {
             queue_indices
         )?;
 
+        let clear_color = builder.clear_color();
         let mut builder_state: RPBSReady = builder.into();
 
         let (graphic_render_pass, compute_render_passes) = if builder_state.compute_pipelines.is_empty() {
@@ -51,6 +52,7 @@ impl RenderingPipeline {
                     vk_device,
                     vk_physical_device,
                     &swapchain,
+                    clear_color,
                 )?,
                 Vec::with_capacity(0),
             )

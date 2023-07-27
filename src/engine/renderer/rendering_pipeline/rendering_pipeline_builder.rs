@@ -9,9 +9,7 @@ use crate::{
     }, id, 
 };
 
-use self::{
-    rendering_pipeline_builder_states::*,
-};
+use self::rendering_pipeline_builder_states::*;
 
 use super::{RenderingPipeline, intermediate_render_targets::IntermediateRenderTargetBuilder, final_render_target::FinalRenderTargetBuilder};
 
@@ -20,7 +18,11 @@ pub(crate) mod rendering_pipeline_layer;
 
 
 pub struct RenderingPipelineBuilder<T> {
+    // data relative to the current state
     state_data: T,
+    // any state data
+    clear_color: (f32, f32, f32),
+
 }
 
 impl<T> RenderingPipelineBuilder<T> {
@@ -38,7 +40,8 @@ impl RenderingPipelineBuilder<RPBSRegisteringGraphic> {
         Self {
             state_data: RPBSRegisteringGraphic {
                 graphic_pipelines: HashMap::new(),
-            }
+            },
+            clear_color: (0.0, 0.0, 0.0),
         }
     }
 
@@ -53,7 +56,8 @@ impl RenderingPipelineBuilder<RPBSRegisteringGraphic> {
                 graphic_pipelines: self.state_data.graphic_pipelines,
                 compute_pipelines: Vec::new(),
                 last_intermediate_rt: render_texture,
-            }
+            },
+            clear_color: self.clear_color,
         }
     }
 
@@ -67,6 +71,7 @@ impl RenderingPipelineBuilder<RPBSRegisteringGraphic> {
 
         RenderingPipelineBuilder {
             state_data: new_state,
+            clear_color: self.clear_color,
         }
     }
 }
@@ -85,6 +90,7 @@ impl RenderingPipelineBuilder<RPBSWaitingComputePipeline> {
 
         RenderingPipelineBuilder {
             state_data: new_state,
+            clear_color: self.clear_color,
         }
     }
 }
@@ -100,6 +106,7 @@ impl RenderingPipelineBuilder<RPBSWaitingRenderTargets> {
 
         RenderingPipelineBuilder {
             state_data: new_state,
+            clear_color: self.clear_color,
         }
     }
 
@@ -109,7 +116,8 @@ impl RenderingPipelineBuilder<RPBSWaitingRenderTargets> {
                 graphic_pipelines: self.state_data.graphic_pipelines,
                 compute_pipelines: self.state_data.compute_pipelines,
                 final_render_target,
-            }
+            },
+            clear_color: self.clear_color,
         }
     }
 }
@@ -134,9 +142,19 @@ impl RenderingPipelineBuilder<RPBSReady> {
             queue_indices,
         )
     }
+}
 
+impl<T> RenderingPipelineBuilder<T> {
+    pub fn with_clear_color(self, clear_color: (f32, f32, f32)) -> RenderingPipelineBuilder<T> {
+        RenderingPipelineBuilder {
+            state_data: self.state_data,
+            clear_color,
+        }
+    }
 
-
+    pub fn clear_color(&self) -> (f32, f32, f32) {
+        self.clear_color
+    }
 }
 
 impl From<RenderingPipelineBuilder<RPBSReady>> for RPBSReady {
@@ -147,8 +165,16 @@ impl From<RenderingPipelineBuilder<RPBSReady>> for RPBSReady {
 
 impl Default for RenderingPipelineBuilder<RPBSReady> {
     fn default() -> Self {
-        RenderingPipelineBuilder::new()
-            .with_graphic_pipeline(id("default"), GraphicsPipelineBuilder::default())
-            .with_final_rt(FinalRenderTargetBuilder::default())
+        if cfg!(feature = "ui") {
+            RenderingPipelineBuilder::new()
+                .with_graphic_pipeline(id("default"), GraphicsPipelineBuilder::default())
+                .with_graphic_pipeline(id("ui_pipeline"), GraphicsPipelineBuilder::ui_pipeline())
+                .with_final_rt(FinalRenderTargetBuilder::default())
+        }
+        else {
+            RenderingPipelineBuilder::new()
+                .with_graphic_pipeline(id("default"), GraphicsPipelineBuilder::default())
+                .with_final_rt(FinalRenderTargetBuilder::default())
+        }
     }
 }

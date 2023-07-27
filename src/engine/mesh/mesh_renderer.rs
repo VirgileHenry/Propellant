@@ -1,5 +1,7 @@
 use crate::engine::material::Material;
 
+#[cfg(feature = "ui")]
+pub(crate) mod ui_mesh_renderer;
 
 /// Component to render a Mesh.
 pub struct MeshRenderer {

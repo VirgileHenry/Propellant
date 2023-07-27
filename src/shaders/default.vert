@@ -22,7 +22,7 @@ layout (location = 4) out vec3 outCamPos;
 void main() {
     instanceIndex = gl_InstanceIndex;
     outPosition = (models.world_pos[gl_InstanceIndex] * vec4(inPosition, 1.0)).xyz;
-    outNormal = mat3(transpose(inverse(models.world_pos[gl_InstanceIndex]))) * inNormal; // todo : transform normal to world space
+    outNormal = transpose(inverse(mat3(models.world_pos[gl_InstanceIndex]))) * inNormal;
     outUv = inUv;
     outCamPos = (inverse(cam.view) * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
     gl_Position = cam.proj * cam.view * models.world_pos[gl_InstanceIndex] * vec4(inPosition, 1.0);

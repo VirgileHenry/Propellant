@@ -27,6 +27,7 @@ pub enum PropellantError {
     EventLoopClosed,
     NoMainCamera,
     NoResources,
+    Custom(String)
 }
 
 
@@ -84,6 +85,7 @@ impl Debug for PropellantError {
             PropellantError::EventLoopClosed => write!(f, "Event loop closed."),
             PropellantError::NoMainCamera => write!(f, "No main camera."),
             PropellantError::NoResources => write!(f, "No resources."),
+            PropellantError::Custom(e) => write!(f, "{}", e),
         }
 
 

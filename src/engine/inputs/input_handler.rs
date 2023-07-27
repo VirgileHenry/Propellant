@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::engine::{
     engine_events::PropellantEvent,
     errors::PResult
@@ -11,7 +13,7 @@ pub(crate) mod input_handler_builder;
 /// Must be built from a winit event loop, to allow custom events sending.
 pub struct InputHandler {
     event_loop_proxy: winit::event_loop::EventLoopProxy<PropellantEvent>,
-    contexts: Vec<(u64, Box<dyn InputContext>)>
+    contexts: HashMap<u64, Box<dyn InputContext>>
 }
 
 
@@ -21,17 +23,21 @@ impl InputHandler {
         Ok(())
     }
 
-    pub fn switch_context(&mut self, id: u64) -> PResult<()> {
-        self.event_loop_proxy.send_event(PropellantEvent::SwitchInputContext(id))?;
+    pub fn request_add_context(&mut self, id: u64) -> PResult<()> {
+        self.event_loop_proxy.send_event(PropellantEvent::AddEventContext(id))?;
         Ok(())
     }
 
-    pub fn get_context(&mut self, id: u64) -> Option<(&mut u64, &mut Box<dyn InputContext>)> {
-        for (context_id, context) in self.contexts.iter_mut() {
-            if *context_id == id {
-                return Some((context_id, context));
-            }
-        }
-        None
+    pub fn request_remove_context(&mut self, id: u64) -> PResult<()> {
+        self.event_loop_proxy.send_event(PropellantEvent::RemoveEventContext(id))?;
+        Ok(())
+    }
+
+    pub fn get_context(&mut self, id: u64) -> Option<Box<dyn InputContext>> {
+        self.contexts.remove(&id)
+    }
+
+    pub fn add_context(&mut self, id: u64, context: Box<dyn InputContext>) {
+        self.contexts.insert(id, context);
     }
 }

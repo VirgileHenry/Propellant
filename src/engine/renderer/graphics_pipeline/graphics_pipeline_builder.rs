@@ -22,15 +22,18 @@ use super::uniform::resource_uniform::ResourceUniformBuilder;
 use super::uniform::resource_uniform::textures_uniform::TextureUniformBuilder;
 use super::uniform::uniform_buffer::UniformBufferBuilder;
 
+#[cfg(feature = "ui")]
+pub(crate) mod ui_pipeline;
+
 
 /// defines the rendering process. Must be given to the vulkan interface to be built.
 /// todo : add full shader types support.
 #[derive(Debug)]
 pub struct GraphicsPipelineBuilder {
     /// Vertex shader byte code
-    vertex: (Vec<u32>, usize),
+    vertex_shader: Vec<u32>,
     /// Fragment shader byte code
-    fragment: (Vec<u32>, usize),
+    fragment_shader: Vec<u32>,
     /// Per resources uniforms
     resource_uniforms: Vec<Box<dyn ResourceUniformBuilder>>,
     /// Per frames uniforms
@@ -42,9 +45,11 @@ pub struct GraphicsPipelineBuilder {
 impl GraphicsPipelineBuilder {
     pub fn empty() -> GraphicsPipelineBuilder {
         GraphicsPipelineBuilder {
-            vertex: (Vec::with_capacity(0), 0),
-            fragment: (Vec::with_capacity(0), 0),
-            resource_uniforms: Vec::new(),
+            vertex_shader: Vec::with_capacity(0),
+            fragment_shader: Vec::with_capacity(0),
+            resource_uniforms: vec![ // still have access to this by default ?
+                Box::new(TextureUniformBuilder::new(0, vulkanalia::vk::ShaderStageFlags::FRAGMENT))
+            ],
             frame_uniforms: Vec::new(),
             object_uniforms: Vec::new(),
         }
@@ -58,8 +63,8 @@ impl GraphicsPipelineBuilder {
         render_pass: vulkanalia::vk::RenderPass
     ) -> PResult<GraphicsPipeline> {
         // create shader modules (compile byte code)
-        let vert_shader_module = Self::create_shader_module((&self.vertex.0, self.vertex.1), vk_device)?;
-        let frag_shader_module = Self::create_shader_module((&self.fragment.0, self.fragment.1), vk_device)?;
+        let vert_shader_module = Self::create_shader_module(&self.vertex_shader, vk_device)?;
+        let frag_shader_module = Self::create_shader_module(&self.fragment_shader, vk_device)?;
 
         let mut shader_stages = HashMap::with_capacity(2);
         shader_stages.insert(vulkanalia::vk::ShaderStageFlags::VERTEX, vert_shader_module);
@@ -119,10 +124,10 @@ impl GraphicsPipelineBuilder {
         )
     }
 
-    fn create_shader_module(source_code: (&[u32], usize), vk_device: &vulkanalia::Device) -> PResult<vulkanalia::vk::ShaderModule> {
+    fn create_shader_module(source_code: &[u32], vk_device: &vulkanalia::Device) -> PResult<vulkanalia::vk::ShaderModule> {
         let info = vulkanalia::vk::ShaderModuleCreateInfo::builder()
-            .code_size(source_code.1)
-            .code(source_code.0);
+            .code_size(source_code.len() * 4)
+            .code(source_code); // x4 because we are using u32, and length is in byte
 
         Ok(unsafe { vk_device.create_shader_module(&info, None)? })
     }
@@ -177,31 +182,47 @@ impl GraphicsPipelineBuilder {
         })
     }
 
+    pub fn with_vertex_shader(self, source_code: Vec<u32>) -> Self {
+        Self {
+            vertex_shader: source_code,
+            ..self
+        }
+    }
+
+    pub fn with_fragment_shader(self, source_code: Vec<u32>) -> Self {
+        Self {
+            fragment_shader: source_code,
+            ..self
+        }
+    }
+
     pub fn with_frame_uniform<T: AsPerFrameUniform + Debug + 'static>(
-        &mut self,
+        mut self,
         stage: vulkanalia::vk::ShaderStageFlags,
-    ) {
+    ) -> Self {
         // add the uniform builder to the list. 
         // use the current length of the uniforms as a binding, so they respect their index.
         self.frame_uniforms.push(Box::new(UniformBufferBuilder::<T>::new(
             stage,
             vulkanalia::vk::DescriptorType::UNIFORM_BUFFER, // per frame uniforms uses uniform buffers
-            self.frame_uniforms.len() as u32
+            0
         )));
+        self
     }
 
 
     pub fn with_object_uniform<T: AsPerObjectUniform + Debug + 'static>(
-        &mut self,
+        mut self,
         stage: vulkanalia::vk::ShaderStageFlags,
-    ) {
+    ) -> Self {
         // add the uniform builder to the list. 
         // use the current length of the uniforms as a binding, so they respect their index.
         self.object_uniforms.push(Box::new(UniformBufferBuilder::<T>::new(
             stage,
             vulkanalia::vk::DescriptorType::STORAGE_BUFFER, // per object uniforms uses storage buffers
-            self.object_uniforms.len() as u32
+            0
         )));
+        self
     }
 
 }
@@ -212,8 +233,8 @@ impl Default for GraphicsPipelineBuilder {
         
         // return the builder
         GraphicsPipelineBuilder { 
-            vertex: (DEFAULT_VERT.iter().map(|v| *v).collect(), DEFAULT_VERT.len() * 4), // x4 because we are using u32, and length is in byte
-            fragment: (DEFAULT_FRAG.iter().map(|v| *v).collect(), DEFAULT_FRAG.len() * 4), // x4 because we are using u32, and length is in byte
+            vertex_shader: (DEFAULT_VERT.iter().map(|v| *v).collect()),
+            fragment_shader: (DEFAULT_FRAG.iter().map(|v| *v).collect()),
             resource_uniforms: vec![
                 Box::new(TextureUniformBuilder::new(0, vulkanalia::vk::ShaderStageFlags::FRAGMENT))
             ],

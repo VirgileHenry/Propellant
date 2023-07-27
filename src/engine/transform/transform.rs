@@ -32,6 +32,7 @@ impl Transform {
             Some(world_pos) => world_pos,
             None => {
                 // if we have been invalidated, recompute world pos, set it and return it.
+                // the order is super weird here, but experimentally it does not work the other way around.
                 let world_pos = glam::Mat4::from_scale_rotation_translation(self.scale, self.rotation, self.position);
                 self.world_pos.set(Some(world_pos));
                 world_pos
@@ -95,6 +96,10 @@ impl Transform {
     pub fn set_scale(&mut self, scale: glam::Vec3) {
         self.scale = scale;
         self.invalidate_world_pos();
+    }
+
+    pub unsafe fn set_world_matrix(&mut self, world_matrix: glam::Mat4) {
+        self.world_pos.set(Some(world_matrix));
     }
 
     // ==================== Operations ====================

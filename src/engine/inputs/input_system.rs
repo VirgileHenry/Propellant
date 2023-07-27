@@ -1,4 +1,4 @@
-use std::mem::swap;
+use std::collections::HashMap;
 
 use foundry::{
     AsAny,
@@ -11,37 +11,44 @@ use super::input_context::InputContext;
 /// and performs transmission from raw to context, then from context to game.
 #[derive(AsAny)]
 pub struct InputSystem {
-    current_context: Box<dyn InputContext>,
-    current_context_id: u64,
+    active_contexts: HashMap<u64, Box<dyn InputContext>>,
 }
 
 impl InputSystem {
-    pub fn new(context_id: u64, input_context: Box<dyn InputContext>) -> System {
+    pub fn new() -> System {
         System::new(
             Box::new(InputSystem {
-                current_context: input_context,
-                current_context_id: context_id,
+                active_contexts: HashMap::new(),
             }),
             UpdateFrequency::PerFrame,
         )
     }
-
+    
     pub fn handle_device_event(&mut self, device_id: winit::event::DeviceId, input: winit::event::DeviceEvent) {
-        self.current_context.handle_raw_input(device_id, input);
+        for (_, context) in self.active_contexts.iter_mut() {
+            context.handle_device_input(device_id, input.clone());
+        }
+    }
+    
+    pub fn handle_window_event(&mut self, input: &winit::event::WindowEvent) {
+        for (_, context) in self.active_contexts.iter_mut() {
+            context.handle_window_input(input);
+        }
     }
 
-    pub fn switch_context(&mut self, id: &mut u64, context: &mut Box<dyn InputContext>) {
-        swap(&mut self.current_context, context);
-        swap(&mut self.current_context_id, id);
+    pub fn register_context(&mut self, id: u64, context: Box<dyn InputContext>) {
+        self.active_contexts.insert(id, context);
     }
 
-    pub fn on_become_active(&mut self, components: &mut foundry::ComponentTable) {
-        self.current_context.on_become_active(components);
+    pub fn remove_context(&mut self, id: u64) -> Option<Box<dyn InputContext>> {
+        self.active_contexts.remove(&id)
     }
 }
 
 impl Updatable for InputSystem {
     fn update(&mut self, components: &mut foundry::ComponentTable, delta: f32) {
-        self.current_context.update(components, delta);
+        for (_, context) in self.active_contexts.iter_mut() {
+            context.update(components, delta);
+        }
     }
 }

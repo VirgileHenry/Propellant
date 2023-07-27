@@ -14,11 +14,8 @@ use self::{
         RequireSceneRebuildFlag
     },
     resources::ProppellantResources,
-    inputs::{
-        input_system::InputSystem,
-        input_handler::InputHandler
-    }, 
-    consts::PROPELLANT_DEBUG_FEATURES,
+    inputs::input_system::InputSystem, 
+    consts::PROPELLANT_DEBUG_FEATURES, renderer::graphics_pipeline::uniform::frame_uniform::ui_resolution::UiResolution,
 };
 
 pub(crate) mod common_components;
@@ -112,9 +109,16 @@ impl PropellantEngine {
 
     /// Add an input handler to the engine, and register the input system.
     /// The start context id must a id of a input context in the input handler.
-    pub fn with_input_handler(mut self, mut input_handler: InputHandlerBuilder, start_context_id: u64) -> PResult<PropellantEngine> {
-        let start_context = input_handler.remove_context(start_context_id).ok_or_else(|| PropellantError::NoResources)?;
-        let input_system = InputSystem::new(start_context_id, start_context);
+    pub fn with_input_handler(mut self, input_handler: InputHandlerBuilder, start_context_ids: Vec<u64>) -> PResult<PropellantEngine> {
+        let input_system = InputSystem::new();
+        // prepare register of start event contexts
+        let event_proxy = match &self.event_loop {
+            Some(proxy) => proxy.create_proxy(),
+            None => return Err(PropellantError::Custom("No event loop present.".to_string())),
+        };
+        for ctx_id in start_context_ids {
+            event_proxy.send_event(PropellantEvent::AddEventContext(ctx_id))?;
+        }
         // register both the input system and the input handler.
         self.world.register_system(input_system, id("input_system"));
         self.world.add_singleton(input_handler.build(match &self.event_loop {
@@ -124,14 +128,33 @@ impl PropellantEngine {
         Ok(self)
     }
 
+    #[cfg(feature = "ui")]
+    /// Add a ui resolution to the engine, and register it. This can only be called if a window is present.
+    pub fn with_ui_resolution(mut self, resolution: f32) -> PResult<PropellantEngine> {
+        let (screen_width, screen_height) = match self.world.get_system(id("window")) {
+            Some(window) => match window.try_get_updatable::<PropellantWindow>() {
+                Some(prop_window) => prop_window.window_inner_size(),
+                None => return Err(PropellantError::Custom(String::from("Unable to add a ui resolution without a window."))),
+            },
+            None => return Err(PropellantError::Custom(String::from("Unable to add a ui resolution without a window."))),
+        };
+        self.world.add_singleton(UiResolution {
+            resolution,
+            screen_width,
+            screen_height,
+        });
+        Ok(self)
+    }
+
     /// Main loop of the app.
     pub fn main_loop(mut self) {
+
         let event_loop = match self.event_loop.take() {
             Some(el) => el,
             None => return, // no event loop, can't loop and return
         };
 
-        event_loop.run(move |event, _, control_flow| {
+        event_loop.run(move |event, _, mut control_flow| {
             // better for games and continuous apps.
             control_flow.set_poll();
 
@@ -172,48 +195,7 @@ impl PropellantEngine {
                     }
                 },
                 // handle engine events
-                winit::event::Event::UserEvent(prop_event) => match prop_event {
-                    // engine requested stop
-                    PropellantEvent::CloseApplicationRequest => control_flow.set_exit(),
-                    PropellantEvent::SwapchainRecreationRequest => {
-                        // get to the window, and ask swap chain recreation.
-                        match self.world.get_singleton_mut::<PropellantWindow>() {
-                            Some(window) => {
-                                match window.handle_window_resize() {
-                                    Ok(_) => {},
-                                    Err(e) => println!("{e}"),
-                                };
-                            },
-                            None => {},
-                        }
-                    },
-                    PropellantEvent::SwitchInputContext(ctx_id) => {
-                        match self.world.get_system_and_world_mut(id("input_system")) {
-                            Some((input_system_wrapper, comps)) => match input_system_wrapper.try_get_updatable_mut::<InputSystem>() {
-                                Some(input_system) => {
-                                    match comps.get_singleton_mut::<InputHandler>() {
-                                        Some(input_handler) => {
-                                            match input_handler.get_context(ctx_id) {
-                                                Some((ctx_id, ctx)) => input_system.switch_context(ctx_id, ctx),
-                                                None => { if PROPELLANT_DEBUG_FEATURES {
-                                                    println!("[PROPELLANT DEBUG] Unable to get input context with id: {}", ctx_id);
-                                                } }
-                                            }
-                                        },
-                                        _ => { if PROPELLANT_DEBUG_FEATURES {
-                                            println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
-                                        } }
-                                    }
-                                    input_system.on_become_active(comps);
-                                },
-                                None => if PROPELLANT_DEBUG_FEATURES {
-                                    println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
-                                }                                
-                            },
-                            None => {},
-                        }
-                    }
-                }
+                winit::event::Event::UserEvent(event) => self.handle_propellant_event(event, &mut control_flow),
                 winit::event::Event::LoopDestroyed => {
                     
                 }

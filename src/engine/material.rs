@@ -14,6 +14,7 @@ use super::{
 
 pub(crate) mod phong_material;
 pub(crate) mod colored_texture;
+pub(crate) mod ui_material;
 
 /// Info on how to draw a mesh renderer.
 pub struct Material {
@@ -25,6 +26,13 @@ pub struct Material {
 
 
 impl Material {
+    pub fn new<T: AsAny + 'static>(graphic_pipeline: u64, properties: T) -> Material {
+        Material {
+            graphic_pipeline,
+            properties: Box::new(properties),
+        }
+    }
+    
     pub fn pipeline_id(&self) -> u64 {
         self.graphic_pipeline
     }
@@ -48,6 +56,7 @@ impl Default for Material {
     }
 }
 
+// ! this is dangerous and could make the user think anything can be a uniform.
 impl<T: Clone + AsAny + 'static> AsPerObjectUniform for T {
     fn get_uniform(_transform: &crate::Transform, material: &crate::Material) -> PResult<Self> where Self: Sized {
         // really bad, this kind of cast per uniform update.

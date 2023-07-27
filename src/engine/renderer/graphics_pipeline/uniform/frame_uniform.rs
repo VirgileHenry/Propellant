@@ -6,6 +6,8 @@ use super::uniform_buffer::{UniformBufferBuilder, UniformBuffer};
 
 pub(crate) mod camera_uniform;
 pub(crate) mod main_directionnal_light;
+#[cfg(feature = "ui")]
+pub(crate) mod ui_resolution;
 
 /// Trait for any type that can be used as a per frame uniform.
 /// For this, the type needs a way to build the uniform from the component table.

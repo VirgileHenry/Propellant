@@ -1,4 +1,4 @@
-use self::vertex::Vertex;
+pub use self::vertex::Vertex;
 
 
 pub(crate) mod cube;
@@ -7,6 +7,8 @@ pub(crate) mod mesh_renderer;
 pub(crate) mod sphere;
 pub(crate) mod vertex;
 pub(crate) mod loader;
+#[cfg(feature = "ui")]
+pub(crate) mod ui_quad;
 
 #[derive(Debug, Clone)]
 pub struct Mesh {

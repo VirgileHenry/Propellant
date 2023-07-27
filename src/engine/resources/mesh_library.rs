@@ -8,7 +8,7 @@ use crate::{
         },
         errors::PResult, mesh::vertex::Vertex
     },
-    Mesh
+    Mesh, id
 };
 
 use vulkanalia::vk::DeviceV1_0;
@@ -121,6 +121,12 @@ impl MeshLibrary {
             loading_queue: HashMap::new(),
             meshes: HashMap::new(),
         }
+    }
+
+    pub fn with_ui_quad() -> MeshLibrary {
+        let mut result = MeshLibrary::new();
+        result.register_mesh(id("ui_quad"), Mesh::ui_quad());
+        result
     }
 
     pub fn register_mesh(&mut self, mesh_id: u64, mesh: Mesh) {

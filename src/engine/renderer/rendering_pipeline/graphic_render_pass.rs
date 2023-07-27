@@ -37,6 +37,8 @@ pub struct GraphicRenderpass {
     target: RenderingPipelinePassTarget,
     /// render_pass object.
     render_pass: vulkanalia::vk::RenderPass,
+    /// The color to clear the screen with.
+    clear_color: (f32, f32, f32),
 }
 
 impl GraphicRenderpass {
@@ -49,13 +51,14 @@ impl GraphicRenderpass {
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
         swapchain: &SwapchainInterface,
+        clear_color: (f32, f32, f32),
     ) -> PResult<GraphicRenderpass> {
         // build the render pass and the framebuffers, targetting the swapchain images
         let render_pass = Self::create_final_render_pass(
             vk_instance,
             vk_device,
             vk_physical_device,
-            swapchain.format()
+            swapchain.format(),
         )?;
         let final_render_target = FinalRenderTarget::create(
             final_rt_builder,
@@ -81,6 +84,7 @@ impl GraphicRenderpass {
             pipelines,
             target: RenderingPipelinePassTarget::Swapchain(final_render_target),
             render_pass,
+            clear_color,
         })
 
     }
@@ -101,7 +105,7 @@ impl GraphicRenderpass {
 
         let color_clear_value = vulkanalia::vk::ClearValue {
             color: vulkanalia::vk::ClearColorValue {
-                float32: [0.0, 0.0, 0.0, 1.0],
+                float32: [self.clear_color.0, self.clear_color.1, self.clear_color.2, 1.0],
             },
         };
         
@@ -195,7 +199,7 @@ impl GraphicRenderpass {
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
-        swapchain_format: vulkanalia::vk::Format
+        swapchain_format: vulkanalia::vk::Format,
     ) -> PResult<vulkanalia::vk::RenderPass> {
         // create the color attachment
         let color_attachment = vulkanalia::vk::AttachmentDescription::builder()

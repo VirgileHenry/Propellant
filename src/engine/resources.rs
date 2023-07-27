@@ -16,8 +16,14 @@ pub struct ProppellantResources {
 
 impl Default for ProppellantResources {
     fn default() -> Self {
+        let meshes = if cfg!(feature = "ui") {
+            MeshLibrary::with_ui_quad()
+        }
+        else {
+            MeshLibrary::new()
+        };
         ProppellantResources {
-            meshes: MeshLibrary::new(),
+            meshes,
             textures: TextureLibrary::new(),
         }
     }

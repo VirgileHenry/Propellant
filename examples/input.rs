@@ -14,7 +14,7 @@ struct InputContext2 {
 
 
 impl InputContext for InputContext1 {
-    fn handle_raw_input(&mut self, _device_id: winit::event::DeviceId, input: winit::event::DeviceEvent) {
+    fn handle_device_input(&mut self, _device_id: winit::event::DeviceId, input: winit::event::DeviceEvent) {
         match input {
             winit::event::DeviceEvent::Key(winit::event::KeyboardInput {
                 state, virtual_keycode, ..
@@ -33,6 +33,9 @@ impl InputContext for InputContext1 {
             _ => {},
         }
     }
+    fn handle_window_input(&mut self, _input: &winit::event::WindowEvent) {
+        // ignore 
+    }
     fn update(&mut self, components: &mut foundry::ComponentTable, delta: f32) {
         // if space is being pressed, rotate the cubes.
         if self.space_pressed {
@@ -44,7 +47,10 @@ impl InputContext for InputContext1 {
             self.ask_switch = false;
             println!("Switching to context 2");
             match components.get_singleton::<InputHandler>() {
-                Some(handler) => handler.send_engine_event(PropellantEvent::SwitchInputContext(id("ih2"))).unwrap(),
+                Some(handler) => {
+                    handler.send_engine_event(PropellantEvent::AddEventContext(id("ih2"))).unwrap();
+                    handler.send_engine_event(PropellantEvent::RemoveEventContext(id("ih1"))).unwrap();
+                },
                 None => {}
             }
         }
@@ -60,7 +66,7 @@ impl InputContext for InputContext1 {
 
 
 impl InputContext for InputContext2 {
-    fn handle_raw_input(&mut self, _device_id: winit::event::DeviceId, input: winit::event::DeviceEvent) {
+    fn handle_device_input(&mut self, _device_id: winit::event::DeviceId, input: winit::event::DeviceEvent) {
         match input {
             winit::event::DeviceEvent::Key(winit::event::KeyboardInput {
                 state, virtual_keycode, ..
@@ -79,6 +85,9 @@ impl InputContext for InputContext2 {
             _ => {},
         }
     }
+    fn handle_window_input(&mut self, _input: &winit::event::WindowEvent) {
+        // ignore 
+    }
     fn update(&mut self, components: &mut foundry::ComponentTable, delta: f32) {
         // if space is being pressed, rotate the cubes.
         if self.space_pressed {
@@ -90,7 +99,10 @@ impl InputContext for InputContext2 {
             self.ask_switch = false;
             println!("Switching to context 1");
             match components.get_singleton::<InputHandler>() {
-                Some(handler) => handler.send_engine_event(PropellantEvent::SwitchInputContext(id("ih1"))).unwrap(),
+                Some(handler) => {
+                    handler.send_engine_event(PropellantEvent::RemoveEventContext(id("ih2"))).unwrap();
+                    handler.send_engine_event(PropellantEvent::AddEventContext(id("ih1"))).unwrap();
+                },
                 None => {}
             }
         }
@@ -123,7 +135,7 @@ fn main() {
     let mut engine = PropellantEngine::default()
         .with_window().unwrap()
         .with_resources(resources)
-        .with_input_handler(input_handler, id("ih1")).unwrap();
+        .with_input_handler(input_handler, vec![id("ih1")]).unwrap();
 
     let _cam = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(0., -3., -4.)),

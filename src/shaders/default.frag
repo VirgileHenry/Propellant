@@ -36,17 +36,20 @@ layout (location = 0) out vec4 outColor;
 
 
 void main() {
+
     vec4 albedo_tex = texture(all_textures[nonuniformEXT(materialsProperties.materials[instanceIndex].albedo.textureId)], inUv);
     vec3 albedo = albedo_tex.rgb * materialsProperties.materials[instanceIndex].albedo.color;
+    vec4 metalic_tex = texture(all_textures[nonuniformEXT(materialsProperties.materials[instanceIndex].metalic.textureId)], inUv);
+    float metalic = metalic_tex.r * materialsProperties.materials[instanceIndex].metalic.color.r;
 
     vec3 ambiant = mainLight.ambiant_color * albedo;
     vec3 diffuse = mainLight.direct_color * albedo * max(0.0, dot(inNormal, -mainLight.direction));
 
     vec3 viewDir = normalize(inPosition - inCamPos);
     vec3 reflectDir = reflect(-mainLight.direction, inNormal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 16);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 128);
 
-    vec3 specular = 0.5 * spec * mainLight.direct_color; 
+    vec3 specular = 0.5 * spec * mainLight.direct_color * metalic; 
       
     vec3 result = ambiant + diffuse + specular;
     outColor = vec4(result, 1.0);

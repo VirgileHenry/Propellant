@@ -7,6 +7,8 @@ use crate::{
 use self::vulkan::vulkan_interface::VulkanInterface;
 
 use super::{errors::PResult, renderer::VulkanRenderer};
+#[cfg(feature = "ui")]
+use super::renderer::graphics_pipeline::uniform::frame_uniform::ui_resolution::UiResolution;
 
 #[derive(AsAny)]
 pub struct PropellantWindow {
@@ -37,7 +39,17 @@ impl PropellantWindow {
                                 camera.resize(new_size.height as f32, new_size.width as f32);
                             }
                         }
-
+                        // resize ui resolution
+                        if cfg!(feature = "ui") {
+                            match components.get_singleton_mut::<UiResolution>() {
+                                Some(mut ui_res) => {
+                                    let (width, height) = self.window_inner_size();
+                                    ui_res.screen_width = width;
+                                    ui_res.screen_height = height;
+                                },
+                                None => {},
+                            }
+                        }
                     },
                     Err(e) => println!("{e} handling window resize event."),
                 };
@@ -47,6 +59,8 @@ impl PropellantWindow {
     }
 
     pub fn handle_window_resize(&mut self) -> PResult<()> {
+
+        // resize vulkan surface
         self.vk_interface.wait_idle()?;
         self.renderer.recreation_cleanup(&self.vk_interface.device);
         let new_surface = self.vk_interface.recreate_surface(&self.window)?;
@@ -88,6 +102,11 @@ impl PropellantWindow {
 
         // clean up the renderer
         self.renderer.destroy(&self.vk_interface.device);
+    }
+
+    pub fn window_inner_size(&self) -> (f32, f32) {
+        let physical_size = self.window.inner_size();
+        (physical_size.width as f32, physical_size.height as f32)
     }
 
 }
