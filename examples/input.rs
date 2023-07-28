@@ -1,4 +1,4 @@
-use foundry::{create_entity, component_iterator};
+use foundry::{create_entity, component_iterator, ComponentTable};
 use propellant::*;
 
 
@@ -14,7 +14,7 @@ struct InputContext2 {
 
 
 impl InputContext for InputContext1 {
-    fn handle_device_input(&mut self, _device_id: winit::event::DeviceId, input: winit::event::DeviceEvent) {
+    fn handle_device_input(&mut self, _device_id: winit::event::DeviceId, input: winit::event::DeviceEvent, _components: &mut ComponentTable) {
         match input {
             winit::event::DeviceEvent::Key(winit::event::KeyboardInput {
                 state, virtual_keycode, ..
@@ -33,7 +33,7 @@ impl InputContext for InputContext1 {
             _ => {},
         }
     }
-    fn handle_window_input(&mut self, _input: &winit::event::WindowEvent) {
+    fn handle_window_input(&mut self, _input: &winit::event::WindowEvent, _components: &mut ComponentTable) {
         // ignore 
     }
     fn update(&mut self, components: &mut foundry::ComponentTable, delta: f32) {
@@ -66,7 +66,7 @@ impl InputContext for InputContext1 {
 
 
 impl InputContext for InputContext2 {
-    fn handle_device_input(&mut self, _device_id: winit::event::DeviceId, input: winit::event::DeviceEvent) {
+    fn handle_device_input(&mut self, _device_id: winit::event::DeviceId, input: winit::event::DeviceEvent, _components: &mut ComponentTable) {
         match input {
             winit::event::DeviceEvent::Key(winit::event::KeyboardInput {
                 state, virtual_keycode, ..
@@ -85,7 +85,7 @@ impl InputContext for InputContext2 {
             _ => {},
         }
     }
-    fn handle_window_input(&mut self, _input: &winit::event::WindowEvent) {
+    fn handle_window_input(&mut self, _input: &winit::event::WindowEvent, _components: &mut ComponentTable) {
         // ignore 
     }
     fn update(&mut self, components: &mut foundry::ComponentTable, delta: f32) {
@@ -120,7 +120,7 @@ impl InputContext for InputContext2 {
 fn main() {
 
     let input_handler = InputHandlerBuilder::empty()
-        .with_input_context(id("ih1"), Box::new(InputContext1 {
+        .with_starting_input_context(id("ih1"), Box::new(InputContext1 {
             space_pressed: false,
             ask_switch: false,
         }))
@@ -135,7 +135,7 @@ fn main() {
     let mut engine = PropellantEngine::default()
         .with_window().unwrap()
         .with_resources(resources)
-        .with_input_handler(input_handler, vec![id("ih1")]).unwrap();
+        .with_input_handler(input_handler).unwrap();
 
     let _cam = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(0., -3., -4.)),

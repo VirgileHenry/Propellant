@@ -27,10 +27,11 @@ void main() {
     instanceIndex = gl_InstanceIndex;
     // this shader will receive a [0, 1] x [0, 1] quad and need to resize it accoding to the model matrix !
     mat4 tf = models.world_pos[gl_InstanceIndex];
-    float tx = tf[0][0] / uiResolution.screen_width + tf[1][0];
-    float ty = tf[0][1] / uiResolution.screen_height + tf[1][1];
-    float tw = tf[0][2] / uiResolution.screen_width + tf[1][2];
-    float th = tf[0][3] / uiResolution.screen_height + tf[1][3];
+    float r = uiResolution.res;
+    float tx = tf[0][0] * r / uiResolution.screen_width + tf[1][0];
+    float ty = tf[0][1] * r / uiResolution.screen_height + tf[1][1];
+    float tw = tf[0][2] * r / uiResolution.screen_width + tf[1][2];
+    float th = tf[0][3] * r / uiResolution.screen_height + tf[1][3];
     float ax = tf[3][0];
     float ay = tf[3][1];
     float px = tx + (inPosition.x - ax) * tw;

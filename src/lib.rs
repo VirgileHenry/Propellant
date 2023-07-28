@@ -58,6 +58,14 @@ pub use engine::{
 pub use engine::{
     material::ui_material::UiMaterial,
     transform::ui_transform::UiAnchor,
+    ui::ui_event_listener::{
+        UiEventListener,
+        UiListenerCallback,
+    },
+    inputs::common_context::ui_event_context::{
+        ui_events::UiEvent,
+        CursorPosition,
+    },
 };
 
 pub use foundry;

@@ -1,4 +1,4 @@
-use crate::Transform;
+use crate::{Transform, CursorPosition};
 
 #[derive(Debug, Clone, Copy)]
 pub enum UiAnchor {
@@ -61,6 +61,29 @@ impl UiTransform {
         ]);
         unsafe { result.set_world_matrix(ui_matrix) };
         result
+    }
+
+    pub fn ui_contains_cursor(&self, cursor: CursorPosition) -> bool {
+        match cursor {
+            CursorPosition::OutOfScreen => false,
+            CursorPosition::InScreen { mouse_x, mouse_y, screen_width, screen_height, ui_res } => {
+                let (x, y) = (self.world_pos().col(0).x, self.world_pos().col(0).y);
+                let (w, h) =  (self.world_pos().col(0).z, self.world_pos().col(0).w);
+                let (rx, ry) = (self.world_pos().col(1).x, self.world_pos().col(1).y);
+                let (rw, rh) = (self.world_pos().col(1).z, self.world_pos().col(1).w);
+                let (ax, ay) = (self.world_pos().col(3).x, self.world_pos().col(3).y);
+                let r = ui_res;
+                // compute widget screen space
+                let tx = x * r + rx * screen_width;
+                let ty = y * r + ry * screen_height;
+                let tw = w * r + rw * screen_width;
+                let th = h * r + rh * screen_height;
+                let tx = tx - ax * tw;
+                let ty = ty - ay * th;
+                // check if cursor is in widget screen space
+                mouse_x >= tx && mouse_x <= tx + tw && mouse_y >= ty && mouse_y <= ty + th
+            }
+        }
     }
 
 }

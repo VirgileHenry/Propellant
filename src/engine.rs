@@ -14,7 +14,7 @@ use self::{
         RequireSceneRebuildFlag
     },
     resources::ProppellantResources,
-    inputs::input_system::InputSystem, 
+    inputs::{input_system::InputSystem, common_context::ui_event_context::UiEventHandlerContext}, 
     consts::PROPELLANT_DEBUG_FEATURES, renderer::graphics_pipeline::uniform::frame_uniform::ui_resolution::UiResolution,
 };
 
@@ -33,6 +33,8 @@ pub(crate) mod resources;
 pub(crate) mod transform;
 pub(crate) mod window;
 
+#[cfg(feature = "ui")]
+pub(crate) mod ui;
 
 
 /// An instance of the propellant game engine.
@@ -109,15 +111,15 @@ impl PropellantEngine {
 
     /// Add an input handler to the engine, and register the input system.
     /// The start context id must a id of a input context in the input handler.
-    pub fn with_input_handler(mut self, input_handler: InputHandlerBuilder, start_context_ids: Vec<u64>) -> PResult<PropellantEngine> {
+    pub fn with_input_handler(mut self, input_handler: InputHandlerBuilder) -> PResult<PropellantEngine> {
         let input_system = InputSystem::new();
         // prepare register of start event contexts
         let event_proxy = match &self.event_loop {
             Some(proxy) => proxy.create_proxy(),
             None => return Err(PropellantError::Custom("No event loop present.".to_string())),
         };
-        for ctx_id in start_context_ids {
-            event_proxy.send_event(PropellantEvent::AddEventContext(ctx_id))?;
+        for ctx_id in input_handler.start_contexts().iter() {
+            event_proxy.send_event(PropellantEvent::AddEventContext(*ctx_id))?;
         }
         // register both the input system and the input handler.
         self.world.register_system(input_system, id("input_system"));
@@ -161,19 +163,9 @@ impl PropellantEngine {
             match event {
                 // redirect windows events to the window
                 winit::event::Event::WindowEvent { event, .. } => {
-                    match self.world.get_system_and_world_mut(id("window")) {
-                        Some((window_system, comps)) => match window_system.try_get_updatable_mut::<PropellantWindow>() {
-                            Some(window) => window.handle_event(event, control_flow, comps),
-                            None => {},
-                        },
-                        None => {},
-                    }
-                },
-                // device events are treated by the input handler, if any
-                winit::event::Event::DeviceEvent { device_id, event } => {
-                    match self.world.get_system_mut(id("input_system")) {
-                        Some(input_system_wrapper) => match input_system_wrapper.try_get_updatable_mut::<InputSystem>() {
-                            Some(input_system) => input_system.handle_device_event(device_id, event),
+                    match self.world.get_system_and_world_mut(id("input_system")) {
+                        Some((input_system_wrapper, components)) => match input_system_wrapper.try_get_updatable_mut::<InputSystem>() {
+                            Some(input_system) => input_system.handle_window_event(&event, components),
                             None => {
                                 if PROPELLANT_DEBUG_FEATURES {
                                     println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
@@ -181,7 +173,28 @@ impl PropellantEngine {
                             }
                         },
                         None => {},
-                    }
+                    };
+                    match self.world.get_system_and_world_mut(id("window")) {
+                        Some((window_system, comps)) => match window_system.try_get_updatable_mut::<PropellantWindow>() {
+                            Some(window) => window.handle_event(event, control_flow, comps),
+                            None => {},
+                        },
+                        None => {},
+                    };
+                },
+                // device events are treated by the input handler, if any
+                winit::event::Event::DeviceEvent { device_id, event } => {
+                    match self.world.get_system_and_world_mut(id("input_system")) {
+                        Some((input_system_wrapper, components)) => match input_system_wrapper.try_get_updatable_mut::<InputSystem>() {
+                            Some(input_system) => input_system.handle_device_event(device_id, event, components),
+                            None => {
+                                if PROPELLANT_DEBUG_FEATURES {
+                                    println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
+                                }
+                            }
+                        },
+                        None => {},
+                    };
                 }
                 // main events cleared is the app code update (all events are pocessed)
                 winit::event::Event::MainEventsCleared => {

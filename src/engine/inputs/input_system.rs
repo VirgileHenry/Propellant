@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use foundry::{
     AsAny,
-    Updatable, System, UpdateFrequency
+    Updatable, System, UpdateFrequency, ComponentTable
 };
 
 use super::input_context::InputContext;
@@ -24,15 +24,15 @@ impl InputSystem {
         )
     }
     
-    pub fn handle_device_event(&mut self, device_id: winit::event::DeviceId, input: winit::event::DeviceEvent) {
+    pub fn handle_device_event(&mut self, device_id: winit::event::DeviceId, input: winit::event::DeviceEvent, components: &mut ComponentTable) {
         for (_, context) in self.active_contexts.iter_mut() {
-            context.handle_device_input(device_id, input.clone());
+            context.handle_device_input(device_id, input.clone(), components);
         }
     }
     
-    pub fn handle_window_event(&mut self, input: &winit::event::WindowEvent) {
+    pub fn handle_window_event(&mut self, input: &winit::event::WindowEvent, components: &mut ComponentTable) {
         for (_, context) in self.active_contexts.iter_mut() {
-            context.handle_window_input(input);
+            context.handle_window_input(input, components);
         }
     }
 
