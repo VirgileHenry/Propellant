@@ -1,4 +1,4 @@
-use foundry::{create_entity, System, ComponentTable, component_iterator, Updatable, AsAny};
+use foundry::{create_entity, System, ComponentTable, Updatable, AsAny};
 use glam::Vec3;
 use propellant::*;
 
@@ -171,7 +171,7 @@ impl UiExpand {
 }
 
 impl UiListenerCallback for UiExpand {
-    fn on_event(&mut self, event: UiEvent, transform: &mut Transform) {
+    fn on_event(&mut self, event: UiEvent, transform: &mut Transform) -> Option<Box<dyn Fn(&mut ComponentTable)>> {
         match event {
             UiEvent::MouseMove(cursor) => match (&self.state, transform.ui_contains_cursor(cursor)) {
                 (UiExpandstate::Retracted, true) => self.state = UiExpandstate::Expanding(0.),
@@ -180,11 +180,9 @@ impl UiListenerCallback for UiExpand {
                 (UiExpandstate::Expanding(v), false) => self.state = UiExpandstate::Retracting(*v),
                 _ => {},
             },
+            _ => {},
         }
-    }
-
-    fn callback(&mut self, _components: &mut foundry::ComponentTable) {
-        
+        None
     }
 
     fn update(&mut self, transform: &mut Transform, delta: f32) {
@@ -224,7 +222,7 @@ struct UiManager {}
 impl UiManager{
     pub fn new() -> System {
         System::new(
-            Box::new(UiManager {}),
+            UiManager {},
             foundry::UpdateFrequency::PerFrame,
         )
     }
@@ -232,7 +230,7 @@ impl UiManager{
 
 impl Updatable for UiManager {
     fn update(&mut self, components: &mut ComponentTable, delta: f32) {
-        for (_entity, (transform, listener)) in component_iterator!(components; mut Transform, mut UiEventListener) {
+        for (_entity, transform, listener) in components.query2d_mut::<Transform, UiEventListener>() {
             match listener.listener() {
                 Some(callback) => callback.update(transform, delta),
                 None => (),

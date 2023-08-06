@@ -17,9 +17,9 @@ pub struct InputSystem {
 impl InputSystem {
     pub fn new() -> System {
         System::new(
-            Box::new(InputSystem {
+            InputSystem {
                 active_contexts: HashMap::new(),
-            }),
+            },
             UpdateFrequency::PerFrame,
         )
     }

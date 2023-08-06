@@ -11,10 +11,10 @@ pub struct FpsLimiter {
 impl FpsLimiter {
     pub fn new(max_fps_count: f32) -> System {
         System::new(
-            Box::new(Self {
+            Self {
                 min_frame_time: Duration::from_secs_f32(1. / max_fps_count),
                 last_frame_time: Instant::now(),
-            }),
+            },
             UpdateFrequency::Fixed(1. / max_fps_count),
         )
     }

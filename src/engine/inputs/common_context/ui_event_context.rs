@@ -1,4 +1,4 @@
-use foundry::{ComponentTable, component_iterator};
+use foundry::ComponentTable;
 
 use crate::{
     InputContext,
@@ -21,9 +21,7 @@ pub enum CursorPosition {
 }
 
 
-pub struct UiEventHandlerContext {
-    last_mouse_pos: CursorPosition,
-}
+pub struct UiEventHandlerContext {}
 
 impl UiEventHandlerContext {
     fn on_window_input(&mut self, event: &winit::event::WindowEvent, components: &mut ComponentTable) {
@@ -37,11 +35,20 @@ impl UiEventHandlerContext {
             Ok(ev) => ev,
             Err(_) => return,
         };
+
+        let mut callbacks = Vec::new();
         
-        for (_entity, (transform, listener,)) in component_iterator!(components; mut Transform, mut UiEventListener) {
+        for (_entity, transform, listener) in components.query2d_mut::<Transform, UiEventListener>() {
             if let Some(callback) = listener.listener() {
-                callback.on_event(ui_event, transform);
+                match callback.on_event(ui_event, transform) {
+                    Some(callback) => callbacks.push(callback),
+                    None => {},
+                }
             }
+        }
+
+        for callback in callbacks.into_iter() {
+            callback(components);
         }
     }
 }
@@ -60,8 +67,6 @@ impl InputContext for UiEventHandlerContext {
 
 impl Default for UiEventHandlerContext {
     fn default() -> Self {
-        UiEventHandlerContext {
-            last_mouse_pos: CursorPosition::OutOfScreen,
-        }
+        UiEventHandlerContext {}
     }
 }

@@ -1,7 +1,7 @@
 use std::cell::Cell;
 
 
-
+#[derive(Debug, Clone)]
 pub struct Transform {
     position: glam::Vec3,
     rotation: glam::Quat,

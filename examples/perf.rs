@@ -22,7 +22,7 @@ fn main() {
         |_| MeshRenderer::new_static(id("cube"), Material::default())
     );
 
-    engine.world_mut().register_system(System::new(Box::new(FPSCounter{timer: -3., frames: 0}), foundry::UpdateFrequency::PerFrame), id("fps_counter"));
+    engine.world_mut().register_system(System::new(FPSCounter{timer: -3., frames: 0}, foundry::UpdateFrequency::PerFrame), id("fps_counter"));
     // engine.world_mut().register_system(FpsLimiter::new(200.), id("fps_limiter"));
 
     engine.main_loop();

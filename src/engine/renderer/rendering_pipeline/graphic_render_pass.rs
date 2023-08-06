@@ -16,6 +16,7 @@ enum RenderingPipelinePassTarget {
     /// The image and views are owned by the swapchain.
     Swapchain(FinalRenderTarget),
     /// We are targetting an intermediate render target, and own the image and views.
+    #[allow(unused)]
     Intermediate(IntermediateRenderTarget),
 }
 

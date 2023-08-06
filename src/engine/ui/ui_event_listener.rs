@@ -2,14 +2,14 @@ use foundry::ComponentTable;
 
 use crate::{Transform, engine::inputs::common_context::ui_event_context::ui_events::UiEvent};
 
-
 pub struct UiEventListener {
     callback: Option<Box<dyn UiListenerCallback>>,
 }
 
 pub trait UiListenerCallback {
-    fn on_event(&mut self, event: UiEvent, transform: &mut Transform);
-    fn callback(&mut self, components: &mut ComponentTable);
+    /// Called by the ui context whenever a ui event is triggered.
+    /// This functions return a callback that we want the system to call after the event has been handled.
+    fn on_event(&mut self, event: UiEvent, transform: &mut Transform) -> Option<Box<dyn Fn(&mut ComponentTable)>>;
     fn update(&mut self, transform: &mut Transform, delta: f32);
 }
 
@@ -25,6 +25,4 @@ impl UiEventListener {
     }
 
 }
-
-
 

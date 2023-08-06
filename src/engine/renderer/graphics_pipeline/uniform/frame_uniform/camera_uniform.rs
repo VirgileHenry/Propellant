@@ -1,5 +1,3 @@
-use foundry::component_iterator;
-
 use crate::{
     Transform,
     Camera,
@@ -19,7 +17,7 @@ pub struct CameraUniformObject {
 
 impl AsPerFrameUniform for CameraUniformObject {
     fn get_uniform(components: &foundry::ComponentTable) -> Self {
-        for (_, (tf, cam)) in component_iterator!(components; mut Transform, Camera) {
+        for (_, tf, cam) in components.query2d::<Transform, Camera>() {
             if cam.is_main() {
                 return CameraUniformObject {
                     proj: cam.projection_matrix(),

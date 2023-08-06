@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use foundry::ComponentTable;
-use foundry::component_iterator;
 
 use crate::MeshRenderer;
 use crate::PropellantFlag;
@@ -214,7 +213,7 @@ impl DefaultVulkanRenderer {
         }
 
         // upload all object uniform memory
-        for (entity, (transform, mesh_renderer  )) in component_iterator!(components; mut Transform, MeshRenderer) {
+        for (entity, transform, mesh_renderer) in components.query2d_mut::<Transform, MeshRenderer>() {
             // skip static mesh renderers (no buffer updates)
             if mesh_renderer.is_static() {
                 continue;
@@ -247,7 +246,7 @@ impl DefaultVulkanRenderer {
         // for each mesh in each pipeline, count the number of instances
         // hashmap : pipeline_id -> mesh_id -> (instance_count, mesh_offset, instance counter)
         let mut instance_count: HashMap<u64, BTreeMap<u64, (usize, usize, usize)>> = HashMap::with_capacity(self.rendering_pipeline.pipeline_count());
-        for (_, (_, mesh_renderer)) in component_iterator!(components; mut Transform, MeshRenderer) {
+        for (_, _, mesh_renderer) in components.query2d_mut::<Transform, MeshRenderer>() {
             match instance_count.get_mut(&mesh_renderer.pipeline_id()) {
                 Some(meshes) => match meshes.get_mut(&mesh_renderer.mesh_id()) {
                     Some(count) => count.0 += 1,
@@ -278,7 +277,7 @@ impl DefaultVulkanRenderer {
 
         // now, we can iterate one second time over all objects to set their new instance id.
         // withing a pipeline, objects with same meshes will be continuous, and can be drawn in one draw call.
-        for (_, (mesh_renderer, _)) in component_iterator!(components; mut MeshRenderer, Transform) {
+        for (_, _, mesh_renderer) in components.query2d_mut::<Transform, MeshRenderer>() {
             instance_count.get_mut(&mesh_renderer.pipeline_id()).and_then(
                 |mesh_offsets| mesh_offsets.get_mut(&mesh_renderer.mesh_id()).and_then(
                     |instance_id| {
@@ -330,7 +329,7 @@ impl DefaultVulkanRenderer {
 
         let swapchain_image_count = self.rendering_pipeline.swapchain_image_count();
 
-        for (entity, (tf, mesh_renderer)) in component_iterator!(components; mut Transform, MeshRenderer) {
+        for (entity, tf, mesh_renderer) in components.query2d_mut::<Transform, MeshRenderer>() {
             if mesh_renderer.is_static() {
                 match self.rendering_pipeline.get_pipeline_mut(mesh_renderer.pipeline_id()) {
                     Some(pipeline) => {

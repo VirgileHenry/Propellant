@@ -13,6 +13,7 @@ pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 1;
 
 pub struct RenderingPipeline {
     graphic_render_pass: GraphicRenderpass,
+    #[allow(unused)]
     compute_render_passes: Vec<()>,
     swapchain: SwapchainInterface,
     command_manager: RenderingCommandManager,

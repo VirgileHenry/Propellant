@@ -19,6 +19,14 @@ impl ColoredTexture {
         }
     }
 
+    /// Create a texture.
+    pub fn texture(texture_index: u32) -> Self {
+        ColoredTexture {
+            color: glam::Vec3::new(1., 1., 1.),
+            texture_index,
+        }
+    }
+
     pub fn set_color(&mut self, color: glam::Vec3) {
         self.color = color;
     }

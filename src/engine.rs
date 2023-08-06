@@ -14,7 +14,7 @@ use self::{
         RequireSceneRebuildFlag
     },
     resources::ProppellantResources,
-    inputs::{input_system::InputSystem, common_context::ui_event_context::UiEventHandlerContext}, 
+    inputs::input_system::InputSystem, 
     consts::PROPELLANT_DEBUG_FEATURES, renderer::graphics_pipeline::uniform::frame_uniform::ui_resolution::UiResolution,
 };
 
@@ -177,7 +177,11 @@ impl PropellantEngine {
                     match self.world.get_system_and_world_mut(id("window")) {
                         Some((window_system, comps)) => match window_system.try_get_updatable_mut::<PropellantWindow>() {
                             Some(window) => window.handle_event(event, control_flow, comps),
-                            None => {},
+                            None => {
+                                if PROPELLANT_DEBUG_FEATURES {
+                                    println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'window' to PropellantWindow.");
+                                }
+                            },
                         },
                         None => {},
                     };

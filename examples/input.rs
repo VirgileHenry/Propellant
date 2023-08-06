@@ -1,4 +1,4 @@
-use foundry::{create_entity, component_iterator, ComponentTable};
+use foundry::{create_entity, ComponentTable};
 use propellant::*;
 
 
@@ -39,7 +39,7 @@ impl InputContext for InputContext1 {
     fn update(&mut self, components: &mut foundry::ComponentTable, delta: f32) {
         // if space is being pressed, rotate the cubes.
         if self.space_pressed {
-            for (_entitiy, (transform, _)) in component_iterator!(components; mut Transform, MeshRenderer) {
+            for (_entitiy, transform, _) in components.query2d_mut::<Transform, MeshRenderer>() {
                 transform.rotate(glam::Quat::from_rotation_y(delta));
             }
         }
@@ -91,7 +91,7 @@ impl InputContext for InputContext2 {
     fn update(&mut self, components: &mut foundry::ComponentTable, delta: f32) {
         // if space is being pressed, rotate the cubes.
         if self.space_pressed {
-            for (_entitiy, (transform, _)) in component_iterator!(components; mut Transform, MeshRenderer) {
+            for (_entitiy, transform, _) in components.query2d_mut::<Transform, MeshRenderer>() {
                 transform.rotate(glam::Quat::from_rotation_y(-delta));
             }
         }

@@ -36,7 +36,7 @@ struct TextureLoader {
 
 impl TextureLoader {
     pub fn new() -> System {
-        System::new(Box::new(TextureLoader{counter: 0}), foundry::UpdateFrequency::PerFrame)
+        System::new(TextureLoader{counter: 0}, foundry::UpdateFrequency::PerFrame)
     }
 }
 

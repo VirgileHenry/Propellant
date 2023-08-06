@@ -1,4 +1,4 @@
-use foundry::{ComponentTable, Updatable, System, AsAny, component_iterator};
+use foundry::{ComponentTable, Updatable, System, AsAny};
 use crate::{
     engine::consts::PROPELLANT_DEBUG_FEATURES,
     ProppellantResources, Camera, RequireCommandBufferRebuildFlag
@@ -34,7 +34,7 @@ impl PropellantWindow {
                         // command buffer will get invalidated.
                         components.add_singleton(RequireCommandBufferRebuildFlag);
                         // resize main cameras
-                        for (_, camera) in component_iterator!(components; mut Camera) {
+                        for (_, camera) in components.query1d_mut::<Camera>() {
                             if camera.is_main() {
                                 camera.resize(new_size.height as f32, new_size.width as f32);
                             }
@@ -127,7 +127,7 @@ impl Updatable for PropellantWindow {
 /// Convert the propellant window into a foundry system that updates every frame.
 impl Into<System> for PropellantWindow {
     fn into(self) -> System {
-        System::new(Box::new(self), foundry::UpdateFrequency::PerFrame)
+        System::new(self, foundry::UpdateFrequency::PerFrame)
     }
 }
 

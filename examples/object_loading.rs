@@ -41,7 +41,7 @@ struct ObjectLoader {
 
 impl ObjectLoader {
     pub fn new() -> System {
-        System::new(Box::new(ObjectLoader{counter: 0}), foundry::UpdateFrequency::PerFrame)
+        System::new(ObjectLoader{counter: 0}, foundry::UpdateFrequency::PerFrame)
     }
 }
 

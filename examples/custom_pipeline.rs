@@ -1,4 +1,4 @@
-use foundry::{create_entity, Updatable, System, AsAny, component_iterator};
+use foundry::{create_entity, Updatable, System, AsAny};
 use propellant::*;
 
 
@@ -66,13 +66,13 @@ struct Rotater {}
 
 impl Rotater {
     pub fn new() -> System {
-        System::new(Box::new(Rotater{}), foundry::UpdateFrequency::PerFrame)
+        System::new(Rotater{}, foundry::UpdateFrequency::PerFrame)
     }
 }
 
 impl Updatable for Rotater {
     fn update(&mut self, components: &mut foundry::ComponentTable, delta: f32) {
-        for (_entity, (tf, _mr)) in component_iterator!(components; mut Transform, MeshRenderer) {
+        for (_entity, tf, _mr) in components.query2d_mut::<Transform, MeshRenderer>() {
             tf.rotate(glam::Quat::from_rotation_y(delta));
         }
     }

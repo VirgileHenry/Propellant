@@ -6,6 +6,8 @@ use super::CursorPosition;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UiEvent {
     MouseMove(CursorPosition),
+    MousePrimaryClick,
+    MousePrimaryRelease,
 }
 
 impl TryFrom<(&winit::event::WindowEvent<'_>, &UiResolution)> for UiEvent {
@@ -20,6 +22,13 @@ impl TryFrom<(&winit::event::WindowEvent<'_>, &UiResolution)> for UiEvent {
                 ui_res: res.resolution,
             })),
             winit::event::WindowEvent::CursorLeft { .. } => Ok(UiEvent::MouseMove(CursorPosition::OutOfScreen)),
+            winit::event::WindowEvent::MouseInput { state, button, .. } => {
+                match (state, button) {
+                    (winit::event::ElementState::Pressed, winit::event::MouseButton::Left) => Ok(UiEvent::MousePrimaryClick),
+                    (winit::event::ElementState::Released, winit::event::MouseButton::Left) => Ok(UiEvent::MousePrimaryRelease),
+                    _ => Err(()),
+                }
+            },
             _ => Err(()),
         }
     }
