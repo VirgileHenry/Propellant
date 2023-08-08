@@ -3,7 +3,7 @@ use foundry::ComponentTable;
 use crate::{
     InputContext,
     Transform,
-    UiEventListener, UiEvent, engine::renderer::graphics_pipeline::uniform::frame_uniform::ui_resolution::UiResolution
+    UiEventListener, UiEvent, engine::renderer::graphic_pipeline::uniform::frame_uniform::ui_resolution::UiResolution
 };
 
 pub(crate) mod ui_events;

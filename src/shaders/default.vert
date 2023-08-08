@@ -1,11 +1,11 @@
 #version 450
 
-layout(set = 1, binding = 0) uniform UniformCamera {
+layout(set = 0, binding = 0) uniform UniformCamera {
     mat4 proj;
     mat4 view;
 } cam;
 
-layout(set = 3, binding = 0) readonly buffer UniformModel {
+layout(set = 4, binding = 0) readonly buffer UniformModel {
     mat4 world_pos[];
 } models;
 

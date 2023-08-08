@@ -2,7 +2,7 @@ use foundry::ComponentTable;
 
 use crate::engine::lights::directionnal_light::DirectionnalLight;
 
-use super::AsPerFrameUniform;
+use super::FrameUniform;
 
 #[allow(unused)]
 #[derive(Debug, Clone)]
@@ -15,7 +15,7 @@ pub struct MainDirectionnalLight {
     _padd_2: f32,
 }
 
-impl AsPerFrameUniform for MainDirectionnalLight {
+impl FrameUniform for MainDirectionnalLight {
     fn get_uniform(components: &ComponentTable) -> Self {
         match components.get_singleton::<DirectionnalLight>() {
             Some(main_light) => MainDirectionnalLight {

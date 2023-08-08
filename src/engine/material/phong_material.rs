@@ -1,16 +1,18 @@
 use foundry::AsAny;
 
+use crate::{engine::renderer::graphic_pipeline::{uniform::object_uniform::ObjectUniform, renderable_component::RenderableComponent}, InstancedMeshRenderer};
+
 use super::colored_texture::ColoredTexture;
 
 #[repr(C)]
 #[allow(unused)]
 #[derive(Debug, Clone, AsAny)]
-pub struct PhongMaterialProperties {
+pub struct PhongMaterial {
     albedo: ColoredTexture, // default color
     metalic: ColoredTexture, // sininess color ?
 }
 
-impl PhongMaterialProperties {
+impl PhongMaterial {
     pub fn colored(mut self, color: glam::Vec3) -> Self {
         self.albedo.set_color(color);
         self
@@ -22,9 +24,22 @@ impl PhongMaterialProperties {
     }
 }
 
-impl Default for PhongMaterialProperties {
+impl ObjectUniform for PhongMaterial {
+    type FromComponent = InstancedMeshRenderer<PhongMaterial>;
+    fn get_uniform(component: &Self::FromComponent) -> Self {
+        component.material().clone()
+    }
+}
+
+impl RenderableComponent for PhongMaterial {
+    fn mesh_id(component: &Self::FromComponent) -> u64 {
+        component.mesh_id()
+    }
+}
+
+impl Default for PhongMaterial {
     fn default() -> Self {
-        PhongMaterialProperties {
+        PhongMaterial {
             albedo: ColoredTexture::color(glam::Vec3::ONE),
             metalic: ColoredTexture::color(glam::Vec3::ZERO),
         }

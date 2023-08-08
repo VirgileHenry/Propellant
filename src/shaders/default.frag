@@ -11,9 +11,7 @@ struct PhongMaterial {
     TexturedColor metalic;
 };
 
-layout(set = 0, binding = 0) uniform sampler2D all_textures[];
-
-layout(set = 2, binding = 0) uniform MainDirectionnalLight {
+layout(set = 1, binding = 0) uniform MainDirectionnalLight {
     vec3 direction;
     float _padd_0;
     vec3 ambiant_color;
@@ -22,7 +20,16 @@ layout(set = 2, binding = 0) uniform MainDirectionnalLight {
     float _padd_2;
 } mainLight;
 
-layout(set = 4, binding = 0) readonly buffer MaterialProperties {
+layout(set = 2, binding = 0) uniform MainDirectionnalLight2 {
+    vec3 direction;
+    float _padd_0;
+    vec3 ambiant_color;
+    float _padd_1;
+    vec3 direct_color;
+    float _padd_2;
+} mainLight2;
+
+layout(set = 3, binding = 0) readonly buffer MaterialProperties {
     PhongMaterial materials[];
 } materialsProperties;
 
@@ -37,9 +44,9 @@ layout (location = 0) out vec4 outColor;
 
 void main() {
 
-    vec4 albedo_tex = texture(all_textures[nonuniformEXT(materialsProperties.materials[instanceIndex].albedo.textureId)], inUv);
+    vec4 albedo_tex = vec4(1.0); //texture(all_textures[nonuniformEXT(materialsProperties.materials[instanceIndex].albedo.textureId)], inUv);
     vec3 albedo = albedo_tex.rgb * materialsProperties.materials[instanceIndex].albedo.color;
-    vec4 metalic_tex = texture(all_textures[nonuniformEXT(materialsProperties.materials[instanceIndex].metalic.textureId)], inUv);
+    vec4 metalic_tex = vec4(1.0); //texture(all_textures[nonuniformEXT(materialsProperties.materials[instanceIndex].metalic.textureId)], inUv);
     float metalic = metalic_tex.r * materialsProperties.materials[instanceIndex].metalic.color.r;
 
     vec3 ambiant = mainLight.ambiant_color * albedo;

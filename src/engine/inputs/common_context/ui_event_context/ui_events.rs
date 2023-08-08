@@ -1,4 +1,4 @@
-use crate::engine::renderer::graphics_pipeline::uniform::frame_uniform::ui_resolution::UiResolution;
+use crate::engine::renderer::graphic_pipeline::uniform::frame_uniform::ui_resolution::UiResolution;
 
 use super::CursorPosition;
 

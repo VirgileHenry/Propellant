@@ -1,9 +1,7 @@
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 
+use crate::engine::consts::PROPELLANT_DEBUG_FEATURES;
 use crate::{
-    Transform,
-    Material,
     engine::errors::PResult,
     ProppellantResources
 };
@@ -13,31 +11,93 @@ use vulkanalia::vk::HasBuilder;
 use vulkanalia::vk::Handle;
 
 use self::graphic_pipeline_state::GraphicPipelineCreationState;
+use self::renderable_component::RenderableComponent;
+use self::uniform::uniform_buffer::UniformBuffer;
 use self::uniform::{
     frame_uniform::FrameUniform,
     object_uniform::ObjectUniform, 
-    resource_uniform::ResourceUniform
 };
 
-pub(crate) mod graphics_pipeline_builder;
+use super::rendering_map::RenderingMap;
+
+pub(crate) mod graphic_pipeline_builder;
 pub(crate) mod graphic_pipeline_state;
-pub(crate) mod push_constants;
+pub(crate) mod renderable_component;
 pub(crate) mod uniform;
 
-pub struct GraphicsPipeline {
-    pipeline: vulkanalia::vk::Pipeline,
-    pipeline_layout: vulkanalia::vk::PipelineLayout,
-    descriptor_pool: vulkanalia::vk::DescriptorPool,
-    creation_state: GraphicPipelineCreationState,
-    resource_uniforms: Vec<Box<dyn ResourceUniform>>,
-    frame_uniforms: Vec<Box<dyn FrameUniform>>,
-    object_uniforms: Vec<Box<dyn ObjectUniform>>,
-    instance_count: usize,
-    rendering_map: BTreeMap<u64, (u32, u32)>, // mesh id, (first instance, instance count)
+/// This trait is a handle around graphic pipelines.
+/// Graphic pipelines are generic over the uniforms, so they can't be stored directly.
+/// Instead, we hide them behind this trait, that provide access to all it's method.
+pub trait GraphicPipelineInterface {
+    fn recreation_cleanup(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+    );
+    fn recreate(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+        swapchain_extent: vulkanalia::vk::Extent2D,
+        render_pass: vulkanalia::vk::RenderPass,
+    ) -> PResult<()>;
+    fn register_draw_commands(
+        &self,
+        vk_device: &vulkanalia::Device,
+        image_index: usize,
+        command_buffer: vulkanalia::vk::CommandBuffer,
+        resources: &ProppellantResources,
+    );
+    fn update_uniform_buffers(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+        components: &foundry::ComponentTable,
+        image_index: usize,
+    ) -> PResult<()>;
+    fn rebuild_rendering_map(
+        &mut self,
+        components: &foundry::ComponentTable,
+    );
+    fn assert_uniform_buffer_sizes(
+        &mut self,
+        image_index: usize,
+        vk_instance: &vulkanalia::Instance,
+        vk_device: &vulkanalia::Device,
+        vk_physical_device: vulkanalia::vk::PhysicalDevice,
+    ) -> PResult<()>;
+    fn destroy(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+    );
 }
 
-impl GraphicsPipeline {
-    pub fn create(
+
+pub struct GraphicPipelineFFFOO<
+    FrameUniform1: FrameUniform,
+    FrameUniform2: FrameUniform,
+    FrameUniform3: FrameUniform,
+    ObjectUniform1: RenderableComponent,
+    ObjectUniform2: ObjectUniform
+> {
+    phantom: std::marker::PhantomData<(FrameUniform1, FrameUniform2, FrameUniform3, ObjectUniform1, ObjectUniform2)>,
+    frame_1_uniform_buffer: UniformBuffer<FrameUniform1>,
+    frame_2_uniform_buffer: UniformBuffer<FrameUniform2>,
+    frame_3_uniform_buffer: UniformBuffer<FrameUniform3>,
+    object_1_uniform_buffer: UniformBuffer<ObjectUniform1>,
+    object_2_uniform_buffer: UniformBuffer<ObjectUniform2>,
+    pipeline: vulkanalia::vk::Pipeline,
+    pipeline_layout: vulkanalia::vk::PipelineLayout,
+    vk_descriptor_pool: vulkanalia::vk::DescriptorPool,
+    creation_state: GraphicPipelineCreationState,
+    rendering_map: RenderingMap,
+}
+
+impl<
+    FrameUniform1: FrameUniform + 'static,
+    FrameUniform2: FrameUniform + 'static,
+    FrameUniform3: FrameUniform + 'static,
+    ObjectUniform1: RenderableComponent + 'static,
+    ObjectUniform2: ObjectUniform + 'static,
+> GraphicPipelineFFFOO<FrameUniform1, FrameUniform2, FrameUniform3, ObjectUniform1, ObjectUniform2> {
+    fn create(
         vk_device: &vulkanalia::Device,
         vertex_binding_description: Vec<vulkanalia::vk::VertexInputBindingDescription>,
         vertex_attribute_description: Vec<vulkanalia::vk::VertexInputAttributeDescription>,
@@ -45,11 +105,13 @@ impl GraphicsPipeline {
         swapchain_extent: vulkanalia::vk::Extent2D,
         pipeline_layout: vulkanalia::vk::PipelineLayout,
         render_pass: vulkanalia::vk::RenderPass,
-        descriptor_pool: vulkanalia::vk::DescriptorPool,
-        resource_uniforms: Vec<Box<dyn ResourceUniform>>,
-        frame_uniforms: Vec<Box<dyn FrameUniform>>,
-        object_uniforms: Vec<Box<dyn ObjectUniform>>,
-    ) -> PResult<GraphicsPipeline> {
+        vk_descriptor_pool: vulkanalia::vk::DescriptorPool,
+        frame_1_uniform_buffer: UniformBuffer<FrameUniform1>,
+        frame_2_uniform_buffer: UniformBuffer<FrameUniform2>,
+        frame_3_uniform_buffer: UniformBuffer<FrameUniform3>,
+        object_1_uniform_buffer: UniformBuffer<ObjectUniform1>,
+        object_2_uniform_buffer: UniformBuffer<ObjectUniform2>,
+    ) -> PResult<GraphicPipelineFFFOO<FrameUniform1, FrameUniform2, FrameUniform3, ObjectUniform1, ObjectUniform2>> {
 
         let vertex_input_state = vulkanalia::vk::PipelineVertexInputStateCreateInfo::builder()
             .vertex_binding_descriptions(&vertex_binding_description)
@@ -92,26 +154,28 @@ impl GraphicsPipeline {
             .front_face(vulkanalia::vk::FrontFace::CLOCKWISE)
             .depth_bias_enable(false)
             .build();
-        
+
         // multisampling state: antialiasing here
         let multisample_state = vulkanalia::vk::PipelineMultisampleStateCreateInfo::builder()
             .sample_shading_enable(false)
             .rasterization_samples(vulkanalia::vk::SampleCountFlags::_1)
             .build();
-        
+
         // color blending. transparency and alpha color blending can be done here !
+
         let color_attachment = vulkanalia::vk::PipelineColorBlendAttachmentState::builder()
             .color_write_mask(vulkanalia::vk::ColorComponentFlags::all())
             .blend_enable(false)
             .build();
 
         let color_blend_attachments = vec![color_attachment];
+
         let color_blend_state = vulkanalia::vk::PipelineColorBlendStateCreateInfo::builder()
             .logic_op_enable(false)
             .logic_op(vulkanalia::vk::LogicOp::COPY)
             .attachments(&color_blend_attachments)
             .blend_constants([0.0, 0.0, 0.0, 0.0])
-            .build(); 
+            .build();
 
         let depth_stencil_state = vulkanalia::vk::PipelineDepthStencilStateCreateInfo::builder()
             .depth_test_enable(true)
@@ -162,20 +226,32 @@ impl GraphicsPipeline {
             vk_device.create_graphics_pipelines(vulkanalia::vk::PipelineCache::null(), &[info], None)?.0
         };
 
-        Ok(GraphicsPipeline {
+        // todo : builders for uniforms / to know the layouts and all
+
+        Ok(GraphicPipelineFFFOO {
+            phantom: Default::default(),
+            frame_1_uniform_buffer,
+            frame_2_uniform_buffer,
+            frame_3_uniform_buffer,
+            object_1_uniform_buffer,
+            object_2_uniform_buffer,
             pipeline,
             pipeline_layout,
-            descriptor_pool,
+            vk_descriptor_pool,
             creation_state,
-            resource_uniforms,
-            frame_uniforms,
-            object_uniforms,
-            instance_count: 0,
-            rendering_map: BTreeMap::new(),
+            rendering_map: RenderingMap::new(),
         })
     }
+}
 
-    pub fn recreation_cleanup(
+impl<
+    FrameUniform1: FrameUniform + 'static,
+    FrameUniform2: FrameUniform + 'static,
+    FrameUniform3: FrameUniform + 'static,
+    ObjectUniform1: RenderableComponent + 'static,
+    ObjectUniform2: ObjectUniform + 'static,
+> GraphicPipelineInterface for GraphicPipelineFFFOO<FrameUniform1, FrameUniform2, FrameUniform3, ObjectUniform1, ObjectUniform2>  {
+    fn recreation_cleanup(
         &mut self,
         vk_device: &vulkanalia::Device,
     ) {
@@ -184,7 +260,7 @@ impl GraphicsPipeline {
         }
     }
 
-    pub fn recreate(
+    fn recreate(
         &mut self,
         vk_device: &vulkanalia::Device,
         swapchain_extent: vulkanalia::vk::Extent2D,
@@ -233,15 +309,46 @@ impl GraphicsPipeline {
         Ok(())
     }
 
-    pub fn pipeline(&self) -> vulkanalia::vk::Pipeline {
-        self.pipeline
+    fn update_uniform_buffers(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+        components: &foundry::ComponentTable,
+        image_index: usize,
+    ) -> PResult<()> {
+        // map all the buffers
+        self.frame_1_uniform_buffer.map(vk_device, image_index)?;
+        self.frame_2_uniform_buffer.map(vk_device, image_index)?;
+        self.frame_3_uniform_buffer.map(vk_device, image_index)?;
+        self.object_1_uniform_buffer.map(vk_device, image_index)?;
+        self.object_2_uniform_buffer.map(vk_device, image_index)?;
+        // frame uniforms
+        self.frame_1_uniform_buffer.update_buffer(0, image_index, FrameUniform1::get_uniform(components));
+        self.frame_2_uniform_buffer.update_buffer(0, image_index, FrameUniform2::get_uniform(components));
+        self.frame_3_uniform_buffer.update_buffer(0, image_index, FrameUniform3::get_uniform(components));
+        // object uniforms
+        for (entity_id, obj_uniform1, obj_uniform2) in components.query2d::<ObjectUniform1::FromComponent, ObjectUniform2::FromComponent>() {
+            let mesh_id = ObjectUniform1::mesh_id(obj_uniform1);
+            match self.rendering_map.get_buffer_index(mesh_id, entity_id) {
+                Some(buffer_index) => {
+                    self.object_1_uniform_buffer.update_buffer(buffer_index, image_index, ObjectUniform1::get_uniform(obj_uniform1));
+                    self.object_2_uniform_buffer.update_buffer(buffer_index, image_index, ObjectUniform2::get_uniform(obj_uniform2));
+                },
+                None => if PROPELLANT_DEBUG_FEATURES {
+                    println!("[PROPELLANT DEBUG] Mesh / Entity not in rendering map (Mesh {}), (Entity {}). Scene have not been built properly.", mesh_id, entity_id);
+                }
+            };
+        }
+        // unmap all the buffers
+        self.frame_1_uniform_buffer.unmap(vk_device, image_index);
+        self.frame_2_uniform_buffer.unmap(vk_device, image_index);
+        self.frame_3_uniform_buffer.unmap(vk_device, image_index);
+        self.object_1_uniform_buffer.unmap(vk_device, image_index);
+        self.object_2_uniform_buffer.unmap(vk_device, image_index);
+
+        Ok(())
     }
 
-    pub fn layout(&self) -> vulkanalia::vk::PipelineLayout {
-        self.pipeline_layout
-    }
-
-    pub fn register_draw_commands(
+    fn register_draw_commands(
         &self,
         vk_device: &vulkanalia::Device,
         image_index: usize,
@@ -258,12 +365,13 @@ impl GraphicsPipeline {
         }
 
         // bind all descriptor sets
-        let empty_ds = Vec::with_capacity(0);
-        let ds = empty_ds.into_iter()
-            .chain(self.resource_uniforms.iter().map(|uniform| uniform.set(image_index)))
-            .chain(self.frame_uniforms.iter().map(|uniform| uniform.set(image_index)))
-            .chain(self.object_uniforms.iter().map(|uniform| uniform.set(image_index)))
-            .collect::<Vec<_>>();
+        let ds = vec![
+            self.frame_1_uniform_buffer.set(image_index),
+            self.frame_2_uniform_buffer.set(image_index),
+            self.frame_3_uniform_buffer.set(image_index),
+            self.object_1_uniform_buffer.set(image_index),
+            self.object_2_uniform_buffer.set(image_index),
+        ];
 
         unsafe {
             vk_device.cmd_bind_descriptor_sets(
@@ -277,163 +385,75 @@ impl GraphicsPipeline {
         }
         
         // for each concerned mesh; bind it and draw instanced !
-        for (mesh_id, (first_instance, instance_count)) in self.rendering_map.iter() {
-            match resources.meshes().loaded_mesh(mesh_id) {
-                Some(loaded_mesh) => {
-                    // bind the mesh vertex and index
-                    loaded_mesh.bind_mesh(vk_device, command_buffer);
-                    unsafe {
-                        vk_device.cmd_draw_indexed(
-                            command_buffer,
-                            loaded_mesh.index_count() as u32,
-                            *instance_count,
-                            0,
-                            0,
-                            *first_instance as u32
-                        );
-                    }
-                },
-                None => {
-                    if cfg!(debug_assertions) {
-                        println!("[PROPELLANT DEBUG] Mesh not in mesh library (id {})", mesh_id);
-                    }
-                }
+        let mut first_instance = 0;
+        for (mesh, instance_count) in self.rendering_map.iter(resources) {
+            mesh.bind_mesh(vk_device, command_buffer);
+            unsafe {
+                vk_device.cmd_draw_indexed(
+                    command_buffer,
+                    mesh.index_count() as u32,
+                    instance_count,
+                    0,
+                    0,
+                    first_instance
+                );
             }
+            first_instance += instance_count;
         }
     }
 
-    pub fn map_all_uniform_buffers(
-        &mut self,
-        vk_device: &vulkanalia::Device,
-        image_index: usize,
-    ) -> PResult<()> {
-        // check if we have at least one entity to draw
-        if self.rendering_map.is_empty() {
-            return Ok(());
-        }
-
-        for frame_uniform in self.frame_uniforms.iter_mut() {
-            frame_uniform.map_buffers(vk_device, image_index)?;
-        }
-        for object_uniform in self.object_uniforms.iter_mut() {
-            object_uniform.map_buffers(vk_device, image_index)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn update_frame_uniform_buffers(
+    fn rebuild_rendering_map(
         &mut self,
         components: &foundry::ComponentTable,
-        image_index: usize,
-    ) -> PResult<()> {
-        // check if we have at least one entity to draw
-        if self.rendering_map.is_empty() {
-            return Ok(());
-        }
-
-        for frame_uniform in self.frame_uniforms.iter_mut() {
-            frame_uniform.update_buffer(components, image_index)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn update_uniform_buffers(
-        &mut self,
-        instance_id: usize,
-        transform: &Transform,
-        material: &Material,
-        image_index: usize,
-    ) -> PResult<()> {
-        // check if we have at least one entity to draw
-        if self.rendering_map.is_empty() {
-            return Ok(());
-        }
-
-        for object_uniform in self.object_uniforms.iter_mut() {
-            object_uniform.update_buffer(instance_id, transform, material, image_index)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn unmap_all_uniform_buffers(
-        &mut self,
-        vk_device: &vulkanalia::Device,
-        image_index: usize,
     ) {
-        // check if we have at least one entity to draw
-        if self.rendering_map.is_empty() {
-            return;
+        // assert buffer sizes
+        // self.frame_1_uniform_buffer.assert_buffer_size(object_count, image_index, vk_instance, vk_device, vk_physical_device)
+        // clear the map
+        self.rendering_map.clear();
+        // iterate over objects, count how many for each mesh
+        // O(n) complexity
+        for (entity_id, obj_uniform_1, _obj_uniform_2) in components.query2d::<ObjectUniform1::FromComponent, ObjectUniform2::FromComponent>() {
+            let mesh_id = ObjectUniform1::mesh_id(obj_uniform_1);
+            self.rendering_map.add_instance(mesh_id, entity_id);
         }
-
-        for frame_uniform in self.frame_uniforms.iter_mut() {
-            frame_uniform.unmap_buffers(vk_device, image_index);
-        }
-        for object_uniform in self.object_uniforms.iter_mut() {
-            object_uniform.unmap_buffers(vk_device, image_index);
-        }
+        // add offsets to the map
+        // O(n) complexity
+        self.rendering_map.add_offsets();
     }
 
-    /// recreate the scene: objects were created or destroyed.
-    /// The mesh map is a mapping of mesh id to (object_count, instance_offset, object count).
-    /// The doubling of the first and 3rd numbe comes because it have been used already to count offsets, do not care.
-    pub fn resize_uniforms_buffers(
+    fn assert_uniform_buffer_sizes(
         &mut self,
-        mesh_map: BTreeMap<u64, (usize, usize, usize)>,
         image_index: usize,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
     ) -> PResult<()> {
-        // the total object count can be easily computed from the mesh map
-        self.instance_count = mesh_map.iter().map(|(_, v)| v.0).sum();
-
-        for frame_uniform in self.frame_uniforms.iter_mut() {
-            frame_uniform.resize_buffer(image_index, vk_instance, vk_device, vk_physical_device)?;
-        }
-
-        for object_uniform in self.object_uniforms.iter_mut() {
-            object_uniform.resize_buffer(self.instance_count, image_index, vk_instance, vk_device, vk_physical_device)?;
-        }
-
-        // finally, consume the btree map to recreate our rendering map
-        self.rendering_map = mesh_map.into_iter().map(|(k, v)| (k, (v.1 as u32, v.0 as u32))).collect();
+        let object_count = self.rendering_map.object_count();
+        self.frame_1_uniform_buffer.assert_buffer_size(1, image_index, vk_instance, vk_device, vk_physical_device)?;
+        self.frame_2_uniform_buffer.assert_buffer_size(1, image_index, vk_instance, vk_device, vk_physical_device)?;
+        self.frame_3_uniform_buffer.assert_buffer_size(1, image_index, vk_instance, vk_device, vk_physical_device)?;
+        self.object_1_uniform_buffer.assert_buffer_size(object_count, image_index, vk_instance, vk_device, vk_physical_device)?;
+        self.object_2_uniform_buffer.assert_buffer_size(object_count, image_index, vk_instance, vk_device, vk_physical_device)?;
 
         Ok(())
     }
 
-    /// Reload the resource uniforms.
-    /// This should be called when a resource is reloaded.
-    pub fn rebuild_resources_uniforms(
+    fn destroy(
         &mut self,
         vk_device: &vulkanalia::Device,
-        resources: &ProppellantResources,
-    ) -> PResult<()> {
-        for uniform in self.resource_uniforms.iter_mut() {
-            uniform.recreate(vk_device, self.descriptor_pool, resources)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn destroy(&mut self, vk_device: &vulkanalia::Device) {
+    ) {
         self.creation_state.destroy(vk_device);
-        for resource_uniform in self.resource_uniforms.iter_mut() {
-            resource_uniform.destroy(vk_device);
-        }
-        for frame_uniform in self.frame_uniforms.iter_mut() {
-            frame_uniform.destroy(vk_device);
-        }
-        for object_uniform in self.object_uniforms.iter_mut() {
-            object_uniform.destroy(vk_device);
-        }
+        self.frame_1_uniform_buffer.destroy_buffer(vk_device);
+        self.frame_2_uniform_buffer.destroy_buffer(vk_device);
+        self.frame_3_uniform_buffer.destroy_buffer(vk_device);
+        self.object_1_uniform_buffer.destroy_buffer(vk_device);
+        self.object_2_uniform_buffer.destroy_buffer(vk_device);
         unsafe {
-            vk_device.destroy_descriptor_pool(self.descriptor_pool, None);
+            vk_device.destroy_descriptor_pool(self.vk_descriptor_pool, None);
             vk_device.destroy_pipeline(self.pipeline, None);
             vk_device.destroy_pipeline_layout(self.pipeline_layout, None);
         }
     }
-
 }
+
+

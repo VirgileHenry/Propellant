@@ -57,30 +57,30 @@ impl Updatable for ObjectLoader {
         let _entity = match self.counter % 4 {
             0 => create_entity!(components;
                 Transform::origin().translated(offset),
-                MeshRenderer::new(
+                InstancedMeshRenderer::new(
                     id("cube1"),
-                    Material::default().with_prop(PhongMaterialProperties::default().colored(glam::vec3(0.6, 0., 0.)))
+                    PhongMaterial::default().colored(glam::vec3(0.6, 0., 0.))
                 )
             ),
             1 => create_entity!(components;
                 Transform::origin().translated(offset),
-                MeshRenderer::new(
+                InstancedMeshRenderer::new(
                     id("cube2"),
-                    Material::default().with_prop(PhongMaterialProperties::default().colored(glam::vec3(0.6, 0.6, 0.)))
+                    PhongMaterial::default().colored(glam::vec3(0.6, 0.6, 0.))
                 )
             ),
             2 => create_entity!(components;
                 Transform::origin().translated(offset),
-                MeshRenderer::new(
+                InstancedMeshRenderer::new(
                     id("cube3"),
-                    Material::default().with_prop(PhongMaterialProperties::default().colored(glam::vec3(0.6, 0., 0.6)))
+                    PhongMaterial::default().colored(glam::vec3(0.6, 0., 0.6))
                 )
             ),
             _ => create_entity!(components;
                 Transform::origin().translated(offset),
-                MeshRenderer::new(
+                InstancedMeshRenderer::new(
                     id("cube4"),
-                    Material::default().with_prop(PhongMaterialProperties::default().colored(glam::vec3(0., 0.6, 0.6)))
+                    PhongMaterial::default().colored(glam::vec3(0., 0.6, 0.6))
                 )
             ),
         };

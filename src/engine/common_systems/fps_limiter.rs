@@ -15,7 +15,7 @@ impl FpsLimiter {
                 min_frame_time: Duration::from_secs_f32(1. / max_fps_count),
                 last_frame_time: Instant::now(),
             },
-            UpdateFrequency::Fixed(1. / max_fps_count),
+            UpdateFrequency::PerFrame,
         )
     }
 }
@@ -23,10 +23,8 @@ impl FpsLimiter {
 impl Updatable for FpsLimiter {
     fn update(&mut self, _components: &mut ComponentTable, _delta: f32) {
         // ! fixme: weird slow down behaviour
-        let now = Instant::now();
-        let since_last_frame = now - self.last_frame_time;
+        let since_last_frame = Instant::now() - self.last_frame_time;
         if self.min_frame_time > since_last_frame {
-            println!("sleeping for {:?}", self.min_frame_time - since_last_frame);
             std::thread::sleep(self.min_frame_time - since_last_frame);
         }
         self.last_frame_time = Instant::now();

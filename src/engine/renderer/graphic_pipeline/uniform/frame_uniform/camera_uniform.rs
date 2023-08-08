@@ -4,8 +4,7 @@ use crate::{
     engine::consts::PROPELLANT_DEBUG_FEATURES
 };
 
-use super::AsPerFrameUniform;
-
+use super::FrameUniform;
 
 #[repr(C)] // important for any data we send to the gpu
 #[allow(unused)] // we don't use the fields directly, but they are used by the gpu
@@ -15,7 +14,7 @@ pub struct CameraUniformObject {
     view: glam::Mat4,
 }
 
-impl AsPerFrameUniform for CameraUniformObject {
+impl FrameUniform for CameraUniformObject {
     fn get_uniform(components: &foundry::ComponentTable) -> Self {
         for (_, tf, cam) in components.query2d::<Transform, Camera>() {
             if cam.is_main() {

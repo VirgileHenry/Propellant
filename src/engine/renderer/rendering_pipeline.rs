@@ -1,6 +1,22 @@
-use crate::{engine::{window::vulkan::{swapchain_interface::SwapchainInterface, queues::QueueFamilyIndices, rendering_command_manager::RenderingCommandManager, rendering_sync::RenderingSync}, errors::PResult}, RenderingPipelineBuilder, ProppellantResources};
-use self::{rendering_pipeline_builder::rendering_pipeline_builder_states::RPBSReady, graphic_render_pass::GraphicRenderpass};
-use super::graphics_pipeline::GraphicsPipeline;
+use foundry::ComponentTable;
+
+use crate::{
+    engine::{
+        window::vulkan::{
+            swapchain_interface::SwapchainInterface,
+            queues::QueueFamilyIndices,
+            rendering_command_manager::RenderingCommandManager,
+            rendering_sync::RenderingSync
+        },
+        errors::PResult
+    },
+    RenderingPipelineBuilder,
+    ProppellantResources,
+};
+use self::{
+    rendering_pipeline_builder::states::RPBSReady,
+    graphic_render_pass::GraphicRenderpass
+};
 
 
 pub(crate) mod attachments;
@@ -9,7 +25,7 @@ pub(crate) mod intermediate_render_targets;
 pub(crate) mod rendering_pipeline_builder;
 pub(crate) mod graphic_render_pass;
 
-pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 1;
+pub(crate) const MAX_FRAMES_IN_FLIGHT: usize = 4;
 
 pub struct RenderingPipeline {
     graphic_render_pass: GraphicRenderpass,
@@ -41,14 +57,14 @@ impl RenderingPipeline {
         )?;
 
         let clear_color = builder.clear_color();
-        let mut builder_state: RPBSReady = builder.into();
+        let builder_state: RPBSReady = builder.into();
 
         let (graphic_render_pass, compute_render_passes) = if builder_state.compute_pipelines.is_empty() {
             // only graphic render_pass, no compute render_passes.
             (
                 GraphicRenderpass::create_final_pass(
-                    &mut builder_state.graphic_pipelines,
-                    builder_state.final_render_target,
+                    builder_state.graphic_pipelines,
+                    builder_state.final_rt,
                     vk_instance,
                     vk_device,
                     vk_physical_device,
@@ -72,27 +88,6 @@ impl RenderingPipeline {
             command_manager,
             rendering_sync,
         })
-    }
-
-
-    pub fn pipeline_count(&self) -> usize {
-        self.graphic_render_pass.pipelines().len()
-    }
-
-    pub fn get_pipeline(&self, id: u64) -> Option<&GraphicsPipeline> {
-        self.graphic_render_pass.pipelines().get(&id)
-    }
-
-    pub fn get_pipeline_mut(&mut self, id: u64) -> Option<&mut GraphicsPipeline> {
-        self.graphic_render_pass.pipelines_mut().get_mut(&id)
-    }
-
-    pub fn get_pipelines(&self) -> impl Iterator<Item = (u64, &GraphicsPipeline)> {
-        self.graphic_render_pass.pipelines().iter().map(|(k, v)| (*k, v))
-    }
-
-    pub fn get_pipelines_mut(&mut self) -> impl Iterator<Item = (u64, &mut GraphicsPipeline)> {
-        self.graphic_render_pass.pipelines_mut().iter_mut().map(|(k, v)| (*k, v))
     }
 
     pub fn swapchain(&self) -> &SwapchainInterface {
@@ -166,6 +161,35 @@ impl RenderingPipeline {
         )?;
 
         Ok(())
+    }
+
+    #[inline]
+    pub fn update_uniform_buffers(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+        image_index: usize,
+        components: &ComponentTable,
+    ) -> PResult<()> {
+        self.graphic_render_pass.update_uniform_buffers(vk_device, image_index, components)
+    }
+
+    #[inline]
+    pub fn scene_recreation(
+        &mut self,
+        components: &ComponentTable,
+    ) -> PResult<()> {
+        self.graphic_render_pass.scene_recreation(components)
+    }
+
+    #[inline]
+    pub fn assert_uniform_buffer_sizes(
+        &mut self,
+        image_index: usize,
+        vk_instance: &vulkanalia::Instance,
+        vk_device: &vulkanalia::Device,
+        vk_physical_device: vulkanalia::vk::PhysicalDevice,
+    ) -> PResult<()> {
+        self.graphic_render_pass.assert_uniform_buffer_sizes(image_index, vk_instance, vk_device, vk_physical_device)
     }
 
     pub fn rendering_sync(&self) -> &RenderingSync<MAX_FRAMES_IN_FLIGHT> {

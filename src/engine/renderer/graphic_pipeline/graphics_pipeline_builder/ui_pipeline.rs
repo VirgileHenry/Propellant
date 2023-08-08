@@ -1,4 +1,4 @@
-use crate::{GraphicsPipelineBuilder, engine::{renderer::{shaders::{UI_VERT, UI_FRAG}, graphics_pipeline::uniform::{resource_uniform::textures_uniform::TextureUniformBuilder, uniform_buffer::UniformBufferBuilder, frame_uniform::ui_resolution::UiResolution}}, material::ui_material::UiMaterial}, ModelMatrixUniformObject};
+use crate::{GraphicsPipelineBuilder, engine::{renderer::{shaders::{UI_VERT, UI_FRAG}, graphic_pipeline::uniform::{resource_uniform::textures_uniform::TextureUniformBuilder, uniform_buffer::UniformBufferBuilder, frame_uniform::ui_resolution::UiResolution}}, material::ui_material::UiMaterial}, ModelMatrixUniformObject};
 
 
 

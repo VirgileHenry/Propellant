@@ -8,7 +8,7 @@ use self::vulkan::vulkan_interface::VulkanInterface;
 
 use super::{errors::PResult, renderer::VulkanRenderer};
 #[cfg(feature = "ui")]
-use super::renderer::graphics_pipeline::uniform::frame_uniform::ui_resolution::UiResolution;
+use super::renderer::graphic_pipeline::uniform::frame_uniform::ui_resolution::UiResolution;
 
 #[derive(AsAny)]
 pub struct PropellantWindow {

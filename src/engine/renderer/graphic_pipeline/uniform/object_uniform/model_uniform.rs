@@ -1,4 +1,5 @@
-use super::AsPerObjectUniform;
+use crate::Transform;
+use super::ObjectUniform;
 
 #[repr(C)] // important for any data we send to the gpu
 #[allow(unused)] // we don't use the fields directly, but they are used by the gpu
@@ -7,10 +8,11 @@ pub struct ModelMatrixUniformObject {
     pub model: glam::Mat4,
 }
 
-impl AsPerObjectUniform for ModelMatrixUniformObject {
-    fn get_uniform(transform: &crate::Transform, _material: &crate::Material) -> crate::engine::errors::PResult<Self> where Self: Sized {
-        Ok(ModelMatrixUniformObject {
+impl ObjectUniform for ModelMatrixUniformObject {
+    type FromComponent = Transform;
+    fn get_uniform(transform: &Transform) -> Self {
+        ModelMatrixUniformObject {
             model: transform.world_pos(),
-        })
+        }
     }
 }

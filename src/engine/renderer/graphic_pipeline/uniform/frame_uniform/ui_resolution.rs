@@ -1,4 +1,6 @@
-use crate::{AsPerFrameUniform, engine::consts::PROPELLANT_DEBUG_FEATURES};
+use crate::engine::consts::PROPELLANT_DEBUG_FEATURES;
+
+use super::FrameUniform;
 
 
 #[repr(C)]
@@ -11,7 +13,7 @@ pub struct UiResolution {
 }
 
 
-impl AsPerFrameUniform for UiResolution {
+impl FrameUniform for UiResolution {
     fn get_uniform(components: &foundry::ComponentTable) -> Self {
         match components.get_singleton::<UiResolution>() {
             Some(res) => *res,

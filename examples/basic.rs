@@ -27,16 +27,16 @@ fn main() {
     ));
     let _cube = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(-1., 1., 0.)),
-        MeshRenderer::new(
+        InstancedMeshRenderer::new(
             id("cube"),
-            Material::default().with_prop(PhongMaterialProperties::default().colored(glam::vec3(0.6, 0., 0.)))
+            PhongMaterial::default().colored(glam::vec3(0.6, 0., 0.))
         )
     );
     let _cube = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(2., 0., 0.)),
-        MeshRenderer::new(
+        InstancedMeshRenderer::new(
             id("cube"),
-            Material::default().with_prop(PhongMaterialProperties::default().colored(glam::vec3(0., 0.6, 0.)))
+            PhongMaterial::default().colored(glam::vec3(0., 0.6, 0.))
         )
     );
 
@@ -57,7 +57,7 @@ impl Rotater {
 
 impl Updatable for Rotater {
     fn update(&mut self, components: &mut foundry::ComponentTable, delta: f32) {
-        for (_entity, tf, _mr) in components.query2d_mut::<Transform, MeshRenderer>() {
+        for (_entity, tf, _mr) in components.query2d_mut::<Transform, InstancedMeshRenderer<PhongMaterial>>() {
             tf.rotate(glam::Quat::from_rotation_y(delta));
         }
     }

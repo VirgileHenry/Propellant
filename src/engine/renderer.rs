@@ -1,18 +1,15 @@
 use std::any::TypeId;
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use foundry::ComponentTable;
 
-use crate::MeshRenderer;
 use crate::PropellantFlag;
 use crate::ProppellantResources;
 use crate::RequireCommandBufferRebuildFlag;
-use crate::Transform;
 use crate::VulkanInterface;
 use self::rendering_pipeline::RenderingPipeline;
 use self::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
-use self::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RPBSReady;
+use self::rendering_pipeline::rendering_pipeline_builder::states::RPBSReady;
 use super::consts::PROPELLANT_DEBUG_FEATURES;
 use super::errors::PResult;
 use super::errors::PropellantError;
@@ -26,9 +23,11 @@ use vulkanalia::vk::KhrSwapchainExtension;
 use vulkanalia::vk::DeviceV1_0;
 
 pub(crate) mod rendering_pipeline;
-pub(crate) mod graphics_pipeline;
+pub(crate) mod graphic_pipeline;
+#[allow(unused)]
 pub(crate) mod shaders;
 pub(crate) mod renderer_builder;
+pub(crate) mod rendering_map;
 
 pub trait VulkanRenderer {
     /// Render the scene using the vulkan interface and the components.
@@ -132,8 +131,9 @@ impl DefaultVulkanRenderer {
         current_frame: usize,
     ) -> PResult<()> {
         // ! Some flag handling much be done in a specific order.
+        let image_count = self.rendering_pipeline.swapchain_image_count();
 
-        if let Some(flags) = self.syncing_state.check_flag::<RequireResourcesLoadingFlag>(current_frame, self.rendering_pipeline.swapchain_image_count(), components) {
+        if let Some(flags) = self.syncing_state.check_flag::<RequireResourcesLoadingFlag>(current_frame, image_count, components) {
             match components.get_singleton_mut::<ProppellantResources>() {
                 Some(resource_lib) => {
                     // load meshes
@@ -145,9 +145,12 @@ impl DefaultVulkanRenderer {
                         &mut vk_interface.transfer_manager,
                     )?;
                     // rebuild the resources uniforms.
+                    // todo 
+                    /*
                     for (_, pipeline) in self.rendering_pipeline.get_pipelines_mut() {
                         pipeline.rebuild_resources_uniforms(&vk_interface.device, resource_lib)?;
                     }
+                    */
                 },
                 None => {
                     if PROPELLANT_DEBUG_FEATURES {
@@ -157,7 +160,7 @@ impl DefaultVulkanRenderer {
             }
         }
 
-        if let Some(_) = self.syncing_state.check_flag::<RequireSceneRebuildFlag>(current_frame, self.rendering_pipeline.swapchain_image_count(), components) {
+        if let Some(_) = self.syncing_state.check_flag::<RequireSceneRebuildFlag>(current_frame, image_count, components) {
             self.scene_recreation(
                 vk_interface,
                 components,
@@ -165,7 +168,7 @@ impl DefaultVulkanRenderer {
             )?;
         }
 
-        if let Some(_) = self.syncing_state.check_flag::<RequireCommandBufferRebuildFlag>(current_frame, self.rendering_pipeline.swapchain_image_count(), components) {
+        if let Some(_) = self.syncing_state.check_flag::<RequireCommandBufferRebuildFlag>(current_frame, image_count, components) {
             match components.get_singleton_mut::<ProppellantResources>() {
                 Some(resource_lib) => {
                     self.rendering_pipeline.register_draw_commands(
@@ -188,53 +191,18 @@ impl DefaultVulkanRenderer {
         Ok(())
     }
 
+    #[inline]
     fn update_uniform_buffer(
         &mut self,
         vk_device: &vulkanalia::Device,
         image_index: usize,
         components: &mut ComponentTable,
     ) -> PResult<()> {
-
-        // map all the uniform buffers
-        self.rendering_pipeline.get_pipelines_mut().for_each(
-            |(_, pipeline)| match pipeline.map_all_uniform_buffers(vk_device, image_index) {
-                Ok(_) => {/* all good */}
-                Err(e) => {
-                    if cfg!(debug_assertions) {
-                        println!("{e}");
-                    }
-                }
-            }
-        );
-
-        // upload all per frame objects memory
-        for (_, pipeline) in self.rendering_pipeline.get_pipelines_mut() {
-            pipeline.update_frame_uniform_buffers(components, image_index)?;
-        }
-
-        // upload all object uniform memory
-        for (entity, transform, mesh_renderer) in components.query2d_mut::<Transform, MeshRenderer>() {
-            // skip static mesh renderers (no buffer updates)
-            if mesh_renderer.is_static() {
-                continue;
-            }
-            // get the pipeline, update to it's uniforms buffers
-            match self.rendering_pipeline.get_pipeline_mut(mesh_renderer.pipeline_id()) {
-                Some(pipeline) => {pipeline.update_uniform_buffers(mesh_renderer.instance(), transform, mesh_renderer.material(), image_index)?;},
-                None => {
-                    if cfg!(debug_assertions) {
-                        println!("[PROPELLANT DEBUG] Pipeline id {} requested by entity {} does not exist.", mesh_renderer.pipeline_id(), entity);
-                    }
-                }
-            };
-        }
-
-        // unmap all the uniform buffers
-        self.rendering_pipeline.get_pipelines_mut().for_each(
-            |(_, pipeline)| pipeline.unmap_all_uniform_buffers(vk_device, image_index)
-        );
-
-        Ok(())
+        self.rendering_pipeline.update_uniform_buffers(
+            vk_device,
+            image_index,
+            components,
+        )
     }
 
     fn scene_recreation(
@@ -243,120 +211,23 @@ impl DefaultVulkanRenderer {
         components: &ComponentTable,
         image_index: usize,
     ) -> PResult<()> {
-        // for each mesh in each pipeline, count the number of instances
-        // hashmap : pipeline_id -> mesh_id -> (instance_count, mesh_offset, instance counter)
-        let mut instance_count: HashMap<u64, BTreeMap<u64, (usize, usize, usize)>> = HashMap::with_capacity(self.rendering_pipeline.pipeline_count());
-        for (_, _, mesh_renderer) in components.query2d_mut::<Transform, MeshRenderer>() {
-            match instance_count.get_mut(&mesh_renderer.pipeline_id()) {
-                Some(meshes) => match meshes.get_mut(&mesh_renderer.mesh_id()) {
-                    Some(count) => count.0 += 1,
-                    None => {meshes.insert(mesh_renderer.mesh_id(), (1, 0, 0));},
-                }
-                None => {
-                    let mut meshes = BTreeMap::new();
-                    meshes.insert(mesh_renderer.mesh_id(), (1, 0, 0));
-                    instance_count.insert(mesh_renderer.pipeline_id(), meshes);
-                },
-            };
-        }
+        
+        self.rendering_pipeline.scene_recreation(
+            components
+        )?;
 
-        // compute the mesh offset
-        // the mesh are sorted by id, and in the uniform buffers we need objects with similare meshes to be continuous
-        // so, for each mesh in ascending order, the instance count is the instance of this mesh + number of object in mesh with smaller id
-        for (_, meshes) in instance_count.iter_mut() {
-            // for each pipeline
-            let mut offset = 0;
-            // for each mesh type, 
-            for (_, (count, mesh_offset, _)) in meshes.iter_mut() {
-                // set that mesh offset to current offset
-                *mesh_offset = offset;
-                // increase current offset
-                offset += *count;
-            }
-        }
+        self.rendering_pipeline.assert_uniform_buffer_sizes(
+            image_index,
+            &vk_interface.instance,
+            &vk_interface.device,
+            vk_interface.physical_device,
+        )?;
 
-        // now, we can iterate one second time over all objects to set their new instance id.
-        // withing a pipeline, objects with same meshes will be continuous, and can be drawn in one draw call.
-        for (_, _, mesh_renderer) in components.query2d_mut::<Transform, MeshRenderer>() {
-            instance_count.get_mut(&mesh_renderer.pipeline_id()).and_then(
-                |mesh_offsets| mesh_offsets.get_mut(&mesh_renderer.mesh_id()).and_then(
-                    |instance_id| {
-                        mesh_renderer.set_instance(instance_id.1 + instance_id.2);
-                        instance_id.2 += 1;
-                        Some(())
-                    }
-                ) 
-            );
-        }
-
-        // ask each pipeline to rebuild, providing the hashmap.
-        instance_count.into_iter().for_each(|(pipeline_id, map, )| {
-            match self.rendering_pipeline.get_pipeline_mut(pipeline_id) {
-                Some(pipeline) => match pipeline.resize_uniforms_buffers(
-                        map,
-                        image_index,
-                        &vk_interface.instance,
-                        &vk_interface.device,
-                        vk_interface.physical_device,
-                    ) {
-                    Ok(_) => {/* all good */},
-                    Err(e) => {
-                        if cfg!(debug_assertions) {
-                            println!("{e} Failed to rebuild pipeline {pipeline_id}");
-                        }
-                    }
-                },
-                None => {
-                    if cfg!(debug_assertions) {
-                        println!("[PROPELLANT DEBUG] Pipeline id {} does not exist.", pipeline_id);
-                    }
-                }
-            };
-        });
-
-        // finally, update all uniform buffers for static objects into the buffers, as they may have moved.
-        // map all the uniform buffers
-        self.rendering_pipeline.get_pipelines_mut().for_each(
-            |(_, pipeline)| match pipeline.map_all_uniform_buffers(&vk_interface.device, image_index) {
-                Ok(_) => {/* all good */}
-                Err(e) => {
-                    if cfg!(debug_assertions) {
-                        println!("{e} Failed to map uniform buffers.");
-                    }
-                }
-            }
-        );
-
-        let swapchain_image_count = self.rendering_pipeline.swapchain_image_count();
-
-        for (entity, tf, mesh_renderer) in components.query2d_mut::<Transform, MeshRenderer>() {
-            if mesh_renderer.is_static() {
-                match self.rendering_pipeline.get_pipeline_mut(mesh_renderer.pipeline_id()) {
-                    Some(pipeline) => {
-                        for i in 0..swapchain_image_count {
-                            pipeline.update_uniform_buffers(mesh_renderer.instance(), tf, mesh_renderer.material(), i).unwrap();
-                        }
-                    }
-                    None => {
-                        if cfg!(debug_assertions) {
-                            println!("[PROPELLANT DEBUG] Pipeline id {} requested by entity {} does not exist.", mesh_renderer.pipeline_id(), entity);
-                        }
-                    }
-                };
-            }
-        }
-
-        // unmap all the uniform buffers
-        self.rendering_pipeline.get_pipelines_mut().for_each(
-            |(_, pipeline)| pipeline.unmap_all_uniform_buffers(&vk_interface.device, image_index)
-        );
-
-        // finally, recreate the command buffers
-        // directly return the result
         let resources = match components.get_singleton::<ProppellantResources>() {
             Some(resources) => resources,
             None => return Err(PropellantError::NoResources),
         };
+
         self.rendering_pipeline.register_draw_commands(&vk_interface.device, resources, image_index)
     }
 }

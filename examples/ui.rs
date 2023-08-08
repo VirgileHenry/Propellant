@@ -28,7 +28,7 @@ fn main() {
             glam::vec2(0., 0.),
             UiAnchor::TopRight,
         ),
-        MeshRenderer::ui_renderer(UiMaterial::colored(Vec3::new(0.5, 1.0, 0.8), 20.))
+        InstancedMeshRenderer::ui_renderer(UiMaterial::colored(Vec3::new(0.5, 1.0, 0.8), 20.))
     );
     let _top_right = create_entity!(
         engine.world_mut();
@@ -39,7 +39,7 @@ fn main() {
             glam::vec2(0., 0.),
             UiAnchor::TopLeft,
         ),
-        MeshRenderer::ui_renderer(UiMaterial::colored(Vec3::new(1.0, 0.5, 0.8), 20.))
+        InstancedMeshRenderer::ui_renderer(UiMaterial::colored(Vec3::new(1.0, 0.5, 0.8), 20.))
     );
     let _bottom = create_entity!(
         engine.world_mut();
@@ -50,7 +50,7 @@ fn main() {
             glam::vec2(1.0, 0.),
             UiAnchor::Bottom,
         ),
-        MeshRenderer::ui_renderer(UiMaterial::colored(Vec3::new(1.0, 0.8, 0.5), 20.))
+        InstancedMeshRenderer::ui_renderer(UiMaterial::colored(Vec3::new(1.0, 0.8, 0.5), 20.))
     );
     let _side_1 = create_entity!(
         engine.world_mut();
@@ -61,7 +61,7 @@ fn main() {
             glam::vec2(0.0, 0.),
             UiAnchor::Left,
         ),
-        MeshRenderer::ui_renderer(UiMaterial::colored(Vec3::new(0.5, 0.8, 1.0), 20.)),
+        InstancedMeshRenderer::ui_renderer(UiMaterial::colored(Vec3::new(0.5, 0.8, 1.0), 20.)),
         UiEventListener::new(UiExpand::new(
             Transform::ui_new(
                 glam::vec2(10., 0.),
@@ -89,7 +89,7 @@ fn main() {
             glam::vec2(0.0, 0.),
             UiAnchor::Left,
         ),
-        MeshRenderer::ui_renderer(UiMaterial::colored(Vec3::new(0.8, 0.5, 1.0), 20.)),
+        InstancedMeshRenderer::ui_renderer(UiMaterial::colored(Vec3::new(0.8, 0.5, 1.0), 20.)),
         UiEventListener::new(UiExpand::new(
             Transform::ui_new(
                 glam::vec2(10., 70.),
@@ -117,7 +117,7 @@ fn main() {
             glam::vec2(0.0, 0.),
             UiAnchor::Left,
         ),
-        MeshRenderer::ui_renderer(UiMaterial::colored(Vec3::new(0.8, 1.0, 0.5), 20.)),
+        InstancedMeshRenderer::ui_renderer(UiMaterial::colored(Vec3::new(0.8, 1.0, 0.5), 20.)),
         UiEventListener::new(UiExpand::new(
             Transform::ui_new(
                 glam::vec2(10., -70.),

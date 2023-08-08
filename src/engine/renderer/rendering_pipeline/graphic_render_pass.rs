@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-
+use crate::engine::renderer::graphic_pipeline::GraphicPipelineInterface;
+use crate::engine::renderer::graphic_pipeline::graphic_pipeline_builder::GraphicPipelineBuilderInterface;
 use crate::{ProppellantResources, FinalRenderTargetBuilder};
-use crate::engine::renderer::graphics_pipeline::graphics_pipeline_builder::GraphicsPipelineBuilder;
-use crate::engine::{renderer::graphics_pipeline::GraphicsPipeline, errors::PResult, window::vulkan::swapchain_interface::SwapchainInterface};
+use crate::engine::{errors::PResult, window::vulkan::swapchain_interface::SwapchainInterface};
 
+use foundry::ComponentTable;
 use vulkanalia::vk::HasBuilder;
 use vulkanalia::vk::DeviceV1_0;
 
@@ -31,8 +31,7 @@ impl RenderingPipelinePassTarget {
 
 pub struct GraphicRenderpass {
     /// The pipelines for this pass.
-    /// todo : add abstraction to handle both graphics and compute pipelines.
-    pipelines: HashMap<u64, GraphicsPipeline>,
+    pipelines: Vec<(u64, Box<dyn GraphicPipelineInterface>)>,
     /// target framebuffers for this pass.
     /// These are the framebuffers of the swapchain if this is the final pass.
     target: RenderingPipelinePassTarget,
@@ -43,11 +42,9 @@ pub struct GraphicRenderpass {
 }
 
 impl GraphicRenderpass {
-
-
     pub fn create_final_pass(
-        pipelines: &mut HashMap<u64, GraphicsPipelineBuilder>,
-        final_rt_builder: FinalRenderTargetBuilder,
+        pipelines: Vec<(u64, Box<dyn GraphicPipelineBuilderInterface>)>,
+        final_rt: FinalRenderTargetBuilder,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
@@ -62,7 +59,7 @@ impl GraphicRenderpass {
             swapchain.format(),
         )?;
         let final_render_target = FinalRenderTarget::create(
-            final_rt_builder,
+            final_rt,
             vk_instance,
             vk_device,
             vk_physical_device,
@@ -71,7 +68,7 @@ impl GraphicRenderpass {
             swapchain.extent(),
         )?;
         // build the pipelines
-        let pipelines = pipelines.drain().map(|(id, pipeline)| {
+        let pipelines = pipelines.into_iter().map(|(id, pipeline)| {
             // create the pipeline hash map for this layer.
             pipeline.build(
                 vk_device,
@@ -79,7 +76,7 @@ impl GraphicRenderpass {
                 swapchain.images().len(),
                 render_pass
             ).and_then(|result| Ok((id, result)))
-        }).collect::<PResult<HashMap<u64, GraphicsPipeline>>>()?;
+        }).collect::<PResult<Vec<(u64, Box<dyn GraphicPipelineInterface>)>>>()?;
 
         Ok(GraphicRenderpass {
             pipelines,
@@ -88,6 +85,46 @@ impl GraphicRenderpass {
             clear_color,
         })
 
+    }
+
+    pub fn update_uniform_buffers(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+        image_index: usize,
+        components: &ComponentTable,
+    ) -> PResult<()> {
+        for pipeline in self.pipelines.iter_mut().map(|(_k, v)| v) {
+            pipeline.update_uniform_buffers(
+                vk_device,
+                components,
+                image_index,
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn scene_recreation(
+        &mut self,
+        components: &ComponentTable,
+    ) -> PResult<()> {
+        for pipeline in self.pipelines.iter_mut().map(|(_k, v)| v) {
+            pipeline.rebuild_rendering_map(components);
+        }
+        Ok(())
+    }
+
+    pub fn assert_uniform_buffer_sizes(
+        &mut self,
+        image_index: usize,
+        vk_instance: &vulkanalia::Instance,
+        vk_device: &vulkanalia::Device,
+        vk_physical_device: vulkanalia::vk::PhysicalDevice,
+    ) -> PResult<()> {
+        for pipeline in self.pipelines.iter_mut().map(|(_k, v)| v) {
+            pipeline.assert_uniform_buffer_sizes(image_index, vk_instance, vk_device, vk_physical_device)?;
+        }
+
+        Ok(())
     }
 
     pub fn register_draw_commands(
@@ -145,7 +182,7 @@ impl GraphicRenderpass {
         &mut self,
         vk_device: &vulkanalia::Device
     ) {
-        self.pipelines.values_mut().for_each(|pipeline| pipeline.recreation_cleanup(vk_device));
+        self.pipelines.iter_mut().map(|(_k, v)| v).for_each(|pipeline| pipeline.recreation_cleanup(vk_device));
         match self.target {
             RenderingPipelinePassTarget::Swapchain(ref mut final_render_target) => {
                 final_render_target.recreation_cleanup(vk_device);
@@ -186,7 +223,7 @@ impl GraphicRenderpass {
                 unimplemented!()
             }
         }
-        for pipeline in self.pipelines.values_mut() {
+        for pipeline in self.pipelines.iter_mut().map(|(_k, v)| v) {
             pipeline.recreate(
                 vk_device,
                 swapchain.extent(),
@@ -263,19 +300,11 @@ impl GraphicRenderpass {
         })
     }
 
-    pub fn pipelines(&self) -> &HashMap<u64, GraphicsPipeline> {
-        &self.pipelines
-    }
-
-    pub fn pipelines_mut(&mut self) -> &mut HashMap<u64, GraphicsPipeline> {
-        &mut self.pipelines
-    }
-
     pub fn destroy(
         &mut self,
         vk_device: &vulkanalia::Device
     ) {
-        for (_id, mut pipeline) in self.pipelines.drain() {
+        for (_id, mut pipeline) in self.pipelines.drain(..) {
             pipeline.destroy(vk_device);
         }
         unsafe {

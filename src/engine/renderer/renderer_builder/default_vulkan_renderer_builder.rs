@@ -1,10 +1,7 @@
-use crate::{engine::{errors::PResult, renderer::{VulkanRenderer, DefaultVulkanRenderer}}, VulkanInterface};
-use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RPBSReady;
+use crate::{engine::{errors::PResult, renderer::{VulkanRenderer, DefaultVulkanRenderer, rendering_pipeline::rendering_pipeline_builder::states::RPBSReady}}, VulkanInterface};
 use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
 
 use super::VulkanRendererBuilder;
-
-
 
 pub struct DefaultVulkanRendererBuilder {
     rendering_pipeline: RenderingPipelineBuilder<RPBSReady>

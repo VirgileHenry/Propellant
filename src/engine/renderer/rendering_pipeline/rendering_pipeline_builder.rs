@@ -1,20 +1,19 @@
 
-use std::collections::HashMap;
+use crate::{engine::{
+    errors::PResult,
+    window::vulkan::queues::QueueFamilyIndices,
+    renderer::graphic_pipeline::graphic_pipeline_builder::{GraphicPipelineBuilderInterface, default_phong_pipeline},
+}, id};
 
-use crate::{
-    engine::{
-        errors::PResult,
-        window::vulkan::queues::QueueFamilyIndices,
-        renderer::graphics_pipeline::graphics_pipeline_builder::GraphicsPipelineBuilder,
-    }, id, 
+use self::states::{RPBSRegisteringGraphic, RPBSWaitingComputePipeline, RPBSReady, RPBSWaitingRenderTargets};
+
+use super::{
+    RenderingPipeline,
+    intermediate_render_targets::IntermediateRenderTargetBuilder,
+    final_render_target::FinalRenderTargetBuilder
 };
 
-use self::rendering_pipeline_builder_states::*;
-
-use super::{RenderingPipeline, intermediate_render_targets::IntermediateRenderTargetBuilder, final_render_target::FinalRenderTargetBuilder};
-
-pub(crate) mod rendering_pipeline_builder_states;
-pub(crate) mod rendering_pipeline_layer;
+pub(crate) mod states;
 
 
 pub struct RenderingPipelineBuilder<T> {
@@ -22,7 +21,6 @@ pub struct RenderingPipelineBuilder<T> {
     state_data: T,
     // any state data
     clear_color: (f32, f32, f32),
-
 }
 
 impl<T> RenderingPipelineBuilder<T> {
@@ -39,34 +37,34 @@ impl RenderingPipelineBuilder<RPBSRegisteringGraphic> {
     pub fn new() -> Self {
         Self {
             state_data: RPBSRegisteringGraphic {
-                graphic_pipelines: HashMap::new(),
+                graphic_pipelines: Vec::new(),
             },
             clear_color: (0.0, 0.0, 0.0),
         }
     }
 
-    pub fn with_graphic_pipeline(mut self, id: u64, pipeline: GraphicsPipelineBuilder) -> RenderingPipelineBuilder<RPBSRegisteringGraphic> {
-        self.state_data.graphic_pipelines.insert(id, pipeline);
+    pub fn with_graphic_pipeline<T: GraphicPipelineBuilderInterface + 'static>(mut self, id: u64, pipeline: T) -> RenderingPipelineBuilder<RPBSRegisteringGraphic> {
+        self.state_data.graphic_pipelines.push((id, Box::new(pipeline)));
         self
     }
 
-    pub fn with_intermediate_rt(self, render_texture: IntermediateRenderTargetBuilder) -> RenderingPipelineBuilder<RPBSWaitingComputePipeline> {
+    pub fn with_intermediate_rt(self, intermediate_rt: IntermediateRenderTargetBuilder) -> RenderingPipelineBuilder<RPBSWaitingComputePipeline> {
         RenderingPipelineBuilder {
             state_data: RPBSWaitingComputePipeline {
                 graphic_pipelines: self.state_data.graphic_pipelines,
                 compute_pipelines: Vec::new(),
-                last_intermediate_rt: render_texture,
+                intermediate_rt,
             },
             clear_color: self.clear_color,
         }
     }
 
-    pub fn with_final_rt(self, render_target: FinalRenderTargetBuilder) -> RenderingPipelineBuilder<RPBSReady> {
+    pub fn with_final_rt(self, final_rt: FinalRenderTargetBuilder) -> RenderingPipelineBuilder<RPBSReady> {
 
         let new_state = RPBSReady {
             graphic_pipelines: self.state_data.graphic_pipelines,
-            compute_pipelines: Vec::new(),
-            final_render_target: render_target,
+            compute_pipelines: Vec::with_capacity(0),
+            final_rt,
         };
 
         RenderingPipelineBuilder {
@@ -78,9 +76,9 @@ impl RenderingPipelineBuilder<RPBSRegisteringGraphic> {
 
 impl RenderingPipelineBuilder<RPBSWaitingComputePipeline> {
 
-    pub fn with_compute_pipeline(self, pipeline: ()) -> RenderingPipelineBuilder<RPBSWaitingRenderTargets> {
+    pub fn with_compute_pipeline(self, pipeline: (/* compute pipeline builder */), id: u64) -> RenderingPipelineBuilder<RPBSWaitingRenderTargets> {
         let mut previous_compute_pipelines = self.state_data.compute_pipelines;
-        let new_compute_pipeline = (self.state_data.last_intermediate_rt, pipeline);
+        let new_compute_pipeline = (id, self.state_data.intermediate_rt, Box::new(pipeline));
         previous_compute_pipelines.push(new_compute_pipeline);
         
         let new_state = RPBSWaitingRenderTargets {
@@ -96,12 +94,12 @@ impl RenderingPipelineBuilder<RPBSWaitingComputePipeline> {
 }
 
 impl RenderingPipelineBuilder<RPBSWaitingRenderTargets> {
-    pub fn with_intermediate_rt(self, render_target: IntermediateRenderTargetBuilder) -> RenderingPipelineBuilder<RPBSWaitingComputePipeline> {
+    pub fn with_intermediate_rt(self, intermediate_rt: IntermediateRenderTargetBuilder) -> RenderingPipelineBuilder<RPBSWaitingComputePipeline> {
 
         let new_state = RPBSWaitingComputePipeline {
             graphic_pipelines: self.state_data.graphic_pipelines,
             compute_pipelines: self.state_data.compute_pipelines,
-            last_intermediate_rt: render_target,
+            intermediate_rt,
         };
 
         RenderingPipelineBuilder {
@@ -110,12 +108,12 @@ impl RenderingPipelineBuilder<RPBSWaitingRenderTargets> {
         }
     }
 
-    pub fn with_final_rt(self, final_render_target: FinalRenderTargetBuilder) -> RenderingPipelineBuilder<RPBSReady> {
+    pub fn with_final_rt(self, final_rt: FinalRenderTargetBuilder) -> RenderingPipelineBuilder<RPBSReady> {
         RenderingPipelineBuilder {
             state_data: RPBSReady {
                 graphic_pipelines: self.state_data.graphic_pipelines,
                 compute_pipelines: self.state_data.compute_pipelines,
-                final_render_target,
+                final_rt,
             },
             clear_color: self.clear_color,
         }
@@ -165,15 +163,15 @@ impl From<RenderingPipelineBuilder<RPBSReady>> for RPBSReady {
 
 impl Default for RenderingPipelineBuilder<RPBSReady> {
     fn default() -> Self {
+        // todo 
         if cfg!(feature = "ui") {
             RenderingPipelineBuilder::new()
-                .with_graphic_pipeline(id("default"), GraphicsPipelineBuilder::default())
-                .with_graphic_pipeline(id("ui_pipeline"), GraphicsPipelineBuilder::ui_pipeline())
+                .with_graphic_pipeline(id("default"), default_phong_pipeline())
                 .with_final_rt(FinalRenderTargetBuilder::default())
         }
         else {
             RenderingPipelineBuilder::new()
-                .with_graphic_pipeline(id("default"), GraphicsPipelineBuilder::default())
+                .with_graphic_pipeline(id("default"), default_phong_pipeline())
                 .with_final_rt(FinalRenderTargetBuilder::default())
         }
     }

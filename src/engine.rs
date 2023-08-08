@@ -15,7 +15,7 @@ use self::{
     },
     resources::ProppellantResources,
     inputs::input_system::InputSystem, 
-    consts::PROPELLANT_DEBUG_FEATURES, renderer::graphics_pipeline::uniform::frame_uniform::ui_resolution::UiResolution,
+    consts::PROPELLANT_DEBUG_FEATURES, renderer::graphic_pipeline::uniform::frame_uniform::ui_resolution::UiResolution,
 };
 
 pub(crate) mod common_components;

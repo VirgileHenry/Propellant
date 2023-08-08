@@ -7,7 +7,7 @@ use crate::engine::errors::rendering_error::RenderingError;
 use crate::engine::errors::{PropellantError, PResult};
 use crate::engine::renderer::rendering_pipeline::RenderingPipeline;
 use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::RenderingPipelineBuilder;
-use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::rendering_pipeline_builder_states::RPBSReady;
+use crate::engine::renderer::rendering_pipeline::rendering_pipeline_builder::states::RPBSReady;
 
 use super::physical_device_prefs::PhysicalDevicePreferences;
 use super::queues::QueueFamilyIndices;

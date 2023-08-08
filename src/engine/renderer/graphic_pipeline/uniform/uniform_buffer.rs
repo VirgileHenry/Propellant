@@ -12,7 +12,6 @@ pub struct UniformBufferBuilder<T> {
     phantom: std::marker::PhantomData<T>,
     stage: vulkanalia::vk::ShaderStageFlags,
     descriptor_type: vulkanalia::vk::DescriptorType,
-    binding: u32,
 }
 
 impl<T: Debug + 'static> UniformBufferBuilder<T> {
@@ -20,13 +19,11 @@ impl<T: Debug + 'static> UniformBufferBuilder<T> {
     pub fn new(
         stage: vulkanalia::vk::ShaderStageFlags,
         descriptor_type: vulkanalia::vk::DescriptorType,
-        binding: u32,
     ) -> UniformBufferBuilder<T> {
         UniformBufferBuilder {
             phantom: std::marker::PhantomData,
             stage,
             descriptor_type,
-            binding,
         }
     }
 
@@ -34,22 +31,18 @@ impl<T: Debug + 'static> UniformBufferBuilder<T> {
         &self,
         vk_device: &vulkanalia::Device,
         vk_descriptor_pool: vulkanalia::vk::DescriptorPool,
-        swapchain_images_count: usize,
+        swapchain_image_count: usize,
     ) -> PResult<UniformBuffer<T>> {
         UniformBuffer::new(
             self,
             vk_device,
             vk_descriptor_pool,
-            swapchain_images_count,
+            swapchain_image_count,
         )
     }
 
     pub fn stage(&self) -> vulkanalia::vk::ShaderStageFlags {
         self.stage
-    }
-
-    pub fn binding(&self) -> u32 {
-        self.binding
     }
 
     pub fn descriptor_type(&self) -> vulkanalia::vk::DescriptorType {
@@ -77,8 +70,6 @@ pub struct UniformBuffer<T> {
     layout: vulkanalia::vk::DescriptorSetLayout,
     /// descriptor sets and buffers for each frame.
     sets_and_buffers: Vec<(vulkanalia::vk::DescriptorSet, VulkanBuffer)>,
-    /// the binding at the creation of the buffer. The binding is given by the moment it have been registered in the pipeline.
-    binding: u32,
     /// The type of descriptor buffer we have : uniform for per frame, storage for per object.
     descriptor_type: vulkanalia::vk::DescriptorType,
 }
@@ -88,27 +79,27 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         builder: &UniformBufferBuilder<T>,
         vk_device: &vulkanalia::Device,
         vk_descriptor_pool: vulkanalia::vk::DescriptorPool,
-        swapchain_images_count: usize,
+        swapchain_image_count: usize,
     ) -> PResult<UniformBuffer<T>> {
         // create the descriptor set layout
         // the layout is a blueprint on how the descriptor set matches the shader.
-        let layout_builder = vulkanalia::vk::DescriptorSetLayoutBinding::builder()
-            .binding(builder.binding())
+        let layout_binding_builder = vulkanalia::vk::DescriptorSetLayoutBinding::builder()
+            .binding(0) // all zero for now, maybe this will change ?
             .descriptor_type(builder.descriptor_type())
             .descriptor_count(1) 
             .stage_flags(builder.stage());
 
-        let bindings = &[layout_builder];
+        let layout_bindings = &[layout_binding_builder];
         
         let info = vulkanalia::vk::DescriptorSetLayoutCreateInfo::builder()
-            .bindings(bindings);
+            .bindings(layout_bindings);
         
         let layout = unsafe { vk_device.create_descriptor_set_layout(&info, None)? };
 
         let descriptor_sets = Self::create_descriptor_set(
             vk_device,
             vk_descriptor_pool,
-            swapchain_images_count,
+            swapchain_image_count,
             layout,
         )?;
 
@@ -117,7 +108,6 @@ impl<T: Debug + 'static> UniformBuffer<T> {
             phantom: std::marker::PhantomData,
             layout,
             sets_and_buffers: descriptor_sets.into_iter().map(|ds| (ds, VulkanBuffer::empty())).collect(),
-            binding: builder.binding(),
             descriptor_type: builder.descriptor_type(),
         })
     }
@@ -129,6 +119,8 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         vk_device: &vulkanalia::Device,
         image_index: usize,
     ) -> PResult<()> {
+        // this could be an optimisation point : 
+        // if we are sure the memory is at rest, we can directly map it.
         match self.buffer_state {
             UniformBufferMemoryState::Mapped(_) => {
                 // additional warnings if debug features are enabled.
@@ -149,19 +141,19 @@ impl<T: Debug + 'static> UniformBuffer<T> {
 
     pub fn update_buffer(
         &mut self,
-        instance_id: usize,
+        buffer_index: usize,
         image_index: usize,
-        data: &T, // maybe &[T] ?
+        data: T, // maybe &[T] ?
     ) {
         // compute the offset in bytes
-        let byte_offset = std::mem::size_of::<T>() * instance_id;
+        let byte_offset = std::mem::size_of::<T>() * buffer_index;
 
         // write to the buffer, offseted. As the size of c_void is 1 byte, the byte offset is indeed in bytes.
         // otherwise, be careful as the add() function offset of offset * size_of::<T>().
         match self.buffer_state {
             UniformBufferMemoryState::Mapped(mem) => self.sets_and_buffers[image_index].1.write(
                 unsafe {mem.add(byte_offset)},
-                std::slice::from_ref(data)
+                std::slice::from_ref(&data)
             ),
             UniformBufferMemoryState::AtRest => {
                 if cfg!(debug_assertions) {
@@ -209,11 +201,11 @@ impl<T: Debug + 'static> UniformBuffer<T> {
     fn create_descriptor_set(
         vk_device: &vulkanalia::Device,
         descriptor_pool: vulkanalia::vk::DescriptorPool,
-        swapchain_images_count: usize,
+        swapchain_image_count: usize,
         layout: vulkanalia::vk::DescriptorSetLayout,
     ) -> PResult<Vec<vulkanalia::vk::DescriptorSet>> {
         // create one descriptor set per swapchain image.
-        let layouts = vec![layout; swapchain_images_count];
+        let layouts = vec![layout; swapchain_image_count];
         let info = vulkanalia::vk::DescriptorSetAllocateInfo::builder()
             .descriptor_pool(descriptor_pool)
             .set_layouts(&layouts);
@@ -239,7 +231,7 @@ impl<T: Debug + 'static> UniformBuffer<T> {
 
         let ubo_write = vulkanalia::vk::WriteDescriptorSet::builder()
             .dst_set(self.sets_and_buffers[image_index].0)
-            .dst_binding(self.binding)
+            .dst_binding(0)
             .dst_array_element(0) 
             .descriptor_type(self.descriptor_type)
             .buffer_info(buffer_info);
