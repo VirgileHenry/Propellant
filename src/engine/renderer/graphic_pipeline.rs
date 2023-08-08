@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-
-use crate::engine::consts::PROPELLANT_DEBUG_FEATURES;
 use crate::{
     engine::errors::PResult,
     ProppellantResources
@@ -326,17 +324,10 @@ impl<
         self.frame_2_uniform_buffer.update_buffer(0, image_index, FrameUniform2::get_uniform(components));
         self.frame_3_uniform_buffer.update_buffer(0, image_index, FrameUniform3::get_uniform(components));
         // object uniforms
-        for (entity_id, obj_uniform1, obj_uniform2) in components.query2d::<ObjectUniform1::FromComponent, ObjectUniform2::FromComponent>() {
-            let mesh_id = ObjectUniform1::mesh_id(obj_uniform1);
-            match self.rendering_map.get_buffer_index(mesh_id, entity_id) {
-                Some(buffer_index) => {
-                    self.object_1_uniform_buffer.update_buffer(buffer_index, image_index, ObjectUniform1::get_uniform(obj_uniform1));
-                    self.object_2_uniform_buffer.update_buffer(buffer_index, image_index, ObjectUniform2::get_uniform(obj_uniform2));
-                },
-                None => if PROPELLANT_DEBUG_FEATURES {
-                    println!("[PROPELLANT DEBUG] Mesh / Entity not in rendering map (Mesh {}), (Entity {}). Scene have not been built properly.", mesh_id, entity_id);
-                }
-            };
+        for (_, obj_uniform1, obj_uniform2) in components.query2d::<ObjectUniform1::FromComponent, ObjectUniform2::FromComponent>() {
+            let uniform_buffer_offset = ObjectUniform1::uniform_buffer_index(obj_uniform1);
+            self.object_1_uniform_buffer.update_buffer(uniform_buffer_offset, image_index, ObjectUniform1::get_uniform(obj_uniform1));
+            self.object_2_uniform_buffer.update_buffer(uniform_buffer_offset, image_index, ObjectUniform2::get_uniform(obj_uniform2));
         }
         // unmap all the buffers
         self.frame_1_uniform_buffer.unmap(vk_device, image_index);
@@ -392,10 +383,10 @@ impl<
                 vk_device.cmd_draw_indexed(
                     command_buffer,
                     mesh.index_count() as u32,
-                    instance_count,
+                    instance_count as u32,
                     0,
                     0,
-                    first_instance
+                    first_instance as u32
                 );
             }
             first_instance += instance_count;
@@ -408,17 +399,30 @@ impl<
     ) {
         // assert buffer sizes
         // self.frame_1_uniform_buffer.assert_buffer_size(object_count, image_index, vk_instance, vk_device, vk_physical_device)
+        let map = self.rendering_map.map_mut();
         // clear the map
-        self.rendering_map.clear();
+        map.clear();
         // iterate over objects, count how many for each mesh
         // O(n) complexity
-        for (entity_id, obj_uniform_1, _obj_uniform_2) in components.query2d::<ObjectUniform1::FromComponent, ObjectUniform2::FromComponent>() {
-            let mesh_id = ObjectUniform1::mesh_id(obj_uniform_1);
-            self.rendering_map.add_instance(mesh_id, entity_id);
+        for (_, obj_uniform_1, _obj_uniform_2) in components.query2d::<ObjectUniform1::FromComponent, ObjectUniform2::FromComponent>() {
+            match map.get_mut(&ObjectUniform1::mesh_id(obj_uniform_1)) {
+                Some((instance_count, _, _)) => *instance_count += 1,
+                None => {map.insert(ObjectUniform1::mesh_id(obj_uniform_1), (1, 0, 0));},
+            }
         }
         // add offsets to the map
-        // O(n) complexity
-        self.rendering_map.add_offsets();
+        let mut offset = 0;
+        for (_, (instance_count, total_offset, counter)) in map.iter_mut() {
+            *total_offset = offset;
+            offset += *instance_count;
+            *counter = 0;
+        }
+        // final loop to set the buffers offsets
+        for (_, obj_uniform_1, _obj_uniform_2) in components.query2d_mut::<ObjectUniform1::FromComponent, ObjectUniform2::FromComponent>() {
+            let (_, mesh_offset, counter) = map.get_mut(&ObjectUniform1::mesh_id(obj_uniform_1)).unwrap();
+            ObjectUniform1::set_uniform_buffer_index(obj_uniform_1, *mesh_offset + *counter);
+            *counter += 1;
+        }
     }
 
     fn assert_uniform_buffer_sizes(

@@ -35,6 +35,14 @@ impl RenderableComponent for PhongMaterial {
     fn mesh_id(component: &Self::FromComponent) -> u64 {
         component.mesh_id()
     }
+
+    fn set_uniform_buffer_index(component: &mut Self::FromComponent, index: usize) {
+        component.set_uniform_buffer_offset(index);
+    }
+
+    fn uniform_buffer_index(component: &Self::FromComponent) -> usize {
+        component.uniform_buffer_offset()
+    }
 }
 
 impl Default for PhongMaterial {
