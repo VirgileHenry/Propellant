@@ -23,6 +23,7 @@ impl PropellantWindow {
         self.window.request_redraw();
     }
 
+    #[cfg(not(feature = "ui"))]
     /// handle window events. This does not need to be a self func, as the window threw the event.
     /// Further more, the window can be found in the comp table.
     pub fn handle_event(&mut self, event: winit::event::WindowEvent, control_flow: &mut winit::event_loop::ControlFlow, components: &mut ComponentTable) {
@@ -39,16 +40,38 @@ impl PropellantWindow {
                                 camera.resize(new_size.height as f32, new_size.width as f32);
                             }
                         }
-                        // resize ui resolution
-                        if cfg!(feature = "ui") {
-                            match components.get_singleton_mut::<UiResolution>() {
-                                Some(mut ui_res) => {
-                                    let (width, height) = self.window_inner_size();
-                                    ui_res.screen_width = width;
-                                    ui_res.screen_height = height;
-                                },
-                                None => {},
+                    },
+                    Err(e) => println!("{e} handling window resize event."),
+                };
+            }
+            _ => {},
+        }
+    }
+
+    #[cfg(feature = "ui")]
+    /// handle window events. This does not need to be a self func, as the window threw the event.
+    pub fn handle_event(&mut self, event: winit::event::WindowEvent, control_flow: &mut winit::event_loop::ControlFlow, components: &mut ComponentTable) {
+        match event {
+            winit::event::WindowEvent::CloseRequested => control_flow.set_exit(),
+            winit::event::WindowEvent::Resized(new_size) => {
+                match self.handle_window_resize() {
+                    Ok(_) => {
+                        // command buffer will get invalidated.
+                        components.add_singleton(RequireCommandBufferRebuildFlag);
+                        // resize main cameras
+                        for (_, camera) in components.query1d_mut::<Camera>() {
+                            if camera.is_main() {
+                                camera.resize(new_size.height as f32, new_size.width as f32);
                             }
+                        }
+                        // resize ui resolution
+                        match components.get_singleton_mut::<UiResolution>() {
+                            Some(mut ui_res) => {
+                                let (width, height) = self.window_inner_size();
+                                ui_res.screen_width = width;
+                                ui_res.screen_height = height;
+                            },
+                            None => {},
                         }
                     },
                     Err(e) => println!("{e} handling window resize event."),

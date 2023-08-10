@@ -20,15 +20,6 @@ layout(set = 1, binding = 0) uniform MainDirectionnalLight {
     float _padd_2;
 } mainLight;
 
-layout(set = 2, binding = 0) uniform MainDirectionnalLight2 {
-    vec3 direction;
-    float _padd_0;
-    vec3 ambiant_color;
-    float _padd_1;
-    vec3 direct_color;
-    float _padd_2;
-} mainLight2;
-
 layout(set = 3, binding = 0) readonly buffer MaterialProperties {
     PhongMaterial materials[];
 } materialsProperties;

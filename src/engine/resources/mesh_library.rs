@@ -123,6 +123,7 @@ impl MeshLibrary {
         }
     }
 
+    #[cfg(feature = "ui")]
     pub fn with_ui_quad() -> MeshLibrary {
         let mut result = MeshLibrary::new();
         result.register_mesh(id("ui_quad"), Mesh::ui_quad());

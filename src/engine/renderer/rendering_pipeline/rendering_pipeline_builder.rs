@@ -5,6 +5,9 @@ use crate::{engine::{
     renderer::graphic_pipeline::graphic_pipeline_builder::{GraphicPipelineBuilderInterface, default_phong_pipeline},
 }, id};
 
+#[cfg(feature = "ui")]
+use crate::engine::renderer::graphic_pipeline::graphic_pipeline_builder::default_ui_pipeline;
+
 use self::states::{RPBSRegisteringGraphic, RPBSWaitingComputePipeline, RPBSReady, RPBSWaitingRenderTargets};
 
 use super::{
@@ -161,18 +164,21 @@ impl From<RenderingPipelineBuilder<RPBSReady>> for RPBSReady {
     }
 }
 
+#[cfg(feature = "ui")]
 impl Default for RenderingPipelineBuilder<RPBSReady> {
     fn default() -> Self {
-        // todo 
-        if cfg!(feature = "ui") {
-            RenderingPipelineBuilder::new()
-                .with_graphic_pipeline(id("default"), default_phong_pipeline())
-                .with_final_rt(FinalRenderTargetBuilder::default())
-        }
-        else {
-            RenderingPipelineBuilder::new()
-                .with_graphic_pipeline(id("default"), default_phong_pipeline())
-                .with_final_rt(FinalRenderTargetBuilder::default())
-        }
+        RenderingPipelineBuilder::new()
+            .with_graphic_pipeline(id("default"), default_phong_pipeline())
+            .with_graphic_pipeline(id("ui-default"), default_ui_pipeline())
+            .with_final_rt(FinalRenderTargetBuilder::default())
+    }
+}
+
+#[cfg(not(feature = "ui"))]
+impl Default for RenderingPipelineBuilder<RPBSReady> {
+    fn default() -> Self {
+        RenderingPipelineBuilder::new()
+            .with_graphic_pipeline(id("default"), default_phong_pipeline())
+            .with_final_rt(FinalRenderTargetBuilder::default())
     }
 }

@@ -1,3 +1,6 @@
 [submodule "deps/foundry"]
 	path = deps/foundry
 	url = https://github.com/VirgileHenry/Foundry
+[submodule "deps/tree-box"]
+	path = deps/tree-box
+	url = git@github.com:VirgileHenry/TreeBox.git

@@ -27,10 +27,7 @@ pub use engine::{
         window_builder::PropellantWindowBuilder,
         vulkan::vulkan_interface::VulkanInterface,
     },
-    transform::{
-        ui_transform::UiTransform,
-        transform::Transform,
-    },
+    transform::transform::Transform,
     lights::directionnal_light::DirectionnalLight,
     flags::*,
     renderer::{
@@ -43,6 +40,7 @@ pub use engine::{
             },
             uniform::object_uniform::model_uniform::ModelMatrixUniformObject,
             graphic_pipeline_builder::default_phong_pipeline,
+            graphic_pipeline_gen::ShaderStage,
         },
         rendering_pipeline::final_render_target::FinalRenderTargetBuilder,
         rendering_pipeline::intermediate_render_targets::IntermediateRenderTargetBuilder,
@@ -53,7 +51,10 @@ pub use engine::{
 #[cfg(feature = "ui")]
 pub use engine::{
     material::ui_material::UiMaterial,
-    transform::ui_transform::UiAnchor,
+    transform::ui_transform::{
+        UiAnchor,
+        UiTransform,
+    },
     ui::ui_event_listener::{
         UiEventListener,
         UiListenerCallback,

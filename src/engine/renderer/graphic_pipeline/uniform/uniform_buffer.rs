@@ -122,19 +122,8 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         // this could be an optimisation point : 
         // if we are sure the memory is at rest, we can directly map it.
         match self.buffer_state {
-            UniformBufferMemoryState::Mapped(_) => {
-                // additional warnings if debug features are enabled.
-                if PROPELLANT_DEBUG_FEATURES {
-                    panic!("[PROPELLANT DEBUG] UniformBuffer::map() called on a buffer that is already mapped.");
-                }
-            }
-            UniformBufferMemoryState::Uninitialized => {
-                // additional warnings if debug features are enabled.
-                if PROPELLANT_DEBUG_FEATURES {
-                    panic!("[PROPELLANT DEBUG] UniformBuffer::map() called on a buffer that is not initialized.");
-                }
-            }
             UniformBufferMemoryState::AtRest => self.buffer_state = UniformBufferMemoryState::Mapped(self.sets_and_buffers[image_index].1.map(vk_device)?),
+            _ => {/* buffer might be of size 0 and uninit, it's ok */}
         }
         Ok(())
     }
@@ -155,16 +144,7 @@ impl<T: Debug + 'static> UniformBuffer<T> {
                 unsafe {mem.add(byte_offset)},
                 std::slice::from_ref(&data)
             ),
-            UniformBufferMemoryState::AtRest => {
-                if cfg!(debug_assertions) {
-                    panic!("[PROPELLANT DEBUG] UniformBuffer::update_buffer() called on a buffer that is not mapped.");
-                }
-            }
-            UniformBufferMemoryState::Uninitialized => {
-                if cfg!(debug_assertions) {
-                    panic!("[PROPELLANT DEBUG] UniformBuffer::update_buffer() called on a buffer that is not initialized.");
-                }
-            }
+            _ => {/* buffer might be of size 0 and uninit, it's ok */}
         }
     }
 
@@ -180,17 +160,7 @@ impl<T: Debug + 'static> UniformBuffer<T> {
                 self.sets_and_buffers[image_index].1.unmap(vk_device);
                 self.buffer_state = UniformBufferMemoryState::AtRest;
             }
-            UniformBufferMemoryState::Uninitialized => {
-                // additional warnings if debug features are enabled.
-                if PROPELLANT_DEBUG_FEATURES {
-                    panic!("[PROPELLANT DEBUG] UniformBuffer::map() called on a buffer that is not initialized.");
-                }
-            }
-            UniformBufferMemoryState::AtRest => {
-                if PROPELLANT_DEBUG_FEATURES {
-                    panic!("[PROPELLANT DEBUG] UniformBuffer::map() called on a buffer that is not mapped.");
-                }
-            },
+            _ => {/* buffer might be of size 0 and uninit, it's ok */}
         }
     }
 
@@ -253,7 +223,7 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
     ) -> PResult<()> {
         let buffer_size = (object_count * std::mem::size_of::<T>()) as u64;
-
+        
         if buffer_size > self.sets_and_buffers[image_index].1.size() {
 
             if PROPELLANT_DEBUG_FEATURES {

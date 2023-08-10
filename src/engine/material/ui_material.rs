@@ -1,6 +1,6 @@
 use foundry::AsAny;
 
-use crate::ColoredTexture;
+use crate::{ColoredTexture, engine::renderer::graphic_pipeline::{renderable_component::RenderableComponent, uniform::object_uniform::ObjectUniform}, InstancedMeshRenderer};
 
 
 #[allow(unused)]
@@ -10,7 +10,7 @@ pub struct UiMaterial {
     pub texture: ColoredTexture,
     pub corner_radius: f32,
     /// experimentally correct
-    padd: [f32; 3],
+    _padding: [f32; 3],
 }
 
 impl UiMaterial {
@@ -18,7 +18,7 @@ impl UiMaterial {
         UiMaterial {
             texture,
             corner_radius,
-            padd: [0.0; 3],
+            _padding: [0.0; 3],
         }
     }
 
@@ -26,7 +26,28 @@ impl UiMaterial {
         UiMaterial {
             texture: ColoredTexture::color(color),
             corner_radius,
-            padd: [0.0; 3],
+            _padding: [0.0; 3],
         }
+    }
+}
+
+impl ObjectUniform for UiMaterial {
+    type FromComponent = InstancedMeshRenderer<UiMaterial>;
+    fn get_uniform(component: &Self::FromComponent) -> Self {
+        component.material().clone()
+    }
+}
+
+impl RenderableComponent for UiMaterial {
+    fn mesh_id(component: &Self::FromComponent) -> u64 {
+        component.mesh_id()
+    }
+
+    fn set_uniform_buffer_index(component: &mut Self::FromComponent, index: usize) {
+        component.set_uniform_buffer_offset(index);
+    }
+
+    fn uniform_buffer_index(component: &Self::FromComponent) -> usize {
+        component.uniform_buffer_offset()
     }
 }

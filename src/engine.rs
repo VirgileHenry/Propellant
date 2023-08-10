@@ -15,8 +15,10 @@ use self::{
     },
     resources::ProppellantResources,
     inputs::input_system::InputSystem, 
-    consts::PROPELLANT_DEBUG_FEATURES, renderer::graphic_pipeline::uniform::frame_uniform::ui_resolution::UiResolution,
+    consts::PROPELLANT_DEBUG_FEATURES,
 };
+#[cfg(feature = "ui")]
+use crate::engine::renderer::graphic_pipeline::uniform::frame_uniform::ui_resolution::UiResolution;
 
 pub(crate) mod common_components;
 pub(crate) mod common_systems;

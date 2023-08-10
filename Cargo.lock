@@ -978,6 +978,7 @@ dependencies = [
  "image",
  "paste",
  "rand",
+ "tree-box",
  "vk-shader-macros",
  "vulkanalia",
  "winit",
@@ -1262,6 +1263,10 @@ dependencies = [
  "toml_datetime",
  "winnow",
 ]
+
+[[package]]
+name = "tree-box"
+version = "0.3.1"
 
 [[package]]
 name = "ttf-parser"
