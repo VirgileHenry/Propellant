@@ -5,7 +5,7 @@ layout(set = 0, binding = 0) uniform UniformCamera {
     mat4 view;
 } cam;
 
-layout(set = 2, binding = 0) readonly buffer UniformModel {
+layout(set = 3, binding = 0) readonly buffer UniformModel {
     mat4 world_pos[];
 } models;
 

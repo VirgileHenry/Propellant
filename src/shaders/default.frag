@@ -20,7 +20,7 @@ layout(set = 1, binding = 0) uniform MainDirectionnalLight {
     float _padd_2;
 } mainLight;
 
-layout(set = 3, binding = 0) readonly buffer MaterialProperties {
+layout(set = 2, binding = 0) readonly buffer MaterialProperties {
     PhongMaterial materials[];
 } materialsProperties;
 

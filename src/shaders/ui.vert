@@ -1,7 +1,7 @@
 #version 450
 
 
-layout(set = 0, binding = 0) readonly buffer UiTransform {
+layout(set = 1, binding = 0) readonly buffer UiTransform {
     vec2 position;
     vec2 relative_position;
     vec2 size;

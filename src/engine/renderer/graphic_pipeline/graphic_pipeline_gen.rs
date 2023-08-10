@@ -41,6 +41,7 @@ macro_rules! create_graphic_pipeline_impl {
         ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*);
         ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*);
         ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*);
+        ($($ordered_field:tt)*);
         (FrameUniform, $uniform:ident, $stage:path),
         $($rest:tt)*
     ) => {
@@ -52,6 +53,7 @@ macro_rules! create_graphic_pipeline_impl {
             ($($frm_uniforms_field)* [<frame_uniform_ $uniform:snake>]); ($($obj_uniforms_field)*); ($($rc_uniforms_field)*);
             ($($frm_uniforms_build)* [<frame_uniform_ $uniform:snake>]: UniformBufferBuilder::new($stage.into(), vulkanalia::vk::DescriptorType::UNIFORM_BUFFER),); ($($obj_uniforms_build)*); ($($rc_uniforms_build)*);
             ($($frm_uniforms_type)* $uniform); ($($obj_uniforms_type)*); ($($rc_uniforms_type)*);
+            ($($ordered_field)* [<frame_uniform_ $uniform:snake>]);
             $($rest)*
         )
     };
@@ -62,6 +64,7 @@ macro_rules! create_graphic_pipeline_impl {
         ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*);
         ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*);
         ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*);
+        ($($ordered_field:tt)*);
         (ObjectUniform, $uniform:ident, $stage:path),
         $($rest:tt)*
     ) => {
@@ -73,6 +76,7 @@ macro_rules! create_graphic_pipeline_impl {
             ($($frm_uniforms_field)*); ($($obj_uniforms_field)* [<object_uniform_ $uniform:snake>]); ($($rc_uniforms_field)*);
             ($($frm_uniforms_build)*); ($($obj_uniforms_build)* [<object_uniform_ $uniform:snake>]: UniformBufferBuilder::new($stage.into(), vulkanalia::vk::DescriptorType::STORAGE_BUFFER),); ($($rc_uniforms_build)*);
             ($($frm_uniforms_type)*); ($($obj_uniforms_type)* $uniform); ($($rc_uniforms_type)*);
+            ($($ordered_field)* [<object_uniform_ $uniform:snake>]);
             $($rest)*
         )
     };
@@ -83,6 +87,7 @@ macro_rules! create_graphic_pipeline_impl {
         ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*);
         ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*);
         ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*);
+        ($($ordered_field:tt)*);
         (RenderableComponent, $uniform:ident, $stage:path),
         $($rest:tt)*
     ) => {
@@ -95,6 +100,7 @@ macro_rules! create_graphic_pipeline_impl {
                 ($($frm_uniforms_field)*); ($($obj_uniforms_field)*); ($($rc_uniforms_field)* [<renderable_comp_uniform_ $uniform:snake>]);
                 ($($frm_uniforms_build)*); ($($obj_uniforms_build)*); ($($rc_uniforms_build)* [<renderable_comp_uniform_ $uniform:snake>]: UniformBufferBuilder::new($stage.into(), vulkanalia::vk::DescriptorType::STORAGE_BUFFER),);
                 ($($frm_uniforms_type)*); ($($obj_uniforms_type)*); ($($rc_uniforms_type)* $uniform);
+                ($($ordered_field)* [<renderable_comp_uniform_ $uniform:snake>]);
                 $($rest)*
             )
         }
@@ -107,6 +113,7 @@ macro_rules! create_graphic_pipeline_impl {
         ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*);
         ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*);
         ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*);
+        ($($ordered_field:tt)*);
     ) => {
         { paste::paste! { // we filled our tt with paste syntax, time to unpack it
 
@@ -119,15 +126,9 @@ macro_rules! create_graphic_pipeline_impl {
                 vk_descriptor_pool: vulkanalia::vk::DescriptorPool,
                 creation_state: crate::engine::renderer::graphic_pipeline::GraphicPipelineCreationState,
                 rendering_map: crate::engine::renderer::rendering_map::RenderingMap,
-                $(
-                    $frm_buffers_decl
-                )*
-                $(
-                    $obj_buffers_decl
-                )*
-                $(
-                    $rc_buffers_decl
-                )*
+                $($frm_buffers_decl)*
+                $($obj_buffers_decl)*
+                $($rc_buffers_decl)*
             }
 
             impl GraphicPipeline {
@@ -337,9 +338,7 @@ macro_rules! create_graphic_pipeline_impl {
                     image_index: usize,
                 ) -> PResult<()> {
                     // map all the buffers
-                    $(self.$frm_uniforms_field.map(vk_device, image_index)?;)*
-                    $(self.$obj_uniforms_field.map(vk_device, image_index)?;)*
-                    $(self.$rc_uniforms_field.map(vk_device, image_index)?;)*
+                    $(self.$ordered_field.map(vk_device, image_index)?;)*
                     // frame uniforms
                     $(
                         self.$frm_uniforms_field.update_buffer(0, image_index, $frm_uniforms_type::get_uniform(components));
@@ -359,9 +358,7 @@ macro_rules! create_graphic_pipeline_impl {
                         $(self.$obj_uniforms_field.update_buffer(uniform_buffer_offset, image_index, <$obj_uniforms_type as ObjectUniform>::get_uniform($obj_uniforms_field));)*
                     }
                     // unmap all the buffers
-                    $(self.$frm_uniforms_field.unmap(vk_device, image_index);)*
-                    $(self.$obj_uniforms_field.unmap(vk_device, image_index);)*
-                    $(self.$rc_uniforms_field.unmap(vk_device, image_index);)*
+                    $(self.$ordered_field.unmap(vk_device, image_index);)*
                 
                     Ok(())
                 }
@@ -384,9 +381,7 @@ macro_rules! create_graphic_pipeline_impl {
                 
                     // bind all descriptor sets
                     let ds = vec![
-                        $(self.$frm_uniforms_field.set(image_index),)*
-                        $(self.$obj_uniforms_field.set(image_index),)*
-                        $(self.$rc_uniforms_field.set(image_index),)*
+                        $(self.$ordered_field.set(image_index),)*
                     ];
                 
                     unsafe {
@@ -489,9 +484,7 @@ macro_rules! create_graphic_pipeline_impl {
                     vk_device: &vulkanalia::Device,
                 ) {
                     self.creation_state.destroy(vk_device);
-                    $(self.$frm_uniforms_field.destroy_buffer(vk_device);)*
-                    $(self.$obj_uniforms_field.destroy_buffer(vk_device);)*
-                    $(self.$rc_uniforms_field.destroy_buffer(vk_device);)*
+                    $(self.$ordered_field.destroy_buffer(vk_device);)*
                     unsafe {
                         vk_device.destroy_descriptor_pool(self.vk_descriptor_pool, None);
                         vk_device.destroy_pipeline(self.pipeline, None);
@@ -523,9 +516,7 @@ macro_rules! create_graphic_pipeline_impl {
                     }).collect::<Result<std::collections::HashMap<_, _>, _>>()?;
 
                     let descriptor_types = vec![
-                        $((self.$frm_uniforms_field).descriptor_type(),)*
-                        $((self.$obj_uniforms_field).descriptor_type(),)*
-                        $((self.$rc_uniforms_field).descriptor_type(),)*
+                        $((self.$ordered_field).descriptor_type(),)*
                     ];
             
                     // create the descriptor pool, to allocate descriptor sets.
@@ -536,14 +527,10 @@ macro_rules! create_graphic_pipeline_impl {
                     )?;
             
                     // create the uniforms
-                    $(let $frm_uniforms_field = self.$frm_uniforms_field.build(vk_device, vk_descriptor_pool, swapchain_image_count)?;)*
-                    $(let $obj_uniforms_field = self.$obj_uniforms_field.build(vk_device, vk_descriptor_pool, swapchain_image_count)?;)*
-                    $(let $rc_uniforms_field = self.$rc_uniforms_field.build(vk_device, vk_descriptor_pool, swapchain_image_count)?;)*
+                    $(let $ordered_field = self.$ordered_field.build(vk_device, vk_descriptor_pool, swapchain_image_count)?;)*
 
                     let layouts = vec![
-                        $($frm_uniforms_field.layout(),)*
-                        $($obj_uniforms_field.layout(),)*
-                        $($rc_uniforms_field.layout(),)*
+                        $($ordered_field.layout(),)*
                     ];
                     
                     // pipeline layout is where we set all our uniforms declaration
@@ -600,6 +587,38 @@ macro_rules! create_graphic_pipeline_impl {
 }
 
 #[macro_export]
+/// Creates a new graphic pipeline.
+/// Graphic pipelines can be registered in the rendering pipeline.
+/// They iterate over objects of the scene and draw them up.
+/// 
+/// # Example
+/// 
+/// When calling this macro, the first arguments are the shader code, given in a tuple specifying the stage and the code like so :
+/// 
+/// (stage::Vertex, VERTEX_SHADER_CODE)
+/// 
+/// They are separated by a comma.
+/// 
+/// We can provide as many as wanted, but at least one vertex shader and one fragment shader are required.
+/// Furthermore, if multiple code are provided for the same stage, only the last one will be kept.
+/// 
+/// To end the shader code, add a semicolon.
+/// 
+/// Next, we specify all the uniforms for the pipeline.
+/// Uniforms are given like so : 
+/// ([type], [name], [stage]).
+/// 
+///  the types are :
+/// - FrameUniform : a uniform set once per frame
+/// - ObjectUniform : a uniform set once per object
+/// - RenderableComponent : a uniform required to have exactly once, and that is used to render the object.
+/// 
+/// The name must be a valid struct name, that implements the corresponding uniform trait.
+/// 
+/// The stage is the shader stage where the uniform will be used.
+/// 
+/// The order the uniforms are given into correspond to the set in the shader.
+/// So the first uniform will be at `layout(set = 0, binding = 0)`, the second at `layout(set = 1, binding = 0)`, etc.
 macro_rules! create_graphic_pipeline {
     (
         $(($shader_stage:path, $shader_code:ident)),*;
@@ -612,6 +631,7 @@ macro_rules! create_graphic_pipeline {
             (); (); (); // uniforms field
             (); (); (); // uniforms build
             (); (); (); // uniforms types
+            (); // ordered fields
             $($uniform_data)*
         )
     };
