@@ -11,7 +11,7 @@ use crate::{
         errors::PResult
     },
     RenderingPipelineBuilder,
-    ProppellantResources,
+    PropellantResources,
 };
 use self::{
     rendering_pipeline_builder::states::RPBSReady,
@@ -101,7 +101,7 @@ impl RenderingPipeline {
     pub fn register_draw_commands(
         &self,
         vk_device: &vulkanalia::Device,
-        resources: &ProppellantResources,
+        resources: &PropellantResources,
         image_index: usize,
     ) -> PResult<()> {
 

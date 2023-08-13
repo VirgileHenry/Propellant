@@ -1,7 +1,8 @@
+use crate::resource_loading::RequireResourcesLoadingFlag;
+
 use self::{mesh_library::MeshLibrary, texture_library::TextureLibrary};
 use super::{
     window::vulkan::transfer_command_manager::TransferCommandManager,
-    flags::RequireResourcesLoadingFlag,
     errors::PResult
 };
 
@@ -9,15 +10,15 @@ pub(crate) mod mesh_library;
 pub(crate) mod texture_library;
 
 /// Holds all the resources that are required by the user, 3D models, textures, etc.
-pub struct ProppellantResources {
+pub struct PropellantResources {
     meshes: MeshLibrary,
     textures: TextureLibrary,
 }
 
 #[cfg(feature = "ui")]
-impl Default for ProppellantResources {
+impl Default for PropellantResources {
     fn default() -> Self {
-        ProppellantResources {
+        PropellantResources {
             meshes: MeshLibrary::with_ui_quad(),
             textures: TextureLibrary::new(),
         }
@@ -25,16 +26,16 @@ impl Default for ProppellantResources {
 }
 
 #[cfg(not(feature = "ui"))]
-impl Default for ProppellantResources {
+impl Default for PropellantResources {
     fn default() -> Self {
-        ProppellantResources {
+        PropellantResources {
             meshes: MeshLibrary::new(),
             textures: TextureLibrary::new(),
         }
     }
 }
 
-impl ProppellantResources {
+impl PropellantResources {
 
     pub fn load_resources(
         &mut self,

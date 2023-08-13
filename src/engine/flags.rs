@@ -1,54 +1,64 @@
-/// Trait for any propellant flags.
-/// Flags should no store more data than a u64.
-/// this trait allow flag to u64 conversion and vice versa, accross any flags.
-pub trait PropellantFlag {
-    fn flag(&self) -> u64;
-    fn from_flag(flag: u64) -> Self;
-}
-/// Ask the renderer to rebuild the scene.
-/// This flag should be inserted in the component table when the geometry changed.
-pub struct RequireSceneRebuildFlag;
+use crate::{PropellantEngine, PropellantResources, PropellantWindow, id};
 
-impl PropellantFlag for RequireSceneRebuildFlag {
-    fn flag(&self) -> u64 {
-        0
-    }
-    fn from_flag(_: u64) -> Self {
-        RequireSceneRebuildFlag
-    }
-}
+use self::resource_loading::RequireResourcesLoadingFlag;
+use super::errors::PResult;
 
-/// Tere are new meshes in the lib that need to be loaded.
+
+pub(crate) mod resource_loading;
+
 #[derive(Debug, Clone, Copy)]
-pub struct RequireResourcesLoadingFlag(u64);
-
-impl RequireResourcesLoadingFlag {
-    pub const MESHES: RequireResourcesLoadingFlag = RequireResourcesLoadingFlag(1 << 0);
-    pub const TEXTURES: RequireResourcesLoadingFlag = RequireResourcesLoadingFlag(1 << 1);
-    pub const ALL: RequireResourcesLoadingFlag = RequireResourcesLoadingFlag(u64::MAX);
-
-    pub fn contains(&self, flag: RequireResourcesLoadingFlag) -> bool {
-        self.0 & flag.0 != 0
-    }
+pub enum PropellantFlag {
+    RequireSceneRebuild,
+    RequireResourcesLoading(RequireResourcesLoadingFlag),
+    RequireCommandBufferRebuild,
+    UiRequireScreenSize,
 }
 
-impl PropellantFlag for RequireResourcesLoadingFlag {
-    fn flag(&self) -> u64 {
-        self.0
-    }
-    fn from_flag(flag: u64) -> Self {
-        RequireResourcesLoadingFlag(flag)
-    }
-}
+impl PropellantEngine {
+    pub fn handle_engine_flag(&mut self, flag: PropellantFlag) -> PResult<()> {
+        match flag {
+            // reload resources
+            PropellantFlag::RequireResourcesLoading(resource_flags) => match self.world.get_system_and_world_mut(id("window")) {
+                Some((system, world)) => match (system.try_get_updatable_mut::<PropellantWindow>(), world.get_singleton_mut::<PropellantResources>()) {
+                    (Some(window), Some(resource_lib)) => {
+                        // load meshes
+                        let vk_interface = window.vk_interface_mut();
+                        resource_lib.load_resources(
+                            resource_flags,
+                            &vk_interface.instance,
+                            &vk_interface.device,
+                            vk_interface.physical_device,
+                            &mut vk_interface.transfer_manager,
+                        )?;
+                        // rebuild the resources uniforms.
+                        // todo : rebuild frame uniform, it should be in the components?
+                    }
+                    _ => {}
+                },
+                _ => {}
+            },
+            // flags are sent to the renderer
+            PropellantFlag::RequireSceneRebuild |
+            PropellantFlag::RequireCommandBufferRebuild => match self.world.get_system_mut(id("window")) {
+                Some(system) => match system.try_get_updatable_mut::<PropellantWindow>() {
+                    Some(window) => window.renderer_mut().engine_flag(flag),
+                    _ => {}
+                },
+                _ => {}
+            },
+            // the ui requires the screen size
+            PropellantFlag::UiRequireScreenSize => match self.world.get_system_and_world_mut(id("window")) {
+                Some((system, world)) => match system.try_get_updatable::<PropellantWindow>() {
+                    Some(window) => {
 
+                    },
+                    _ => {}
+                },
+                _ => {}
+            },
+        }
 
-pub struct RequireCommandBufferRebuildFlag;
+        Ok(())
+    }
 
-impl PropellantFlag for RequireCommandBufferRebuildFlag {
-    fn flag(&self) -> u64 {
-        0
-    }
-    fn from_flag(_: u64) -> Self {
-        RequireCommandBufferRebuildFlag
-    }
 }

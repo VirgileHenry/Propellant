@@ -7,7 +7,7 @@ use propellant::*;
 
 fn main() {
 
-    let mut resources = ProppellantResources::default();
+    let mut resources = PropellantResources::default();
     resources.meshes_mut().register_mesh(id("cube"), Mesh::cube(1.0));
 
     let window = PropellantWindowBuilder::default()
@@ -27,7 +27,7 @@ fn main() {
 
     let mut engine = PropellantEngine::default()
         .with_builded_window(window).unwrap()
-        .with_resources(resources);
+        .with_resources(resources).unwrap();
     
 
     let _cam = create_entity!(engine.world_mut();

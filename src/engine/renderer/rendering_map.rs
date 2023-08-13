@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    ProppellantResources,
+    PropellantResources,
     engine::{
         resources::mesh_library::LoadedMesh,
         consts::PROPELLANT_DEBUG_FEATURES
@@ -26,7 +26,7 @@ impl RenderingMap {
 
     /// Creates a iterator over the meshes and the instances to draw.
     /// With the provided resources, zip the mesh id to the mesh and filters the non existing meshes.
-    pub fn iter<'a>(&'a self, resources: &'a ProppellantResources) -> impl Iterator<Item = (&'a LoadedMesh, usize)> + '_ {
+    pub fn iter<'a>(&'a self, resources: &'a PropellantResources) -> impl Iterator<Item = (&'a LoadedMesh, usize)> + '_ {
         self.map.iter().map(|(k, v)| {
             let mesh = resources.meshes().loaded_mesh(k);
             if PROPELLANT_DEBUG_FEATURES {

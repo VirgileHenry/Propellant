@@ -1,6 +1,6 @@
 use crate::{
     engine::errors::PResult,
-    ProppellantResources
+    PropellantResources
 };
 
 use self::graphic_pipeline_state::GraphicPipelineCreationState;
@@ -31,7 +31,7 @@ pub trait GraphicPipelineInterface {
         vk_device: &vulkanalia::Device,
         image_index: usize,
         command_buffer: vulkanalia::vk::CommandBuffer,
-        resources: &ProppellantResources,
+        resources: &PropellantResources,
     );
     fn update_uniform_buffers(
         &mut self,

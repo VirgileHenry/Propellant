@@ -1,6 +1,6 @@
 use foundry::AsAny;
 
-use crate::{ColoredTexture, engine::renderer::graphic_pipeline::{renderable_component::RenderableComponent, uniform::object_uniform::ObjectUniform}, InstancedMeshRenderer};
+use crate::{ColoredTexture, engine::renderer::graphic_pipeline::{renderable_component::RenderableComponent, uniform::object_uniform::ObjectUniform}, InstancedMeshRenderer, id};
 
 
 #[allow(unused)]
@@ -28,6 +28,10 @@ impl UiMaterial {
             corner_radius,
             _padding: [0.0; 3],
         }
+    }
+
+    pub fn to_mesh_renderer(self) -> InstancedMeshRenderer<UiMaterial> {
+        InstancedMeshRenderer::new(id("ui_quad"), self)
     }
 }
 

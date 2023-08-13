@@ -7,13 +7,13 @@ use propellant::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    let mut resources = ProppellantResources::default();
+    let mut resources = PropellantResources::default();
     resources.meshes_mut().register_mesh(id("quad"), Mesh::flat_quad(2.0));
     resources.meshes_mut().register_mesh(id("cube"), Mesh::cube(0.6));
 
     let mut engine = PropellantEngine::default()
         .with_window()?
-        .with_resources(resources);
+        .with_resources(resources).unwrap();
     
 
     let _cam = create_entity!(engine.world_mut();
@@ -43,7 +43,7 @@ impl TextureLoader {
 impl Updatable for TextureLoader {
     fn update(&mut self, components: &mut foundry::ComponentTable, _delta: f32) {
         // create a new texture every frame
-        let texture_lib = match components.get_singleton_mut::<ProppellantResources>() {
+        let texture_lib = match components.get_singleton_mut::<PropellantResources>() {
             Some(resources) => resources.textures_mut(),
             None => {
                 println!("No texture library found!");
@@ -55,6 +55,6 @@ impl Updatable for TextureLoader {
             Ok(_) => println!("Registered texture {}", self.counter),
             Err(e) => println!("Failed to register texture {}: {}", self.counter, e),
         };
-        components.add_singleton(RequireResourcesLoadingFlag::TEXTURES);
+        // components.add_singleton(RequireResourcesLoadingFlag::TEXTURES);
     }
 }

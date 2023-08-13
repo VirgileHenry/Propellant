@@ -7,7 +7,7 @@ use propellant::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    let mut resources = ProppellantResources::default();
+    let mut resources = PropellantResources::default();
     
     resources.meshes_mut().register_mesh(id("quad"), Mesh::flat_quad(10.0));
     resources.meshes_mut().register_mesh(id("cat"), Mesh::from_bytes(include_bytes!("model/cat.gmesh"))?);
@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut engine = PropellantEngine::default()
         .with_window().unwrap()
-        .with_resources(resources);
+        .with_resources(resources).unwrap();
     
 
     let _cam = create_entity!(engine.world_mut();

@@ -5,16 +5,20 @@ use super::ObjectUniform;
 #[allow(unused)] // we don't use the fields directly, but they are used by the gpu
 #[derive(Debug, Clone, Copy)]
 pub struct UiPosUniformObject {
-    pub position: glam::Vec2,
-    pub relative_position: glam::Vec2,
-    pub size: glam::Vec2,
-    pub relative_size: glam::Vec2,
-    pub anchor: glam::Vec2,
+    pub pos: glam::Mat3,
+}
+
+impl Default for UiPosUniformObject {
+    fn default() -> Self {
+        UiPosUniformObject {
+            pos: glam::Mat3::from_translation(glam::Vec2::new(0.0, 0.0))
+        }
+    }
 }
 
 impl ObjectUniform for UiPosUniformObject {
     type FromComponent = UiTransform;
     fn get_uniform(transform: &UiTransform) -> Self {
-        transform.to_uniform()
+        transform.get_pos()
     }
 }

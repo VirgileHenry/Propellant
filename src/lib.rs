@@ -21,7 +21,7 @@ pub use engine::{
         colored_texture::ColoredTexture,
     },
     engine_events::PropellantEvent,
-    resources::ProppellantResources,
+    resources::PropellantResources,
     window::{
         PropellantWindow,
         window_builder::PropellantWindowBuilder,

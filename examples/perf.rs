@@ -4,12 +4,13 @@ use propellant::*;
 
 fn main() {
 
-    let mut resources = ProppellantResources::default();
+    let mut resources = PropellantResources::default();
     resources.meshes_mut().register_mesh(id("cube"), Mesh::cube(1.));
 
     let mut engine = PropellantEngine::default()
         .with_window().unwrap()
-        .with_resources(resources);
+        .with_resources(resources).unwrap()
+        .with_ui_resolution(1.0).unwrap();
 
     // sun
     engine.world_mut().add_singleton(DirectionnalLight::new(glam::vec3(1., 1., 1.), glam::vec3(1., 1., 1.), glam::vec3(1., 1., 1.)));

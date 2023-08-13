@@ -19,5 +19,6 @@ winit = "0.28.5"
 
 
 [features]
-default = ["ui"]
+default = ["ui", "debug-features"]
 ui = []
+debug-features = []

@@ -1,7 +1,7 @@
 use foundry::{ComponentTable, Updatable, System, AsAny};
 use crate::{
     engine::consts::PROPELLANT_DEBUG_FEATURES,
-    ProppellantResources, Camera, RequireCommandBufferRebuildFlag
+    PropellantResources, Camera
 };
 
 use self::vulkan::vulkan_interface::VulkanInterface;
@@ -51,13 +51,17 @@ impl PropellantWindow {
     #[cfg(feature = "ui")]
     /// handle window events. This does not need to be a self func, as the window threw the event.
     pub fn handle_event(&mut self, event: winit::event::WindowEvent, control_flow: &mut winit::event_loop::ControlFlow, components: &mut ComponentTable) {
+        use crate::PropellantFlag;
+
+        use super::engine_events::PropellantEventSenderExt;
+
         match event {
             winit::event::WindowEvent::CloseRequested => control_flow.set_exit(),
             winit::event::WindowEvent::Resized(new_size) => {
-                match self.handle_window_resize() {
+                match self.recreate_swapchain() {
                     Ok(_) => {
                         // command buffer will get invalidated.
-                        components.add_singleton(RequireCommandBufferRebuildFlag);
+                        components.send_flag(PropellantFlag::RequireCommandBufferRebuild);
                         // resize main cameras
                         for (_, camera) in components.query1d_mut::<Camera>() {
                             if camera.is_main() {
@@ -81,7 +85,7 @@ impl PropellantWindow {
         }
     }
 
-    pub fn handle_window_resize(&mut self) -> PResult<()> {
+    pub fn recreate_swapchain(&mut self) -> PResult<()> {
 
         // resize vulkan surface
         self.vk_interface.wait_idle()?;
@@ -106,6 +110,14 @@ impl PropellantWindow {
         &mut self.vk_interface
     }
 
+    pub fn renderer(&self) -> &dyn VulkanRenderer {
+        self.renderer.as_ref()
+    }
+
+    pub fn renderer_mut(&mut self) -> &mut dyn VulkanRenderer {
+        self.renderer.as_mut()
+    }
+
     pub fn world_clean_up(&mut self, components: &mut ComponentTable) {
         // wait any remaining work on the vulkan side
         match self.vk_interface.wait_idle() {
@@ -118,7 +130,7 @@ impl PropellantWindow {
         };
 
         // clean up mesh library
-        match components.remove_singleton::<ProppellantResources>() {
+        match components.remove_singleton::<PropellantResources>() {
             Some(mut resources) => resources.destroy(&self.vk_interface.device),
             None => {},
         }

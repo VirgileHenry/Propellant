@@ -1,19 +1,15 @@
 
 use foundry::World;
-use crate::{id, InputHandlerBuilder};
+use crate::{id, InputHandlerBuilder, PropellantFlag, resource_loading::RequireResourcesLoadingFlag};
 
 use self::{
-    engine_events::PropellantEvent,
+    engine_events::{PropellantEvent, PropellantEventSenderExt, PropellantEventSender},
     window::{
         PropellantWindow,
         window_builder::PropellantWindowBuilder
     },
     errors::{PResult, PropellantError},
-    flags::{
-        RequireResourcesLoadingFlag,
-        RequireSceneRebuildFlag
-    },
-    resources::ProppellantResources,
+    resources::PropellantResources,
     inputs::input_system::InputSystem, 
     consts::PROPELLANT_DEBUG_FEATURES,
 };
@@ -55,12 +51,13 @@ pub struct PropellantEngine {
 impl Default for PropellantEngine {
     fn default() -> Self {
         // create the event loop.
-        let mut event_loop_builder = winit::event_loop::EventLoopBuilder::<PropellantEvent>::with_user_event();
-
+        let event_loop_builder = winit::event_loop::EventLoopBuilder::<PropellantEvent>::with_user_event().build();
+        let mut world = World::default();
+        world.add_singleton(PropellantEventSender::new(event_loop_builder.create_proxy()));
         PropellantEngine {
-            event_loop: Some(event_loop_builder.build()),
+            event_loop: Some(event_loop_builder),
             last_frame_update: std::time::Instant::now(),
-            world: World::default()
+            world,
         }
     }
 }
@@ -88,7 +85,7 @@ impl PropellantEngine {
         self.world.register_system(window.into(), id("window"));
         self.event_loop = Some(event_loop);
         // marks the scene need building
-        self.world.add_singleton(RequireSceneRebuildFlag);
+        self.world.send_flag(PropellantFlag::RequireSceneRebuild)?;
         Ok(self)
     }
 
@@ -100,15 +97,15 @@ impl PropellantEngine {
         self.world.register_system(window.into(), id("window"));
         self.event_loop = Some(event_loop);
         // marks the scene need building
-        self.world.add_singleton(RequireSceneRebuildFlag);
+        self.world.send_flag(PropellantFlag::RequireSceneRebuild)?;
         Ok(self)
     }
 
     /// Adds a mesh library to the engine, and add the mesh lib need rebuild flag.
-    pub fn with_resources(mut self, resources: ProppellantResources) -> PropellantEngine {
+    pub fn with_resources(mut self, resources: PropellantResources) -> PResult<PropellantEngine> {
         self.world.add_singleton(resources);
-        self.world.add_singleton(RequireResourcesLoadingFlag::ALL);
-        self
+        self.world.send_flag(PropellantFlag::RequireResourcesLoading(RequireResourcesLoadingFlag::ALL))?;
+        Ok(self)
     }
 
     /// Add an input handler to the engine, and register the input system.

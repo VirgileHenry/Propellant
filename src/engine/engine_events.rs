@@ -1,7 +1,12 @@
-use crate::{PropellantEngine, PropellantWindow, InputHandler, id};
+use foundry::ComponentTable;
+use winit::event_loop::EventLoopProxy;
 
-use super::{inputs::input_system::InputSystem, consts::PROPELLANT_DEBUG_FEATURES};
+use crate::{
+    PropellantEngine,
+    PropellantWindow, PropellantFlag
+};
 
+use super::{errors::PResult, consts::PROPELLANT_DEBUG_FEATURES};
 
 
 /// Events to send to the event loop.
@@ -11,6 +16,7 @@ pub enum PropellantEvent {
     SwapchainRecreationRequest,
     AddEventContext(u64),
     RemoveEventContext(u64),
+    HandleEngineFlag(PropellantFlag),
 }
 
 impl PropellantEngine {
@@ -22,7 +28,7 @@ impl PropellantEngine {
                 // get to the window, and ask swap chain recreation.
                 match self.world.get_singleton_mut::<PropellantWindow>() {
                     Some(window) => {
-                        match window.handle_window_resize() {
+                        match window.recreate_swapchain() {
                             Ok(_) => {},
                             Err(e) => println!("{e}"),
                         };
@@ -30,40 +36,61 @@ impl PropellantEngine {
                     None => {},
                 }
             },
-            PropellantEvent::AddEventContext(ctx_id) => match self.world.get_system_and_world_mut(id("input_system")) {
-                Some((input_system_wrapper, comps)) 
-                    => match (input_system_wrapper.try_get_updatable_mut::<InputSystem>(), comps.get_singleton_mut::<InputHandler>()) {
-                    (Some(input_system), Some(input_handler)) => {
-                        match input_handler.get_context(ctx_id) {
-                            Some(context) => input_system.register_context(ctx_id, context),
-                            None => if PROPELLANT_DEBUG_FEATURES {
-                                println!("[PROPELLANT DEBUG] Unable to find context with id {} in input handler.", ctx_id);
-                            }
-                        }
-                    },
-                    _ => if PROPELLANT_DEBUG_FEATURES {
-                        println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
-                    }                                
-                },
-                None => {},
+            PropellantEvent::AddEventContext(ctx_id) => self.add_input_context(ctx_id),
+            PropellantEvent::RemoveEventContext(ctx_id) => self.remove_input_context(ctx_id),
+            PropellantEvent::HandleEngineFlag(flag) => match self.handle_engine_flag(flag) {
+                Ok(_) => {},
+                Err(e) => println!("[PROPELLANT DEBUG] Error while handling flag: {e}"),
             },
-            PropellantEvent::RemoveEventContext(ctx_id) => match self.world.get_system_and_world_mut(id("input_system")) {
-                Some((input_system_wrapper, comps)) 
-                    => match (input_system_wrapper.try_get_updatable_mut::<InputSystem>(), comps.get_singleton_mut::<InputHandler>()) {
-                    (Some(input_system), Some(input_handler)) => {
-                        match input_system.remove_context(ctx_id) {
-                            Some(context) => input_handler.add_context(ctx_id, context),
-                            None => if PROPELLANT_DEBUG_FEATURES {
-                                println!("[PROPELLANT DEBUG] Unable to find context with id {} in input handler.", ctx_id);
-                            }
-                        }
-                    },
-                    _ => if PROPELLANT_DEBUG_FEATURES {
-                        println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
-                    }                                
-                },
-                None => {},
-            },
+        }
+    }
+}
+
+
+pub struct PropellantEventSender {
+    proxy: EventLoopProxy<PropellantEvent>,
+}
+
+impl PropellantEventSender {
+    pub fn new(proxy: EventLoopProxy<PropellantEvent>) -> Self {
+        Self {
+            proxy,
+        }
+    }
+
+    pub fn send(&self, event: PropellantEvent) -> PResult<()> {
+        self.proxy.send_event(event)?;
+        Ok(())
+    }
+}
+
+pub trait PropellantEventSenderExt {
+    fn send_event(&self, event: PropellantEvent) -> PResult<()>;
+    fn send_flag(&self, flag: PropellantFlag) -> PResult<()>;
+}
+
+impl PropellantEventSenderExt for ComponentTable {
+    fn send_event(&self, event: PropellantEvent) -> PResult<()> {
+        match self.get_singleton::<PropellantEventSender>() {
+            Some(sender) => sender.send(event),
+            None => {
+                if PROPELLANT_DEBUG_FEATURES {
+                    println!("[PROPELLANT DEBUG] Event sender: no event sender found. Event not sent.");
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn send_flag(&self, flag: PropellantFlag) -> PResult<()> {
+        match self.get_singleton::<PropellantEventSender>() {
+            Some(sender) => sender.send(PropellantEvent::HandleEngineFlag(flag)),
+            None => {
+                if PROPELLANT_DEBUG_FEATURES {
+                    println!("[PROPELLANT DEBUG] Event sender: no event sender found. Event not sent.");
+                }
+                Ok(())
+            }
         }
     }
 }

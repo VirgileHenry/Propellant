@@ -1,6 +1,6 @@
 use crate::engine::renderer::graphic_pipeline::GraphicPipelineInterface;
 use crate::engine::renderer::graphic_pipeline::graphic_pipeline_builder::GraphicPipelineBuilderInterface;
-use crate::{ProppellantResources, FinalRenderTargetBuilder};
+use crate::{PropellantResources, FinalRenderTargetBuilder};
 use crate::engine::{errors::PResult, window::vulkan::swapchain_interface::SwapchainInterface};
 
 use foundry::ComponentTable;
@@ -132,7 +132,7 @@ impl GraphicRenderpass {
         vk_device: &vulkanalia::Device,
         command_buffer: vulkanalia::vk::CommandBuffer,
         swapchain_extent: vulkanalia::vk::Extent2D,
-        resources: &ProppellantResources,
+        resources: &PropellantResources,
         image_index: usize,
     ) -> PResult<()> {
 

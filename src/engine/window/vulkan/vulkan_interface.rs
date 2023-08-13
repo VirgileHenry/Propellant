@@ -213,7 +213,7 @@ impl VulkanInterface {
     }
 
     /// Operates the registered memory transfers, and wait for them to be done.
-    pub fn chack_and_process_memory_transfers(&mut self) -> PResult<()> {
+    pub fn check_and_process_memory_transfers(&mut self) -> PResult<()> {
         // process any memory transfers that are required.
         if self.transfer_manager.need_transfers() {
             self.transfer_manager.transfer(&self.device, self.queue)?;

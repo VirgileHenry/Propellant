@@ -1,5 +1,9 @@
 use foundry::ComponentTable;
 
+use crate::{PropellantEngine, engine::consts::PROPELLANT_DEBUG_FEATURES, InputHandler, id};
+
+use super::input_system::InputSystem;
+
 
 
 /// An input context is a set of input states, that can be bound to from the raw inputs.
@@ -13,4 +17,46 @@ pub trait InputContext {
     fn update(&mut self, components: &mut ComponentTable, delta: f32);
     /// Called when this context becomes the active one.
     fn on_become_active(&mut self, components: &mut ComponentTable);
+}
+
+
+impl PropellantEngine {
+    pub fn add_input_context(&mut self, ctx_id: u64) {
+        match self.world.get_system_and_world_mut(id("input_system")) {
+            Some((input_system_wrapper, comps)) 
+                => match (input_system_wrapper.try_get_updatable_mut::<InputSystem>(), comps.get_singleton_mut::<InputHandler>()) {
+                (Some(input_system), Some(input_handler)) => {
+                    match input_handler.get_context(ctx_id) {
+                        Some(context) => input_system.register_context(ctx_id, context),
+                        None => if PROPELLANT_DEBUG_FEATURES {
+                            println!("[PROPELLANT DEBUG] Unable to find context with id {} in input handler.", ctx_id);
+                        }
+                    }
+                },
+                _ => if PROPELLANT_DEBUG_FEATURES {
+                    println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
+                }                                
+            },
+            None => {},
+        }
+    }
+    pub fn remove_input_context(&mut self, ctx_id: u64) {
+        match self.world.get_system_and_world_mut(id("input_system")) {
+            Some((input_system_wrapper, comps)) 
+                => match (input_system_wrapper.try_get_updatable_mut::<InputSystem>(), comps.get_singleton_mut::<InputHandler>()) {
+                (Some(input_system), Some(input_handler)) => {
+                    match input_system.remove_context(ctx_id) {
+                        Some(context) => input_handler.add_context(ctx_id, context),
+                        None => if PROPELLANT_DEBUG_FEATURES {
+                            println!("[PROPELLANT DEBUG] Unable to find context with id {} in input handler.", ctx_id);
+                        }
+                    }
+                },
+                _ => if PROPELLANT_DEBUG_FEATURES {
+                    println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
+                }                                
+            },
+            None => {},
+        }
+    }
 }

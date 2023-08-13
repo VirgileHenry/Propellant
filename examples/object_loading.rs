@@ -5,7 +5,7 @@ use rand::Rng;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    let mut resources = ProppellantResources::default();
+    let mut resources = PropellantResources::default();
     resources.meshes_mut().register_mesh(id("cube1"), Mesh::cube(0.01));
     resources.meshes_mut().register_mesh(id("cube2"), Mesh::cube(0.02));
     resources.meshes_mut().register_mesh(id("cube3"), Mesh::cube(0.03));
@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut engine = PropellantEngine::default()
         .with_window()?
-        .with_resources(resources);
+        .with_resources(resources)?;
     
     // sun 
     engine.world_mut().add_singleton(DirectionnalLight::new(
@@ -84,7 +84,7 @@ impl Updatable for ObjectLoader {
                 )
             ),
         };
-        components.add_singleton(RequireSceneRebuildFlag);
+        // components.send_flag(PropellantFlag::RequireSceneRebuildFlag);
     }
 }
 
