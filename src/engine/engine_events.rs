@@ -38,9 +38,11 @@ impl PropellantEngine {
             },
             PropellantEvent::AddEventContext(ctx_id) => self.add_input_context(ctx_id),
             PropellantEvent::RemoveEventContext(ctx_id) => self.remove_input_context(ctx_id),
-            PropellantEvent::HandleEngineFlag(flag) => match self.handle_engine_flag(flag) {
+            PropellantEvent::HandleEngineFlag(flag) => match self.handle_flag(flag) {
                 Ok(_) => {},
-                Err(e) => println!("[PROPELLANT DEBUG] Error while handling flag: {e}"),
+                Err(e) => if PROPELLANT_DEBUG_FEATURES {
+                    println!("[PROPELLANT DEBUG] Error while handling engine flag: {e}");
+                },
             },
         }
     }

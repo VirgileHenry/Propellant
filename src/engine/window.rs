@@ -1,4 +1,5 @@
-use foundry::{ComponentTable, Updatable, System, AsAny};
+use foundry::{ComponentTable, AsAny};
+
 use crate::{
     engine::consts::PROPELLANT_DEBUG_FEATURES,
     PropellantResources, Camera
@@ -14,6 +15,7 @@ use super::renderer::graphic_pipeline::uniform::frame_uniform::ui_resolution::Ui
 pub struct PropellantWindow {
     vk_interface: VulkanInterface,
     window: winit::window::Window,
+    #[cfg(feature = "vulkan-renderer")]
     renderer: Box<dyn VulkanRenderer>,
 }
 
@@ -21,6 +23,18 @@ impl PropellantWindow {
 
     pub fn request_redraw(&self) {
         self.window.request_redraw();
+    }
+
+    pub fn render(&mut self, components: &mut ComponentTable) {
+        #[cfg(feature = "vulkan-renderer")]
+        {
+            match self.renderer.render(&mut self.vk_interface, components) {
+                Ok(_) => {},
+                Err(e) => if cfg!(feature = "propellant-debug") {
+                    println!("[PROPELLANT DEBUG] [WINDOW] Error while rendering frame: {e}");
+                },
+            }
+        }
     }
 
     #[cfg(not(feature = "ui"))]
@@ -61,7 +75,10 @@ impl PropellantWindow {
                 match self.recreate_swapchain() {
                     Ok(_) => {
                         // command buffer will get invalidated.
-                        components.send_flag(PropellantFlag::RequireCommandBufferRebuild);
+                        match components.send_flag(PropellantFlag::RequireCommandBufferRebuild) {
+                            Ok(_) => {},
+                            Err(e) => println!("{e} sending command buffer rebuild flag."),
+                        };
                         // resize main cameras
                         for (_, camera) in components.query1d_mut::<Camera>() {
                             if camera.is_main() {
@@ -146,25 +163,7 @@ impl PropellantWindow {
 
 }
 
-impl Updatable for PropellantWindow {
-    fn update(&mut self, components: &mut ComponentTable, delta: f32) {
-        // rendering loop : 
-        // look for any mesh renderer builder to build 
-        // redraw the scene
-        // check for invalidation of the swapchain
-        match self.renderer.render(&mut self.vk_interface, components, delta) {
-            Ok(_) => {}, // todo : handle non optimal swapchain ok value
-            Err(e) => println!("{e} while rendering"),
-        };
-    }
-}
 
-/// Convert the propellant window into a foundry system that updates every frame.
-impl Into<System> for PropellantWindow {
-    fn into(self) -> System {
-        System::new(self, foundry::UpdateFrequency::PerFrame)
-    }
-}
 
 pub(crate) mod window_builder;
 pub(crate) mod vulkan;

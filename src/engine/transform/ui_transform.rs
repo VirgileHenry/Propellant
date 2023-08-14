@@ -82,7 +82,7 @@ impl UiTransformCore {
                 #[cfg(feature = "debug-features")]
                 let resolution = self.resolution.expect("Screen size not set for ui transform. You might missed a UiRequireScreenSizeFlag flag when creating new UI elemnts.");
                 #[cfg(not(feature = "debug-features"))]
-                let resolution = self.screen_size.unwrap_or(glam::Vec2::new(1080.0, 1920.0));
+                let resolution = self.resolution.unwrap_or(glam::Vec2::new(1080.0, 1920.0));
                 let screen_size = glam::Vec2::new(resolution.screen_width, resolution.screen_width);
                 let total_size = self.relative_size + self.size / screen_size;
                 let total_pos = self.relative_position + self.position / screen_size - anchor * total_size;
@@ -98,7 +98,7 @@ impl UiTransformCore {
                 #[cfg(feature = "debug-features")]
                 let resolution = self.resolution.expect("Screen size not set for ui transform. You might missed a UiRequireScreenSizeFlag flag when creating new UI elemnts.");
                 #[cfg(not(feature = "debug-features"))]
-                let resolution = self.screen_size.unwrap_or(glam::Vec2::new(1080.0, 1920.0));
+                let resolution = self.resolution.unwrap_or(glam::Vec2::new(1080.0, 1920.0));
                 let screen_size = glam::Vec2::new(resolution.screen_width, resolution.screen_width);
                 let total_size = self.relative_size + self.size / screen_size;
                 let total_pos = self.relative_position + self.position / screen_size - anchor * total_size;

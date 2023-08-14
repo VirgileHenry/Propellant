@@ -1,64 +1,49 @@
-use crate::{PropellantEngine, PropellantResources, PropellantWindow, id};
-
+use crate::{PropellantEngine, PropellantResources};
 use self::resource_loading::RequireResourcesLoadingFlag;
-use super::errors::PResult;
 
+use super::errors::PResult;
 
 pub(crate) mod resource_loading;
 
 #[derive(Debug, Clone, Copy)]
 pub enum PropellantFlag {
+    #[cfg(feature = "window")]
     RequireSceneRebuild,
-    RequireResourcesLoading(RequireResourcesLoadingFlag),
+    #[cfg(feature = "window")]
     RequireCommandBufferRebuild,
+    #[cfg(feature = "resources")]
+    RequireResourcesLoading(RequireResourcesLoadingFlag),
     UiRequireScreenSize,
 }
 
 impl PropellantEngine {
-    pub fn handle_engine_flag(&mut self, flag: PropellantFlag) -> PResult<()> {
+    pub fn handle_flag(&mut self, flag: PropellantFlag) -> PResult<()> {
         match flag {
-            // reload resources
-            PropellantFlag::RequireResourcesLoading(resource_flags) => match self.world.get_system_and_world_mut(id("window")) {
-                Some((system, world)) => match (system.try_get_updatable_mut::<PropellantWindow>(), world.get_singleton_mut::<PropellantResources>()) {
-                    (Some(window), Some(resource_lib)) => {
-                        // load meshes
+            #[cfg(feature = "window")]
+            PropellantFlag::RequireSceneRebuild => self.window.renderer_mut().handle_engine_flag(flag),
+            #[cfg(feature = "window")]
+            PropellantFlag::RequireCommandBufferRebuild => self.window.renderer_mut().handle_engine_flag(flag),
+            #[cfg(all(feature = "resources", feature = "window"))]
+            PropellantFlag::RequireResourcesLoading(flags) => {
+                let (world, window) = self.world_and_window_mut();
+                match world.get_singleton_mut::<PropellantResources>() {
+                    Some(resources) => {
                         let vk_interface = window.vk_interface_mut();
-                        resource_lib.load_resources(
-                            resource_flags,
+                        resources.load_resources(
+                            flags,
                             &vk_interface.instance,
                             &vk_interface.device,
                             vk_interface.physical_device,
                             &mut vk_interface.transfer_manager,
                         )?;
-                        // rebuild the resources uniforms.
-                        // todo : rebuild frame uniform, it should be in the components?
-                    }
-                    _ => {}
-                },
-                _ => {}
-            },
-            // flags are sent to the renderer
-            PropellantFlag::RequireSceneRebuild |
-            PropellantFlag::RequireCommandBufferRebuild => match self.world.get_system_mut(id("window")) {
-                Some(system) => match system.try_get_updatable_mut::<PropellantWindow>() {
-                    Some(window) => window.renderer_mut().engine_flag(flag),
-                    _ => {}
-                },
-                _ => {}
-            },
-            // the ui requires the screen size
-            PropellantFlag::UiRequireScreenSize => match self.world.get_system_and_world_mut(id("window")) {
-                Some((system, world)) => match system.try_get_updatable::<PropellantWindow>() {
-                    Some(window) => {
-
+                        vk_interface.check_and_process_memory_transfers()?;
                     },
-                    _ => {}
-                },
-                _ => {}
+                    None => println!("[PROPELLANT DEBUG] Resources loading requested, but no resources found."),
+                }
             },
+            _ => {},
         }
 
         Ok(())
     }
-
 }

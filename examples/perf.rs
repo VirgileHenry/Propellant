@@ -7,10 +7,8 @@ fn main() {
     let mut resources = PropellantResources::default();
     resources.meshes_mut().register_mesh(id("cube"), Mesh::cube(1.));
 
-    let mut engine = PropellantEngine::default()
-        .with_window().unwrap()
-        .with_resources(resources).unwrap()
-        .with_ui_resolution(1.0).unwrap();
+    let mut engine = PropellantEngine::builder()
+        .with_resources(resources);
 
     // sun
     engine.world_mut().add_singleton(DirectionnalLight::new(glam::vec3(1., 1., 1.), glam::vec3(1., 1., 1.), glam::vec3(1., 1., 1.)));
@@ -18,7 +16,7 @@ fn main() {
         Transform::origin().translated(glam::vec3(0., 3., -4.)),
         Camera::main_perspective(800., 450., 0.1, 100., 1.5)
     );
-    let _cubes = create_entities!(engine.world_mut(); 500_000,
+    let _cubes = create_entities!(engine.world_mut(); 100_000,
         |i| Transform::origin().translated(glam::vec3(0., 0., -(i as f32))).scaled(glam::vec3(1./ (i as f32 + 1.), 1./ (i as f32 + 1.), 1./ (i as f32 + 1.))),
         |_| InstancedMeshRenderer::new(id("cube"), PhongMaterial::default())
     );
@@ -26,7 +24,7 @@ fn main() {
     engine.world_mut().register_system(System::new(FPSCounter{timer: -3., frames: 0}, foundry::UpdateFrequency::PerFrame), id("fps_counter"));
     // engine.world_mut().register_system(FpsLimiter::new(200.), id("fps_limiter"));
 
-    engine.main_loop();
+    engine.main_loop().unwrap();
 }
 
 #[derive(AsAny)]

@@ -3,6 +3,7 @@ use crate::engine::engine_events::PropellantEvent;
 use crate::engine::errors::PResult;
 use crate::engine::renderer::renderer_builder::VulkanRendererBuilder;
 use crate::engine::renderer::renderer_builder::default_vulkan_renderer_builder::DefaultVulkanRendererBuilder;
+use crate::utils::builder::HasBuilder;
 use super::PropellantWindow;
 use super::vulkan::physical_device_prefs::{PhysicalDevicePreferences, DefaultPhysicalDevicePreferences};
 use super::vulkan::vulkan_interface::VulkanInterface;
@@ -16,6 +17,19 @@ pub struct PropellantWindowBuilder {
     device_prefs: Box<dyn PhysicalDevicePreferences>,
     renderer: Box<dyn VulkanRendererBuilder>,
     inner_size: (usize, usize),
+}
+
+impl HasBuilder for PropellantWindow {
+    type Builder = PropellantWindowBuilder;
+
+    fn builder() -> Self::Builder {
+        PropellantWindowBuilder {
+            app_name: format!("Propellant Engine V{}.{}.{}", ENGINE_VERSION.0, ENGINE_VERSION.1, ENGINE_VERSION.2),
+            device_prefs: Box::new(DefaultPhysicalDevicePreferences),
+            renderer: DefaultVulkanRendererBuilder::default(),
+            inner_size: (800, 450),
+        }
+    }
 }
 
 impl PropellantWindowBuilder {
@@ -52,15 +66,3 @@ impl PropellantWindowBuilder {
     }
 
 }
-
-impl Default for PropellantWindowBuilder {
-    fn default() -> Self {
-        PropellantWindowBuilder {
-            app_name: format!("Propellant Engine V{}.{}.{}", ENGINE_VERSION.0, ENGINE_VERSION.1, ENGINE_VERSION.2),
-            device_prefs: Box::new(DefaultPhysicalDevicePreferences),
-            renderer: DefaultVulkanRendererBuilder::default(),
-            inner_size: (800, 450),
-        }
-    }
-}
-

@@ -20,7 +20,10 @@ pub use engine::{
         phong_material::PhongMaterial,
         colored_texture::ColoredTexture,
     },
-    engine_events::PropellantEvent,
+    engine_events::{
+        PropellantEvent,
+        PropellantEventSenderExt,
+    },
     resources::PropellantResources,
     window::{
         PropellantWindow,
@@ -71,9 +74,12 @@ pub use winit;
 pub use vulkanalia;
 pub use vk_shader_macros;
 
-pub use utils::id::{
-    id,
-    small_id,
+pub use utils::{
+    id::{
+        id,
+        small_id,
+    },
+    builder::HasBuilder,
 };
 
 

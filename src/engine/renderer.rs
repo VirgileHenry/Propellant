@@ -27,7 +27,7 @@ pub(crate) mod rendering_map;
 
 pub trait VulkanRenderer {
     /// Render the scene using the vulkan interface and the components.
-    fn render(&mut self, vk_interface: &mut VulkanInterface, components: &mut ComponentTable, delta_time: f32)-> PResult<vulkanalia::vk::SuccessCode>;
+    fn render(&mut self, vk_interface: &mut VulkanInterface, components: &mut ComponentTable)-> PResult<vulkanalia::vk::SuccessCode>;
     /// Called when the surface is out of date. Does not destroy the previous pipeline, this is done via the `destroy_pipeline` method.
     fn recreate_rendering_pipeline(
         &mut self, 
@@ -39,7 +39,7 @@ pub trait VulkanRenderer {
         queue_indices: QueueFamilyIndices,
     ) -> PResult<()>;
     /// The engine is sending a flag to the renderer.
-    fn engine_flag(&mut self, flag: PropellantFlag);
+    fn handle_engine_flag(&mut self, flag: PropellantFlag);
     /// Destroy the current rendering pipeline.
     fn recreation_cleanup(&mut self, vk_device: &vulkanalia::Device);
     /// Clean up of all the vulkan resources.
@@ -62,13 +62,17 @@ impl SyncingState {
     }
 
     fn add_flag(&mut self, flag: PropellantFlag, frame_count: usize) {
+        for (f, frames) in self.syncing_frames.iter_mut() {
+            if std::mem::discriminant(&flag) == std::mem::discriminant(f) {
+                frames.iter_mut().for_each(|frame| *frame = false);
+                return;
+            }
+        }
         self.syncing_frames.push_back((flag, vec![false; frame_count]));
     }
 
     fn get_frame_flags(
         &mut self,
-        current_frame: usize,
-        frame_count: usize,
     ) -> Vec<PropellantFlag> {
         self.syncing_frames.iter().map(|(flag, _)| *flag).collect()
     }
@@ -110,17 +114,13 @@ impl DefaultVulkanRenderer {
         })
     }
 
-    pub fn add_flag(&mut self, flag: PropellantFlag) {
-        self.syncing_state.add_flag(flag, self.rendering_pipeline.swapchain_image_count());
-    }
-
     fn check_flag_handling(
         &mut self,
         vk_interface: &mut VulkanInterface,
         components: &ComponentTable,
         current_frame: usize,
     ) -> PResult<()> {
-        for flag in self.syncing_state.get_frame_flags(current_frame, self.rendering_pipeline.swapchain_image_count()).into_iter() {
+        for flag in self.syncing_state.get_frame_flags().into_iter() {
             self.handle_rendering_flag(vk_interface, components, flag, current_frame)?;
         }
         self.syncing_state.update_syncing_frames(current_frame);
@@ -177,8 +177,7 @@ impl DefaultVulkanRenderer {
         vk_interface: &mut VulkanInterface,
         components: &ComponentTable,
         image_index: usize,
-    ) -> PResult<()> {
-        
+    ) -> PResult<()> {        
         self.rendering_pipeline.scene_recreation(
             components
         )?;
@@ -201,8 +200,7 @@ impl DefaultVulkanRenderer {
 
 
 impl VulkanRenderer for DefaultVulkanRenderer {
-    fn render(&mut self, vk_interface: &mut VulkanInterface, components: &mut ComponentTable, _delta_time: f32) -> PResult<vulkanalia::vk::SuccessCode> {
-
+    fn render(&mut self, vk_interface: &mut VulkanInterface, components: &mut ComponentTable) -> PResult<vulkanalia::vk::SuccessCode> {
         
         // vulkan rendering loop
         unsafe {
@@ -218,8 +216,9 @@ impl VulkanRenderer for DefaultVulkanRenderer {
                     self.rendering_pipeline.rendering_sync().image_available_semaphore(),
                     vulkanalia::vk::Fence::null(),
                 )?.0 as usize;
+                
 
-            // wait for any in flight image
+                // wait for any in flight image
             self.rendering_pipeline.rendering_sync_mut().wait_for_in_flight_image(image_index, &vk_interface.device)?;
 
             // look for flags
@@ -290,7 +289,7 @@ impl VulkanRenderer for DefaultVulkanRenderer {
         Ok(())
     }
 
-    fn engine_flag(&mut self, flag: PropellantFlag) {
+    fn handle_engine_flag(&mut self, flag: PropellantFlag) {
         self.syncing_state.add_flag(flag, self.rendering_pipeline.swapchain_image_count());
     }
 

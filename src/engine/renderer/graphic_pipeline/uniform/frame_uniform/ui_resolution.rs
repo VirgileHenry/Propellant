@@ -19,7 +19,7 @@ impl FrameUniform for UiResolution {
             Some(res) => *res,
             None => {
                 if PROPELLANT_DEBUG_FEATURES {
-                    println!("UiResolution singleton not found, creating a new one. This will imply false screen width and height.");
+                    // println!("UiResolution singleton not found, creating a new one. This will imply false screen width and height.");
                 }
                 UiResolution {
                     resolution: 1.,

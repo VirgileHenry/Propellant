@@ -14,11 +14,15 @@ paste = "1.0.14"
 rand = "0.8.5"
 tree-box = {path = "deps/tree-box"}
 vk-shader-macros = "0.2.8"
-vulkanalia = { version = "=0.19.0", features = ["libloading", "provisional", "window"] }
-winit = "0.28.5"
+vulkanalia = { version = "=0.19.0", features = ["libloading", "provisional", "window"], optional = true }
+winit = { version = "0.28.5", optional = true }
 
 
 [features]
-default = ["ui", "debug-features"]
-ui = []
+default = ["ui", "debug-features","window", "vulkan-renderer", "resources", "inputs"]
 debug-features = []
+window = ["dep:winit"]
+vulkan-renderer = ["window", "dep:vulkanalia"]
+ui = []
+resources = []
+inputs = []
