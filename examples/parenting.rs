@@ -7,10 +7,8 @@ fn main() {
     let mut resources = PropellantResources::default();
     resources.meshes_mut().register_mesh(id("cube"), Mesh::cube(1.0));
 
-    let mut engine = PropellantEngine::default()
-        .with_window().unwrap()
-        .with_resources(resources).unwrap();
-    
+    let mut engine = PropellantEngine::builder()
+        .with_resources(resources);
 
     let _cam = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(0., -3., -4.)),
@@ -43,7 +41,7 @@ fn main() {
     engine.world_mut().register_system(Rotater::new(), 11);
 
 
-    engine.main_loop();
+    engine.main_loop().unwrap();
 }
 
 struct RotatingObject;

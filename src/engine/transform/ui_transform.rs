@@ -2,10 +2,12 @@ use std::cell::Cell;
 
 use tree_box::TreeBox;
 
-use crate::{
-    CursorPosition,
-    engine::renderer::graphic_pipeline::uniform::{object_uniform::ui_model_uniform::UiPosUniformObject, frame_uniform::ui_resolution::UiResolution}
+use crate::engine::renderer::graphic_pipeline::uniform::{
+    object_uniform::ui_model_uniform::UiPosUniformObject,
+    frame_uniform::ui_resolution::UiResolution
 };
+#[cfg(feature = "inputs")]
+use crate::CursorPosition;
 
 #[derive(Debug, Clone, Copy)]
 pub enum UiAnchor {
@@ -50,24 +52,6 @@ pub struct UiTransformCore {
 }
 
 impl UiTransformCore {
-    pub fn ui_contains_cursor(&self, cursor: CursorPosition) -> bool {
-        match cursor {
-            CursorPosition::OutOfScreen => false,
-            CursorPosition::InScreen { mouse_x, mouse_y, screen_width, screen_height, ui_res } => {
-                // compute widget screen space
-                let tx = self.position.x * ui_res + self.relative_position.x * screen_width;
-                let ty = self.position.y * ui_res + self.relative_position.y * screen_height;
-                let tw = self.size.x * ui_res + self.relative_size.x * screen_width;
-                let th = self.size.y * ui_res + self.relative_size.y * screen_height;
-                let (ax, ay) = self.anchor.to_values();
-                let tx = tx - ax * tw;
-                let ty = ty - ay * th;
-                // check if cursor is in widget screen space
-                mouse_x >= tx && mouse_x <= tx + tw && mouse_y >= ty && mouse_y <= ty + th
-            }
-        }
-    }
-
     pub fn invalidate_pos(&self) {
         self.computed_pos.set(None);
     }
@@ -124,6 +108,27 @@ impl UiTransformCore {
     }
 }
 
+#[cfg(feature = "inputs")]
+impl UiTransformCore {
+    pub fn ui_contains_cursor(&self, cursor: CursorPosition) -> bool {
+        match cursor {
+            CursorPosition::OutOfScreen => false,
+            CursorPosition::InScreen { mouse_x, mouse_y, screen_width, screen_height, ui_res } => {
+                // compute widget screen space
+                let tx = self.position.x * ui_res + self.relative_position.x * screen_width;
+                let ty = self.position.y * ui_res + self.relative_position.y * screen_height;
+                let tw = self.size.x * ui_res + self.relative_size.x * screen_width;
+                let th = self.size.y * ui_res + self.relative_size.y * screen_height;
+                let (ax, ay) = self.anchor.to_values();
+                let tx = tx - ax * tw;
+                let ty = ty - ay * th;
+                // check if cursor is in widget screen space
+                mouse_x >= tx && mouse_x <= tx + tw && mouse_y >= ty && mouse_y <= ty + th
+            }
+        }
+    }
+}
+
 pub struct UiTransform {
     core: TreeBox<UiTransformCore>,
 }
@@ -177,11 +182,14 @@ impl UiTransform {
         self
     }
 
-    pub fn ui_contains_cursor(&self, cursor: CursorPosition) -> bool {
-        self.core.get(|tf| tf.ui_contains_cursor(cursor))
-    }
     // todo : funcs to change the transform
 
 }
 
 
+#[cfg(feature = "inputs")]
+impl UiTransform {
+    pub fn ui_contains_cursor(&self, cursor: CursorPosition) -> bool {
+        self.core.get(|tf| tf.ui_contains_cursor(cursor))
+    }
+}

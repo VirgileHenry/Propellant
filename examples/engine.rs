@@ -1,10 +1,10 @@
-use propellant::PropellantEngine;
+use propellant::{PropellantEngine, HasBuilder};
 
 
 
 fn main() {
     // create a propellant engine instance, deletes it.
-    let engine = PropellantEngine::new();
+    let engine = PropellantEngine::builder();
 
-    engine.main_loop();
+    engine.main_loop().unwrap();
 }

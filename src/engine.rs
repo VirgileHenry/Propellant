@@ -1,15 +1,19 @@
 
 use foundry::World;
-use crate::{id, PropellantFlag, resource_loading::RequireResourcesLoadingFlag};
+use crate::{
+    PropellantFlag,
+    resource_loading::RequireResourcesLoadingFlag
+};
 
 use self::{
     engine_events::{PropellantEvent, PropellantEventSenderExt},
     window::PropellantWindow,
     errors::PResult,
-    resources::PropellantResources,
-    inputs::input_system::InputSystem, 
-    consts::PROPELLANT_DEBUG_FEATURES,
+    resources::PropellantResources, 
 };
+
+#[cfg(feature = "inputs")]
+use self::inputs::input_system::InputSystem;
 
 pub(crate) mod common_components;
 pub(crate) mod common_systems;
@@ -18,6 +22,7 @@ pub(crate) mod engine_builder;
 pub(crate) mod engine_events;
 pub(crate) mod errors;
 pub(crate) mod flags;
+#[cfg(feature = "inputs")]
 pub(crate) mod inputs;
 pub(crate) mod lights;
 pub(crate) mod material;
@@ -25,6 +30,7 @@ pub(crate) mod mesh;
 pub(crate) mod renderer;
 pub(crate) mod resources;
 pub(crate) mod transform;
+#[cfg(feature = "window")]
 pub(crate) mod window;
 
 #[cfg(feature = "ui")]
@@ -41,6 +47,8 @@ pub struct PropellantEngine {
     /// If we have the window feature, this is the window handle.
     #[cfg(feature = "window")]
     window: PropellantWindow,
+    #[cfg(feature = "inputs")]
+    input_system: InputSystem,
 }
 
 // impl of our engine
@@ -81,33 +89,15 @@ impl PropellantEngine {
         match event {
             // redirect windows events to the window
             winit::event::Event::WindowEvent { event, .. } => {
-                match self.world.get_system_and_world_mut(id("input_system")) {
-                    Some((input_system_wrapper, components)) => match input_system_wrapper.try_get_updatable_mut::<InputSystem>() {
-                        Some(input_system) => input_system.handle_window_event(&event, components),
-                        None => {
-                            if PROPELLANT_DEBUG_FEATURES {
-                                println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
-                            }
-                        }
-                    },
-                    None => {},
-                };
+                #[cfg(feature = "inputs")]
+                self.input_system.handle_window_event(&event, &mut self.world);
                 #[cfg(feature = "window")]
                 self.window.handle_event(event, control_flow, &mut self.world);
             },
             // device events are treated by the input handler, if any
             winit::event::Event::DeviceEvent { device_id, event } => {
-                match self.world.get_system_and_world_mut(id("input_system")) {
-                    Some((input_system_wrapper, components)) => match input_system_wrapper.try_get_updatable_mut::<InputSystem>() {
-                        Some(input_system) => input_system.handle_device_event(device_id, event, components),
-                        None => {
-                            if PROPELLANT_DEBUG_FEATURES {
-                                println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
-                            }
-                        }
-                    },
-                    None => {},
-                };
+                #[cfg(feature = "inputs")]
+                self.input_system.handle_device_event(device_id, event, &mut self.world);
             }
             // main events cleared is the app code update (all events are pocessed)
             winit::event::Event::MainEventsCleared => self.engine_update(),
@@ -128,6 +118,9 @@ impl PropellantEngine {
         let delta = now.duration_since(self.last_frame_update);
         self.last_frame_update = now;
         self.world.update(delta.as_secs_f32());
+
+        #[cfg(feature = "inputs")]
+        self.input_system.update_contexts(&mut self.world, delta.as_secs_f32());
 
         #[cfg(feature = "window")]
         self.window.request_redraw();

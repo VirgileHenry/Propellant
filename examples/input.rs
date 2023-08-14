@@ -119,7 +119,7 @@ impl InputContext for InputContext2 {
 
 fn main() {
 
-    let input_handler = InputHandlerBuilder::empty()
+    let input_handler = InputHandler::builder()
         .with_starting_input_context(id("ih1"), Box::new(InputContext1 {
             space_pressed: false,
             ask_switch: false,
@@ -132,10 +132,9 @@ fn main() {
     let mut resources = PropellantResources::default();
     resources.meshes_mut().register_mesh(id("cube"), Mesh::cube(1.0));
 
-    let mut engine = PropellantEngine::default()
-        .with_window().unwrap()
-        .with_resources(resources).unwrap()
-        .with_input_handler(input_handler).unwrap();
+    let mut engine = PropellantEngine::builder()
+        .with_resources(resources)
+        .with_input_handler(input_handler);
 
     let _cam = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(0., -3., -4.)),
@@ -164,7 +163,7 @@ fn main() {
         )
     );
 
-    engine.main_loop();
+    engine.main_loop().unwrap();
 
 }
 

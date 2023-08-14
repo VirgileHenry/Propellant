@@ -6,6 +6,7 @@ use crate::{
 };
 
 use self::vulkan::vulkan_interface::VulkanInterface;
+use crate::engine::engine_events::PropellantEventSenderExt;
 
 use super::{errors::PResult, renderer::VulkanRenderer};
 #[cfg(feature = "ui")]
@@ -41,13 +42,18 @@ impl PropellantWindow {
     /// handle window events. This does not need to be a self func, as the window threw the event.
     /// Further more, the window can be found in the comp table.
     pub fn handle_event(&mut self, event: winit::event::WindowEvent, control_flow: &mut winit::event_loop::ControlFlow, components: &mut ComponentTable) {
+        use crate::PropellantFlag;
+
         match event {
             winit::event::WindowEvent::CloseRequested => control_flow.set_exit(),
             winit::event::WindowEvent::Resized(new_size) => {
-                match self.handle_window_resize() {
+                match self.recreate_swapchain() {
                     Ok(_) => {
                         // command buffer will get invalidated.
-                        components.add_singleton(RequireCommandBufferRebuildFlag);
+                        match components.send_flag(PropellantFlag::RequireCommandBufferRebuild) {
+                            Ok(_) => {},
+                            Err(e) => println!("{e} sending command buffer rebuild flag."),
+                        };
                         // resize main cameras
                         for (_, camera) in components.query1d_mut::<Camera>() {
                             if camera.is_main() {

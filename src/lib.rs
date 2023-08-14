@@ -6,11 +6,6 @@ pub use engine::{
     PropellantEngine,
     common_components::camera::Camera,
     common_systems::fps_limiter::FpsLimiter,
-    inputs::{
-        input_context::InputContext,
-        input_handler::input_handler_builder::InputHandlerBuilder,
-        input_handler::InputHandler,
-    },
     mesh::{
         Mesh,
         mesh_renderer::InstancedMeshRenderer,
@@ -58,6 +53,17 @@ pub use engine::{
         UiAnchor,
         UiTransform,
     },
+};
+
+#[cfg(feature = "inputs")]
+pub use engine::inputs::{
+    input_context::InputContext,
+    input_handler::input_handler_builder::InputHandlerBuilder,
+    input_handler::InputHandler,
+};
+
+#[cfg(all(feature = "ui", feature = "inputs"))]
+pub use engine::{
     ui::ui_event_listener::{
         UiEventListener,
         UiListenerCallback,

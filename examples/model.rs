@@ -15,9 +15,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let quad_texture_index = resources.textures_mut().register_texture(id("quad"), include_bytes!("model/texture.jpg"))?;
     let cat_texture_index = resources.textures_mut().register_texture(id("cat"), include_bytes!("model/cat_texture.png"))?;
 
-    let mut engine = PropellantEngine::default()
-        .with_window().unwrap()
-        .with_resources(resources).unwrap();
+    let mut engine = PropellantEngine::builder()
+        .with_resources(resources);
     
 
     let _cam = create_entity!(engine.world_mut();
@@ -48,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     engine.world_mut().register_system(Rotater::new(), 11);
 
 
-    engine.main_loop();
+    engine.main_loop().unwrap();
 
     Ok(())
 }

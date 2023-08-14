@@ -11,9 +11,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     resources.meshes_mut().register_mesh(id("quad"), Mesh::flat_quad(2.0));
     resources.meshes_mut().register_mesh(id("cube"), Mesh::cube(0.6));
 
-    let mut engine = PropellantEngine::default()
-        .with_window()?
-        .with_resources(resources).unwrap();
+    let mut engine = PropellantEngine::builder()
+        .with_resources(resources);
     
 
     let _cam = create_entity!(engine.world_mut();
@@ -24,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     engine.world_mut().register_system(TextureLoader::new(), 11);
 
 
-    engine.main_loop();
+    engine.main_loop()?;
 
     Ok(())
 }

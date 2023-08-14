@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{InputContext, engine::engine_events::PropellantEvent, id};
+use crate::{InputContext, engine::{engine_events::PropellantEvent, inputs::input_system::InputSystem}, id, HasBuilder};
 
 use super::InputHandler;
 
@@ -9,9 +9,17 @@ pub struct InputHandlerBuilder {
     start_context: Vec<u64>,
 }
 
+impl HasBuilder for InputHandler {
+    type Builder = InputHandlerBuilder;
+
+    fn builder() -> Self::Builder {
+        InputHandlerBuilder::empty()
+    }
+}
+
 impl InputHandlerBuilder {
     /// Creates an event handler form an event loop.
-    pub fn empty() -> InputHandlerBuilder {
+    fn empty() -> InputHandlerBuilder {
         InputHandlerBuilder {
             contexts: HashMap::new(),
             start_context: Vec::new(),
@@ -49,11 +57,16 @@ impl InputHandlerBuilder {
         }
     }
 
-    pub fn build(self, event_loop_proxy: winit::event_loop::EventLoopProxy<PropellantEvent>) -> InputHandler {
-        InputHandler {
+    pub fn build(self, event_loop_proxy: winit::event_loop::EventLoopProxy<PropellantEvent>) -> (InputHandler, InputSystem) {
+        let mut contexts = self.contexts;
+        let system = InputSystem::with_active_contexts(
+            self.start_context.iter().map(|id| (*id, contexts.remove(id).unwrap())).collect()
+        );
+        let handler = InputHandler {
             event_loop_proxy,
-            contexts: self.contexts
-        }
+            contexts,
+        };
+        (handler, system)
     }
 
     pub fn start_contexts(&self) -> &Vec<u64> {

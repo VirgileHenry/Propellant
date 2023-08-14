@@ -1,8 +1,10 @@
 use foundry::ComponentTable;
 
-use crate::{PropellantEngine, engine::consts::PROPELLANT_DEBUG_FEATURES, InputHandler, id};
-
-use super::input_system::InputSystem;
+use crate::{
+    PropellantEngine,
+    engine::consts::PROPELLANT_DEBUG_FEATURES,
+    InputHandler
+};
 
 
 
@@ -22,41 +24,33 @@ pub trait InputContext {
 
 impl PropellantEngine {
     pub fn add_input_context(&mut self, ctx_id: u64) {
-        match self.world.get_system_and_world_mut(id("input_system")) {
-            Some((input_system_wrapper, comps)) 
-                => match (input_system_wrapper.try_get_updatable_mut::<InputSystem>(), comps.get_singleton_mut::<InputHandler>()) {
-                (Some(input_system), Some(input_handler)) => {
-                    match input_handler.get_context(ctx_id) {
-                        Some(context) => input_system.register_context(ctx_id, context),
-                        None => if PROPELLANT_DEBUG_FEATURES {
-                            println!("[PROPELLANT DEBUG] Unable to find context with id {} in input handler.", ctx_id);
-                        }
-                    }
+        match self.world.get_singleton_mut::<InputHandler>() {
+            Some(handler) => match handler.get_context(ctx_id) {
+                Some(ctx) => self.input_system.register_context(ctx_id, ctx),
+                None => if PROPELLANT_DEBUG_FEATURES {
+                    println!("[PROPELLANT DEBUG] [INPUTS] Tried to register context of id {ctx_id} but such context does not exist.");
                 },
-                _ => if PROPELLANT_DEBUG_FEATURES {
-                    println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
-                }                                
             },
-            None => {},
+            None => if PROPELLANT_DEBUG_FEATURES {
+                println!("[PROPELLANT DEBUG] [INPUTS] Tried to register context but no input handler singleton");
+            },
         }
     }
     pub fn remove_input_context(&mut self, ctx_id: u64) {
-        match self.world.get_system_and_world_mut(id("input_system")) {
-            Some((input_system_wrapper, comps)) 
-                => match (input_system_wrapper.try_get_updatable_mut::<InputSystem>(), comps.get_singleton_mut::<InputHandler>()) {
-                (Some(input_system), Some(input_handler)) => {
-                    match input_system.remove_context(ctx_id) {
-                        Some(context) => input_handler.add_context(ctx_id, context),
-                        None => if PROPELLANT_DEBUG_FEATURES {
-                            println!("[PROPELLANT DEBUG] Unable to find context with id {} in input handler.", ctx_id);
-                        }
-                    }
-                },
-                _ => if PROPELLANT_DEBUG_FEATURES {
-                    println!("[PROPELLANT DEBUG] Unable to downcast system registered as 'input handler' to InputSystem.");
-                }                                
-            },
-            None => {},
+        let context = match self.input_system.remove_context(ctx_id) {
+            Some(ctx) => ctx,
+            None => {
+                if PROPELLANT_DEBUG_FEATURES {
+                    println!("[PROPELLANT DEBUG] [INPUTS] Tried to remove context of id {ctx_id} but such context is not currently active. Nothing will change.");
+                }
+                return;
+            }
+        };
+        match self.world.get_singleton_mut::<InputHandler>() {
+            Some(handler) => handler.add_context(ctx_id, context),
+            None => if PROPELLANT_DEBUG_FEATURES {
+                println!("[PROPELLANT DEBUG] [INPUTS] Removing input context, but no input handler found in world. Input context will be lost.")
+            }
         }
     }
 }

@@ -19,10 +19,10 @@ winit = { version = "0.28.5", optional = true }
 
 
 [features]
-default = ["ui", "debug-features","window", "vulkan-renderer", "resources", "inputs"]
+default = ["debug-features", "window", "vulkan-renderer", "resources", "inputs", "ui"]
 debug-features = []
-window = ["dep:winit"]
-vulkan-renderer = ["window", "dep:vulkanalia"]
-ui = []
-resources = []
 inputs = []
+resources = []
+ui = []
+vulkan-renderer = ["window", "dep:vulkanalia"]
+window = ["dep:winit"]

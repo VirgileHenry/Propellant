@@ -14,7 +14,9 @@ use super::{errors::PResult, consts::PROPELLANT_DEBUG_FEATURES};
 pub enum PropellantEvent {
     CloseApplicationRequest,
     SwapchainRecreationRequest,
+    #[cfg(feature = "inputs")]
     AddEventContext(u64),
+    #[cfg(feature = "inputs")]
     RemoveEventContext(u64),
     HandleEngineFlag(PropellantFlag),
 }
@@ -36,7 +38,9 @@ impl PropellantEngine {
                     None => {},
                 }
             },
+            #[cfg(feature = "inputs")]
             PropellantEvent::AddEventContext(ctx_id) => self.add_input_context(ctx_id),
+            #[cfg(feature = "inputs")]
             PropellantEvent::RemoveEventContext(ctx_id) => self.remove_input_context(ctx_id),
             PropellantEvent::HandleEngineFlag(flag) => match self.handle_flag(flag) {
                 Ok(_) => {},

@@ -20,9 +20,9 @@ impl PropellantEngine {
     pub fn handle_flag(&mut self, flag: PropellantFlag) -> PResult<()> {
         match flag {
             #[cfg(feature = "window")]
-            PropellantFlag::RequireSceneRebuild => self.window.renderer_mut().handle_engine_flag(flag),
+            PropellantFlag::RequireSceneRebuild => self.window.renderer_mut().request_scene_rebuild(),
             #[cfg(feature = "window")]
-            PropellantFlag::RequireCommandBufferRebuild => self.window.renderer_mut().handle_engine_flag(flag),
+            PropellantFlag::RequireCommandBufferRebuild => self.window.renderer_mut().request_command_buffer_rebuild(),
             #[cfg(all(feature = "resources", feature = "window"))]
             PropellantFlag::RequireResourcesLoading(flags) => {
                 let (world, window) = self.world_and_window_mut();

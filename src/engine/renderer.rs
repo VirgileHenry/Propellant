@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 
 use foundry::ComponentTable;
 
-use crate::PropellantFlag;
 use crate::PropellantResources;
 use crate::VulkanInterface;
 use self::rendering_pipeline::RenderingPipeline;
@@ -38,20 +37,27 @@ pub trait VulkanRenderer {
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
         queue_indices: QueueFamilyIndices,
     ) -> PResult<()>;
-    /// The engine is sending a flag to the renderer.
-    fn handle_engine_flag(&mut self, flag: PropellantFlag);
+    /// The engine is sending a flag to rebuild the scene.
+    fn request_scene_rebuild(&mut self);
+    /// The engine is sending a flag to rebuild the command buffer.
+    fn request_command_buffer_rebuild(&mut self);
     /// Destroy the current rendering pipeline.
     fn recreation_cleanup(&mut self, vk_device: &vulkanalia::Device);
     /// Clean up of all the vulkan resources.
     fn destroy(&mut self, vk_device: &vulkanalia::Device);
 }
 
+#[derive(Debug, Clone, Copy)]
+enum SyncingFlag {
+    SceneRebuild,
+    CommandBufferRebuild,
+}
 
 #[derive(Debug)]
 struct SyncingState {
     /// for each flag type id, a vec of synced frames.
     /// If the flag is not in the map, the renderer is synced accross all frames for this flag.
-    syncing_frames: VecDeque<(PropellantFlag, Vec<bool>)>,
+    syncing_frames: VecDeque<(SyncingFlag, Vec<bool>)>,
 }
 
 impl SyncingState {
@@ -61,7 +67,7 @@ impl SyncingState {
         }
     }
 
-    fn add_flag(&mut self, flag: PropellantFlag, frame_count: usize) {
+    fn add_flag(&mut self, flag: SyncingFlag, frame_count: usize) {
         for (f, frames) in self.syncing_frames.iter_mut() {
             if std::mem::discriminant(&flag) == std::mem::discriminant(f) {
                 frames.iter_mut().for_each(|frame| *frame = false);
@@ -73,7 +79,7 @@ impl SyncingState {
 
     fn get_frame_flags(
         &mut self,
-    ) -> Vec<PropellantFlag> {
+    ) -> Vec<SyncingFlag> {
         self.syncing_frames.iter().map(|(flag, _)| *flag).collect()
     }
 
@@ -131,12 +137,12 @@ impl DefaultVulkanRenderer {
         &mut self,
         vk_interface: &mut VulkanInterface,
         components: &ComponentTable,
-        flag: PropellantFlag,
+        flag: SyncingFlag,
         current_frame: usize,
     ) -> PResult<()> {
         match flag {
-            PropellantFlag::RequireSceneRebuild => self.scene_recreation(vk_interface, components, current_frame)?,
-            PropellantFlag::RequireCommandBufferRebuild =>  match components.get_singleton::<PropellantResources>() {
+            SyncingFlag::SceneRebuild => self.scene_recreation(vk_interface, components, current_frame)?,
+            SyncingFlag::CommandBufferRebuild =>  match components.get_singleton::<PropellantResources>() {
                 Some(resource_lib) => {
                     self.rendering_pipeline.register_draw_commands(
                         &vk_interface.device,
@@ -150,9 +156,6 @@ impl DefaultVulkanRenderer {
                     }
                 }
             },
-            _ => if PROPELLANT_DEBUG_FEATURES {
-                println!("[PROPELLANT DEBUG] Flag {:?} found in renderer, but should not be handled by it.", flag);
-            }
         }
 
         Ok(())
@@ -289,8 +292,12 @@ impl VulkanRenderer for DefaultVulkanRenderer {
         Ok(())
     }
 
-    fn handle_engine_flag(&mut self, flag: PropellantFlag) {
-        self.syncing_state.add_flag(flag, self.rendering_pipeline.swapchain_image_count());
+    fn request_scene_rebuild(&mut self) {
+        self.syncing_state.add_flag(SyncingFlag::SceneRebuild, self.rendering_pipeline.swapchain_image_count())
+    }
+    
+    fn request_command_buffer_rebuild(&mut self) {
+        self.syncing_state.add_flag(SyncingFlag::CommandBufferRebuild, self.rendering_pipeline.swapchain_image_count())
     }
 
     fn recreation_cleanup(&mut self, vk_device: &vulkanalia::Device) {

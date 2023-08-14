@@ -11,9 +11,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     resources.meshes_mut().register_mesh(id("cube3"), Mesh::cube(0.03));
     resources.meshes_mut().register_mesh(id("cube4"), Mesh::cube(0.05));
 
-    let mut engine = PropellantEngine::default()
-        .with_window()?
-        .with_resources(resources)?;
+    let mut engine = PropellantEngine::builder()
+        .with_resources(resources);
     
     // sun 
     engine.world_mut().add_singleton(DirectionnalLight::new(
@@ -29,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     engine.world_mut().register_system(ObjectLoader::new(), 11);
 
 
-    engine.main_loop();
+    engine.main_loop()?;
 
     Ok(())
 }

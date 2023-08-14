@@ -7,14 +7,12 @@ fn main() {
 
     let resources = PropellantResources::default();
 
-    let inputs = InputHandlerBuilder::empty()
+    let inputs = InputHandler::builder()
         .with_starting_ui_context();
 
-    let mut engine = PropellantEngine::default()
-        .with_window().unwrap()
-        .with_ui_resolution(1.2).unwrap()
-        .with_input_handler(inputs).unwrap()
-        .with_resources(resources).unwrap();
+    let mut engine = PropellantEngine::builder()
+        .with_input_handler(inputs)
+        .with_resources(resources);
 
     /*
     let _top_left = create_entity!(
@@ -109,5 +107,5 @@ fn main() {
 
     // engine.world_mut().register_system(UiManager::new(), id("ui_manager"));
 
-    engine.main_loop();
+    engine.main_loop().unwrap();
 }
