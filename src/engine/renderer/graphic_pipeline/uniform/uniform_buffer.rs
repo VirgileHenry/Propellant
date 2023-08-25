@@ -163,7 +163,6 @@ impl<T: Debug + 'static> UniformBuffer<T> {
             _ => {/* buffer might be of size 0 and uninit, it's ok */}
         }
     }
-
     
     /// Create our descriptor sets from the given pool.
     /// The pool might overflow, so in the future we should look into reallocating the pool.

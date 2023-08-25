@@ -10,9 +10,6 @@ pub enum PropellantFlag {
     #[cfg(feature = "window")]
     /// Tell the renderer the scene have been invalidated and neeeds rebuilt.
     RequireSceneRebuild,
-    #[cfg(feature = "window")]
-    /// Tell the renderer the command buffers needs to be rebuilt.
-    RequireCommandBufferRebuild,
     #[cfg(feature = "resources")]
     /// We added resourcesin the resource lib that need to be loaded.
     RequireResourcesLoading(RequireResourcesLoadingFlag),
@@ -26,8 +23,6 @@ impl PropellantEngine {
         match flag {
             #[cfg(feature = "window")]
             PropellantFlag::RequireSceneRebuild => self.window.renderer_mut().request_scene_rebuild(),
-            #[cfg(feature = "window")]
-            PropellantFlag::RequireCommandBufferRebuild => self.window.renderer_mut().request_command_buffer_rebuild(),
             #[cfg(all(feature = "resources", feature = "window"))]
             PropellantFlag::RequireResourcesLoading(flags) => {
                 let (world, window) = self.world_and_window_mut();

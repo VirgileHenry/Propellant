@@ -98,12 +98,7 @@ impl PropellantWindow {
                     None => {},
                 }
                 // command buffer will get invalidated.
-                match components.send_flag(PropellantFlag::RequireCommandBufferRebuild) {
-                    Ok(_) => {/* all good */},
-                    Err(e) => if PROPELLANT_DEBUG_FEATURES {
-                        println!("[PROPELLANT DEBUG] [WINDOW] Error while sending flag to recreate command buffers : {e}");
-                    },
-                };
+                self.renderer.request_command_buffer_rebuild();
                 // ui will nedd screen resize
                 match components.send_flag(PropellantFlag::UiRequireResolution) {
                     Ok(_) => {/* all good */},

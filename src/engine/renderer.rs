@@ -53,6 +53,19 @@ enum SyncingFlag {
     CommandBufferRebuild,
 }
 
+impl SyncingFlag {
+    /// A flag "contains" another if resolving this flag meaning resolving the other one too.
+    /// For example, resolving a scene rebuild flag means resolving a command buffer rebuild flag too.
+    pub fn contains(&self, other: SyncingFlag) -> bool {
+        match (self, other) {
+            (SyncingFlag::CommandBufferRebuild, SyncingFlag::CommandBufferRebuild) => true,
+            (SyncingFlag::SceneRebuild, SyncingFlag::SceneRebuild) => true,
+            (SyncingFlag::SceneRebuild, SyncingFlag::CommandBufferRebuild) => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug)]
 struct SyncingState {
     /// for each flag type id, a vec of synced frames.
@@ -69,7 +82,12 @@ impl SyncingState {
 
     fn add_flag(&mut self, flag: SyncingFlag, frame_count: usize) {
         for (f, frames) in self.syncing_frames.iter_mut() {
-            if std::mem::discriminant(&flag) == std::mem::discriminant(f) {
+            if f.contains(flag) {
+                frames.iter_mut().for_each(|frame| *frame = false);
+                return;
+            }
+            if flag.contains(*f) {
+                *f = flag;
                 frames.iter_mut().for_each(|frame| *frame = false);
                 return;
             }
@@ -204,7 +222,6 @@ impl DefaultVulkanRenderer {
 
 impl VulkanRenderer for DefaultVulkanRenderer {
     fn render(&mut self, vk_interface: &mut VulkanInterface, components: &mut ComponentTable) -> PResult<vulkanalia::vk::SuccessCode> {
-        
         // vulkan rendering loop
         unsafe {
             // wait for the frame on this fence to finish.
