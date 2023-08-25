@@ -45,11 +45,9 @@ use crate::create_graphic_pipeline;
 pub fn default_ui_pipeline() -> impl GraphicPipelineBuilderInterface {
 use crate::create_graphic_pipeline;
     use super::renderable_component::RenderableComponent;
-    use super::uniform::frame_uniform::FrameUniform;
     use crate::engine::renderer::shaders::UI_FRAG;
     use crate::engine::renderer::shaders::UI_VERT;
     use super::uniform::object_uniform::ObjectUniform;
-    use super::uniform::frame_uniform::ui_resolution::UiResolution;
     // create a new pipeline with the macro
     use crate::UiMaterial;
     use crate::engine::renderer::graphic_pipeline::uniform::object_uniform::ui_model_uniform::UiPosUniformObject;
@@ -60,7 +58,6 @@ use crate::create_graphic_pipeline;
         (ShaderStage::Vertex, UI_VERT), // ui vert shader
         (ShaderStage::Fragment, UI_FRAG); // ui frag shader
         // provide the uniforms
-        (FrameUniform, UiResolution, ShaderStage::Vertex), 
         (RenderableComponent, UiMaterial, ShaderStage::Fragment), // ui draws on ui material
         (ObjectUniform, UiPosUniformObject, ShaderStage::Vertex), // ui uniforms
     )

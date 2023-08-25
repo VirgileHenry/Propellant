@@ -30,11 +30,11 @@ pub(crate) mod mesh;
 pub(crate) mod renderer;
 pub(crate) mod resources;
 pub(crate) mod transform;
+#[cfg(feature = "ui")]
+pub(crate) mod ui;
 #[cfg(feature = "window")]
 pub(crate) mod window;
 
-#[cfg(feature = "ui")]
-pub(crate) mod ui;
 
 
 /// An instance of the propellant game engine.

@@ -13,7 +13,7 @@ struct UiMaterial {
 
 // layout(set = 0, binding = 0) uniform sampler2D all_textures[];
 
-layout(set = 1, binding = 0) readonly buffer MaterialProperties {
+layout(set = 0, binding = 0) readonly buffer MaterialProperties {
     UiMaterial materials[];
 } materialsProperties;
 

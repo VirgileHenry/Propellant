@@ -3,7 +3,8 @@ use foundry::ComponentTable;
 use crate::{
     InputContext,
     Transform,
-    UiEventListener, UiEvent, engine::renderer::graphic_pipeline::uniform::frame_uniform::ui_resolution::UiResolution
+    UiEventListener,
+    UiEvent,
 };
 
 pub(crate) mod ui_events;
@@ -14,9 +15,6 @@ pub enum CursorPosition {
     InScreen{
         mouse_x: f32,
         mouse_y: f32,
-        screen_width: f32,
-        screen_height: f32,
-        ui_res: f32,
     },
 }
 
@@ -26,12 +24,7 @@ pub struct UiEventHandlerContext {}
 impl UiEventHandlerContext {
     fn on_window_input(&mut self, event: &winit::event::WindowEvent, components: &mut ComponentTable) {
 
-        let ui_res = match components.get_singleton::<UiResolution>() {
-            Some(res) => res,
-            None => return,
-        };
-
-        let ui_event = match UiEvent::try_from((event, ui_res)) {
+        let ui_event = match UiEvent::try_from(event) {
             Ok(ev) => ev,
             Err(_) => return,
         };

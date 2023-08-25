@@ -2,9 +2,9 @@ use std::cell::Cell;
 
 use tree_box::TreeBox;
 
-use crate::engine::renderer::graphic_pipeline::uniform::{
-    object_uniform::ui_model_uniform::UiPosUniformObject,
-    frame_uniform::ui_resolution::UiResolution
+use crate::engine::{
+    renderer::graphic_pipeline::uniform::object_uniform::ui_model_uniform::UiPosUniformObject,
+    ui::ui_resolution::UiResolution
 };
 #[cfg(feature = "inputs")]
 use crate::CursorPosition;
@@ -27,15 +27,15 @@ impl UiAnchor {
         // first value is 0, 0.5, 1 for left, center, right
         // seocond value is 0, 0.5, 1 for top, center, bottom
         match self {
-            UiAnchor::TopLeft => (0., 0.),
-            UiAnchor::Top => (0.5, 0.),
-            UiAnchor::TopRight => (1., 0.),
-            UiAnchor::Left => (0., 0.5),
-            UiAnchor::Center => (0.5, 0.5),
-            UiAnchor::Right => (1., 0.5),
-            UiAnchor::BottomLeft => (0., 1.),
-            UiAnchor::Bottom => (0.5, 1.),
-            UiAnchor::BottomRight => (1., 1.),
+            UiAnchor::TopLeft => (1., 1.),
+            UiAnchor::Top => (0., 1.),
+            UiAnchor::TopRight => (-1., 1.),
+            UiAnchor::Left => (1., 0.),
+            UiAnchor::Center => (0., 0.),
+            UiAnchor::Right => (-1., 0.),
+            UiAnchor::BottomLeft => (1., -1.),
+            UiAnchor::Bottom => (0., -1.),
+            UiAnchor::BottomRight => (-1., -1.),
         }
     }
 }
@@ -57,7 +57,7 @@ impl UiTransformCore {
     }
 
     pub fn recompute_pos(&self, parent: Option<UiPosUniformObject>) -> UiPosUniformObject {
-        // entry quad pos will be [0, 0, 1] x [1, 1, 0]
+        // entry quad pos will be [-1, -1, 1] x [1, 1, 1]
         // need to move that to [pos, pos depth] x [pos + size, pos + size, depth]
         let (ax, ay) = self.anchor.to_values();
         let anchor = glam::Vec2::new(ax, ay);
@@ -66,31 +66,23 @@ impl UiTransformCore {
                 #[cfg(feature = "debug-features")]
                 let resolution = self.resolution.expect("Screen size not set for ui transform. You might missed a UiRequireScreenSizeFlag flag when creating new UI elemnts.");
                 #[cfg(not(feature = "debug-features"))]
-                let resolution = self.resolution.unwrap_or(glam::Vec2::new(1080.0, 1920.0));
-                let screen_size = glam::Vec2::new(resolution.screen_width, resolution.screen_width);
-                let total_size = self.relative_size + self.size / screen_size;
-                let total_pos = self.relative_position + self.position / screen_size - anchor * total_size;
-                // reset parent depth
-                parent_pos.pos.col(2).z = 1.;
-                let pos_matrix = parent_pos.pos * glam::Mat3::from_scale_angle_translation(total_size, 0., total_pos);
-                pos_matrix.col(2).z = self.depth_to_render_cube(); // override parent depth
-                UiPosUniformObject {
-                    pos: pos_matrix,
-                }
+                let resolution = self.resolution.unwrap_or(UiResolution::default());
+                let scale_factor = resolution.scale_factor() / parent_pos.size();
+                let total_size = self.relative_size + self.size * scale_factor;
+                let total_pos = -glam::Vec2::ONE + (self.relative_position + self.position * scale_factor) * 2. + anchor * total_size;
+                let mat = glam::Mat3::from_scale_angle_translation(total_size, 0., total_pos);
+                (parent_pos.as_matrix() * mat, self.depth_to_render_cube()).into()
             },
             None => {
                 #[cfg(feature = "debug-features")]
                 let resolution = self.resolution.expect("Screen size not set for ui transform. You might missed a UiRequireScreenSizeFlag flag when creating new UI elemnts.");
                 #[cfg(not(feature = "debug-features"))]
-                let resolution = self.resolution.unwrap_or(glam::Vec2::new(1080.0, 1920.0));
-                let screen_size = glam::Vec2::new(resolution.screen_width, resolution.screen_width);
-                let total_size = self.relative_size + self.size / screen_size;
-                let total_pos = self.relative_position + self.position / screen_size - anchor * total_size;
-                let pos_matrix = glam::Mat3::from_scale_angle_translation(total_size, 0., total_pos);
-                pos_matrix.col(2).z = self.depth_to_render_cube();
-                UiPosUniformObject {
-                    pos: pos_matrix,
-                }
+                let resolution = self.resolution.unwrap_or(UiResolution::default());
+                let scale_factor = resolution.scale_factor();
+                let total_size = self.relative_size + self.size * scale_factor;
+                let total_pos = -glam::Vec2::ONE + (self.relative_position + self.position * scale_factor) * 2. + anchor * total_size;
+                let mat = glam::Mat3::from_scale_angle_translation(total_size, 0., total_pos);
+                (mat, self.depth_to_render_cube()).into()
             },
         };
         self.computed_pos.set(Some(pos));
@@ -106,28 +98,12 @@ impl UiTransformCore {
         const PI_INVERTED: f32 = 1.0 / std::f32::consts::PI;
         0.5 - PI_INVERTED * (self.layer as f32).atan()
     }
-}
 
-#[cfg(feature = "inputs")]
-impl UiTransformCore {
-    pub fn ui_contains_cursor(&self, cursor: CursorPosition) -> bool {
-        match cursor {
-            CursorPosition::OutOfScreen => false,
-            CursorPosition::InScreen { mouse_x, mouse_y, screen_width, screen_height, ui_res } => {
-                // compute widget screen space
-                let tx = self.position.x * ui_res + self.relative_position.x * screen_width;
-                let ty = self.position.y * ui_res + self.relative_position.y * screen_height;
-                let tw = self.size.x * ui_res + self.relative_size.x * screen_width;
-                let th = self.size.y * ui_res + self.relative_size.y * screen_height;
-                let (ax, ay) = self.anchor.to_values();
-                let tx = tx - ax * tw;
-                let ty = ty - ay * th;
-                // check if cursor is in widget screen space
-                mouse_x >= tx && mouse_x <= tx + tw && mouse_y >= ty && mouse_y <= ty + th
-            }
-        }
+    pub fn set_ui_resolution(&mut self, resolution: UiResolution) {
+        self.resolution = Some(resolution);
     }
 }
+
 
 pub struct UiTransform {
     core: TreeBox<UiTransformCore>,
@@ -176,6 +152,11 @@ impl UiTransform {
         )
     }
 
+    pub fn set_ui_resolution(&mut self, resolution: UiResolution) {
+        self.core.mutate(|tf| tf.set_ui_resolution(resolution));
+        self.invalidate_pos();
+    }
+
     pub fn child_of(mut self, parent: Option<&UiTransform>) -> UiTransform {
         self.core.set_parent(parent.map(|v| &v.core));
         self.invalidate_pos();
@@ -189,7 +170,12 @@ impl UiTransform {
 
 #[cfg(feature = "inputs")]
 impl UiTransform {
-    pub fn ui_contains_cursor(&self, cursor: CursorPosition) -> bool {
-        self.core.get(|tf| tf.ui_contains_cursor(cursor))
+    pub fn ui_contains_cursor(&self, _cursor: CursorPosition) -> bool {
+        self.core.get(|_tf| {
+            // todo
+
+
+            false
+        })
     }
 }

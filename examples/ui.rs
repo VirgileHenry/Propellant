@@ -14,7 +14,6 @@ fn main() {
         .with_input_handler(inputs)
         .with_resources(resources);
 
-    /*
     let _top_left = create_entity!(
         engine.world_mut();
         UiTransform::new(
@@ -39,23 +38,22 @@ fn main() {
         ),
         UiMaterial::colored(Vec3::new(1.0, 0.8, 0.5), 20.).to_mesh_renderer()
     );
-    */
     let bottom_tf = UiTransform::new(
         glam::vec2(0., -10.),
         glam::vec2(0.5, 1.),
-        glam::vec2(-20., 120.),
-        glam::vec2(1.0, 0.),
+        glam::vec2(-20., 50.),
+        glam::vec2(1., 0.),
         UiAnchor::Bottom,
         0,
     );
     let sub_bottom_tf = UiTransform::new(
-        glam::vec2(5., 0.),
-        glam::vec2(0., 0.5),
-        glam::vec2(100., -10.),
+        glam::vec2(-10., 0.),
+        glam::vec2(1., 0.5),
+        glam::vec2(200., -20.),
         glam::vec2(0., 1.),
-        UiAnchor::Left,
+        UiAnchor::Right,
         1,
-    ); //.child_of(Some(&bottom_tf));
+    ).child_of(Some(&bottom_tf));
     let _bottom = create_entity!(
         engine.world_mut();
         bottom_tf,
@@ -66,7 +64,6 @@ fn main() {
         sub_bottom_tf,
         UiMaterial::colored(Vec3::new(0.8, 0.8, 0.8), 20.).to_mesh_renderer()
     );
-    /*
     let _side_1 = create_entity!(
         engine.world_mut();
         UiTransform::new(
@@ -103,7 +100,6 @@ fn main() {
         ),
         UiMaterial::colored(Vec3::new(0.8, 1.0, 0.5), 20.).to_mesh_renderer()
     );
-    */
 
     // engine.world_mut().register_system(UiManager::new(), id("ui_manager"));
 

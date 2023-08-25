@@ -93,7 +93,7 @@ impl PropellantEventSenderExt for ComponentTable {
             Some(sender) => sender.send(PropellantEvent::HandleEngineFlag(flag)),
             None => {
                 if PROPELLANT_DEBUG_FEATURES {
-                    println!("[PROPELLANT DEBUG] Event sender: no event sender found. Event not sent.");
+                    println!("[PROPELLANT DEBUG] [EVENTS] No event sender found. Event {flag:?} will be ignored.");
                 }
                 Ok(())
             }

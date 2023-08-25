@@ -6,11 +6,9 @@ use crate::{
 };
 
 use self::vulkan::vulkan_interface::VulkanInterface;
-use crate::engine::engine_events::PropellantEventSenderExt;
 
 use super::{errors::PResult, renderer::VulkanRenderer};
-#[cfg(feature = "ui")]
-use super::renderer::graphic_pipeline::uniform::frame_uniform::ui_resolution::UiResolution;
+
 
 #[derive(AsAny)]
 pub struct PropellantWindow {
@@ -71,37 +69,47 @@ impl PropellantWindow {
     #[cfg(feature = "ui")]
     /// handle window events. This does not need to be a self func, as the window threw the event.
     pub fn handle_event(&mut self, event: winit::event::WindowEvent, control_flow: &mut winit::event_loop::ControlFlow, components: &mut ComponentTable) {
-        use crate::PropellantFlag;
+        use crate::{PropellantFlag, engine::ui::ui_resolution::UiResolution};
 
         use super::engine_events::PropellantEventSenderExt;
 
         match event {
             winit::event::WindowEvent::CloseRequested => control_flow.set_exit(),
             winit::event::WindowEvent::Resized(new_size) => {
+                // recreate the swapchain
                 match self.recreate_swapchain() {
-                    Ok(_) => {
-                        // command buffer will get invalidated.
-                        match components.send_flag(PropellantFlag::RequireCommandBufferRebuild) {
-                            Ok(_) => {},
-                            Err(e) => println!("{e} sending command buffer rebuild flag."),
-                        };
-                        // resize main cameras
-                        for (_, camera) in components.query1d_mut::<Camera>() {
-                            if camera.is_main() {
-                                camera.resize(new_size.height as f32, new_size.width as f32);
-                            }
-                        }
-                        // resize ui resolution
-                        match components.get_singleton_mut::<UiResolution>() {
-                            Some(mut ui_res) => {
-                                let (width, height) = self.window_inner_size();
-                                ui_res.screen_width = width;
-                                ui_res.screen_height = height;
-                            },
-                            None => {},
-                        }
+                    Ok(_) => {/* all good */},
+                    Err(e) => if PROPELLANT_DEBUG_FEATURES {
+                        println!("[PROPELLANT DEBUG] [WINDOW] Error while recreating swapchain after window resize : {e}")   
                     },
-                    Err(e) => println!("{e} handling window resize event."),
+                };
+                // resize main cameras
+                for (_, camera) in components.query1d_mut::<Camera>() {
+                    if camera.is_main() {
+                        camera.resize(new_size.height as f32, new_size.width as f32);
+                    }
+                }
+                // resize ui resolution
+                match components.get_singleton_mut::<UiResolution>() {
+                    Some(ui_res) => {
+                        let (width, height) = self.window_inner_size();
+                        ui_res.set_window_size(glam::vec2(width, height));
+                    },
+                    None => {},
+                }
+                // command buffer will get invalidated.
+                match components.send_flag(PropellantFlag::RequireCommandBufferRebuild) {
+                    Ok(_) => {/* all good */},
+                    Err(e) => if PROPELLANT_DEBUG_FEATURES {
+                        println!("[PROPELLANT DEBUG] [WINDOW] Error while sending flag to recreate command buffers : {e}");
+                    },
+                };
+                // ui will nedd screen resize
+                match components.send_flag(PropellantFlag::UiRequireResolution) {
+                    Ok(_) => {/* all good */},
+                    Err(e) => if PROPELLANT_DEBUG_FEATURES {
+                        println!("[PROPELLANT DEBUG] [WINDOW] Error while sending flag to resize ui : {e}");
+                    },
                 };
             }
             _ => {},

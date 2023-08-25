@@ -9,7 +9,7 @@ use crate::{
     PropellantEvent,
     PropellantResources,
     PropellantFlag,
-    resource_loading::RequireResourcesLoadingFlag,
+    resource_loading::RequireResourcesLoadingFlag, PropellantEventSenderExt,
 };
 #[cfg(feature = "inputs")]
 use crate::{
@@ -17,7 +17,7 @@ use crate::{
     InputHandler,
 };
 
-use super::{errors::PResult, engine_events::PropellantEventSender};
+use super::{errors::PResult, engine_events::PropellantEventSender, ui::ui_resolution::UiResolution};
 
 
 
@@ -100,10 +100,13 @@ impl PropellantEngineBuilder {
     /// Build the builder into a engine and an event loop.
     fn build(self) -> PResult<(PropellantEngine, winit::event_loop::EventLoop<PropellantEvent>)> {
         let event_loop = event_loop::EventLoopBuilder::with_user_event().build();
+        let event_sender = PropellantEventSender::new(event_loop.create_proxy());
+        let mut world = self.world;
+        world.add_singleton(event_sender);
+
         #[cfg(feature = "window")]
         let window = self.window.build(&event_loop)?;
 
-        let mut world = self.world;
         #[cfg(feature = "resources")]
         world.add_singleton(self.resources);
 
@@ -114,6 +117,14 @@ impl PropellantEngineBuilder {
         ) = self.input_handler.build(event_loop.create_proxy());
         #[cfg(feature = "inputs")]
         world.add_singleton(input_handler);
+
+        #[cfg(feature = "ui")]
+        {
+            let (width, height) = window.window_inner_size();
+            let ui_res = UiResolution::new(1.0, glam::vec2(width, height));
+            world.add_singleton(ui_res);
+            world.send_flag(PropellantFlag::UiRequireResolution)?;
+        }
 
         Ok((PropellantEngine {
             world,
@@ -131,10 +142,8 @@ impl PropellantEngineBuilder {
         let (mut engine, event_loop) = self.build()?;
 
         // create the sender and sent startup events
-        let event_sender = PropellantEventSender::new(event_loop.create_proxy());
-        event_sender.send(PropellantEvent::HandleEngineFlag(PropellantFlag::RequireSceneRebuild))?;
-        event_sender.send(PropellantEvent::HandleEngineFlag(PropellantFlag::RequireResourcesLoading(RequireResourcesLoadingFlag::ALL)))?;
-        engine.world_mut().add_singleton(event_sender);
+        engine.world().send_event(PropellantEvent::HandleEngineFlag(PropellantFlag::RequireSceneRebuild))?;
+        engine.world().send_event(PropellantEvent::HandleEngineFlag(PropellantFlag::RequireResourcesLoading(RequireResourcesLoadingFlag::ALL)))?;
 
         event_loop.run(move |event, _, control_flow| {
             engine.main_loop(event, control_flow);

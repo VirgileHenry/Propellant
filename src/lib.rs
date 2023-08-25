@@ -49,9 +49,9 @@ pub use engine::{
 #[cfg(feature = "ui")]
 pub use engine::{
     material::ui_material::UiMaterial,
-    transform::ui_transform::{
-        UiAnchor,
+    ui::ui_transform::{
         UiTransform,
+        UiAnchor,
     },
 };
 

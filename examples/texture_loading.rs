@@ -2,9 +2,6 @@ use foundry::{create_entity, Updatable, System, AsAny};
 use propellant::*;
 
 
-
-
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut resources = PropellantResources::default();

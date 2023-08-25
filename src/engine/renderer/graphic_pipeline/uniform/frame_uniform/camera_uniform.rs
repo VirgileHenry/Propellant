@@ -1,7 +1,6 @@
 use crate::{
     Transform,
     Camera,
-    engine::consts::PROPELLANT_DEBUG_FEATURES
 };
 
 use super::FrameUniform;
@@ -23,10 +22,6 @@ impl FrameUniform for CameraUniformObject {
                     view:  tf.world_pos(),
                 };
             }
-        }
-
-        if PROPELLANT_DEBUG_FEATURES {
-            println!("[PROPELLANT DEBUG] No main camera found.");
         }
 
         CameraUniformObject {

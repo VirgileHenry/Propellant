@@ -1,19 +1,24 @@
 use crate::{PropellantEngine, PropellantResources};
 use self::resource_loading::RequireResourcesLoadingFlag;
 
-use super::errors::PResult;
+use super::{errors::PResult, ui::{ui_resolution::UiResolution, ui_transform::UiTransform}, consts::PROPELLANT_DEBUG_FEATURES};
 
 pub(crate) mod resource_loading;
 
 #[derive(Debug, Clone, Copy)]
 pub enum PropellantFlag {
     #[cfg(feature = "window")]
+    /// Tell the renderer the scene have been invalidated and neeeds rebuilt.
     RequireSceneRebuild,
     #[cfg(feature = "window")]
+    /// Tell the renderer the command buffers needs to be rebuilt.
     RequireCommandBufferRebuild,
     #[cfg(feature = "resources")]
+    /// We added resourcesin the resource lib that need to be loaded.
     RequireResourcesLoading(RequireResourcesLoadingFlag),
-    UiRequireScreenSize,
+    #[cfg(feature = "ui")]
+    /// The ui elements need to know what the screen resolution is.
+    UiRequireResolution,
 }
 
 impl PropellantEngine {
@@ -41,7 +46,21 @@ impl PropellantEngine {
                     None => println!("[PROPELLANT DEBUG] Resources loading requested, but no resources found."),
                 }
             },
-            _ => {},
+            #[cfg(feature = "ui")]
+            PropellantFlag::UiRequireResolution => {
+                let resolution = match self.world.get_singleton::<UiResolution>() {
+                    Some(res) => *res,
+                    None => {
+                        if PROPELLANT_DEBUG_FEATURES {
+                            println!("[PROPELLANT DEBUG] [UI] Ui require screen resolution flag set, but no existing screen resolution.");
+                        }
+                        UiResolution::default()
+                    }
+                };
+                for (_, ui_tf) in self.world.query1d_mut::<UiTransform>() {
+                    ui_tf.set_ui_resolution(resolution);
+                }
+            }
         }
 
         Ok(())

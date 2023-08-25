@@ -1,4 +1,3 @@
-use crate::engine::renderer::graphic_pipeline::uniform::frame_uniform::ui_resolution::UiResolution;
 
 use super::CursorPosition;
 
@@ -10,16 +9,13 @@ pub enum UiEvent {
     MousePrimaryRelease,
 }
 
-impl TryFrom<(&winit::event::WindowEvent<'_>, &UiResolution)> for UiEvent {
+impl TryFrom<&winit::event::WindowEvent<'_>> for UiEvent {
     type Error = ();
-    fn try_from((event, res): (&winit::event::WindowEvent<'_>, &UiResolution)) -> Result<UiEvent, ()> {
+    fn try_from(event: &winit::event::WindowEvent<'_>) -> Result<UiEvent, ()> {
         match event {
             winit::event::WindowEvent::CursorMoved { position, .. } => Ok(UiEvent::MouseMove(CursorPosition::InScreen{
                 mouse_x: position.x as f32,
                 mouse_y: position.y as f32,
-                screen_width: res.screen_width,
-                screen_height: res.screen_height,
-                ui_res: res.resolution,
             })),
             winit::event::WindowEvent::CursorLeft { .. } => Ok(UiEvent::MouseMove(CursorPosition::OutOfScreen)),
             winit::event::WindowEvent::MouseInput { state, button, .. } => {
