@@ -1,5 +1,8 @@
 use crate::{
-    engine::errors::PResult,
+    engine::{
+        errors::PResult,
+        resources::texture_library::TextureLibrary
+    },
     PropellantResources
 };
 
@@ -49,6 +52,12 @@ pub trait GraphicPipelineInterface {
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
+    ) -> PResult<()>;
+    fn reload_textures(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+        image_index: usize,
+        textures: &TextureLibrary,
     ) -> PResult<()>;
     fn destroy(
         &mut self,

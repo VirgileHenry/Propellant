@@ -4,6 +4,7 @@ pub(crate) mod rendering_command_manager;
 pub(crate) mod rendering_sync;
 pub(crate) mod swapchain_interface;
 pub(crate) mod swapchain_support;
+pub(crate) mod sync_state;
 pub(crate) mod transfer_command_manager;
 pub(crate) mod vulkan_buffer;
 pub(crate) mod vulkan_image;

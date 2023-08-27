@@ -102,6 +102,7 @@ impl UiTransformCore {
     pub fn set_ui_resolution(&mut self, resolution: UiResolution) {
         self.resolution = Some(resolution);
     }
+
 }
 
 
@@ -135,13 +136,11 @@ impl UiTransform {
         }
     }
 
-
     fn invalidate_pos(&mut self) {
         self.core.mutate(|tf| tf.invalidate_pos());
         self.core.mutate_children_rec(|tf| tf.invalidate_pos());
     }
 
-    
     pub fn get_pos(&self) -> UiPosUniformObject {
         // rec get on the parent:
         // parent is none -> identity,
@@ -170,12 +169,23 @@ impl UiTransform {
 
 #[cfg(feature = "inputs")]
 impl UiTransform {
-    pub fn ui_contains_cursor(&self, _cursor: CursorPosition) -> bool {
-        self.core.get(|_tf| {
-            // todo
+    pub fn ui_contains_cursor(&self, cursor: CursorPosition) -> bool {
+        let pos = self.get_pos();
+        self.core.get(|tf| {
+            match cursor {
+                CursorPosition::OutOfScreen => false,
+                CursorPosition::InScreen { mouse_x, mouse_y } => {
+                    #[cfg(feature = "debug-features")]
+                    let resolution = tf.resolution.expect("Screen size not set for ui transform. You might missed a UiRequireScreenSizeFlag flag when creating new UI elemnts.");
+                    #[cfg(not(feature = "debug-features"))]
+                    let resolution = tf.resolution.unwrap_or(UiResolution::default());
+                    
+                    let top_left = ((pos.as_matrix() * glam::Vec3::new(-1., -1., 1.)).truncate() + glam::Vec2::ONE) * 0.5 * resolution.screen_size();
+                    let bottom_right = ((pos.as_matrix() * glam::Vec3::new(1., 1., 1.)).truncate() + glam::Vec2::ONE) * 0.5 * resolution.screen_size();
 
-
-            false
+                    top_left.x >= mouse_x && mouse_x >= bottom_right.x && top_left.y >= mouse_y && mouse_y >= bottom_right.y
+                }
+            }
         })
     }
 }

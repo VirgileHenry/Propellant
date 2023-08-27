@@ -24,6 +24,8 @@ layout(set = 2, binding = 0) readonly buffer MaterialProperties {
     PhongMaterial materials[];
 } materialsProperties;
 
+layout(set = 4, binding = 0) uniform sampler2D all_textures[];
+
 layout (location = 0) in flat int instanceIndex;
 layout (location = 1) in smooth vec3 inPosition;
 layout (location = 2) in smooth vec3 inNormal;
@@ -35,9 +37,9 @@ layout (location = 0) out vec4 outColor;
 
 void main() {
 
-    vec4 albedo_tex = vec4(1.0); //texture(all_textures[nonuniformEXT(materialsProperties.materials[instanceIndex].albedo.textureId)], inUv);
+    vec4 albedo_tex = texture(all_textures[nonuniformEXT(materialsProperties.materials[instanceIndex].albedo.textureId)], inUv);
     vec3 albedo = albedo_tex.rgb * materialsProperties.materials[instanceIndex].albedo.color;
-    vec4 metalic_tex = vec4(1.0); //texture(all_textures[nonuniformEXT(materialsProperties.materials[instanceIndex].metalic.textureId)], inUv);
+    vec4 metalic_tex = texture(all_textures[nonuniformEXT(materialsProperties.materials[instanceIndex].metalic.textureId)], inUv);
     float metalic = metalic_tex.r * materialsProperties.materials[instanceIndex].metalic.color.r;
 
     vec3 ambiant = mainLight.ambiant_color * albedo;

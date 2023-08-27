@@ -38,6 +38,7 @@ use crate::create_graphic_pipeline;
         (FrameUniform, MainDirectionnalLight, ShaderStage::Fragment), // light uniforms (one per frame)
         (RenderableComponent, PhongMaterial, ShaderStage::Fragment), // phong material (one per object)
         (ObjectUniform, ModelMatrixUniformObject, ShaderStage::Vertex), // model matrix (one per object)
+        (TexturesUniform, ShaderStage::Fragment), // textures
     )
 }
 

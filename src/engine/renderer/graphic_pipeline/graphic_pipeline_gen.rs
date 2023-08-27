@@ -36,11 +36,11 @@ macro_rules! create_graphic_pipeline_impl {
     // ========== Recursive call to build the fields properly ==========
     (
         $(($shader_stage:path, $shader_code:ident)),*;
-        ($($frm_uniforms_decl:tt)*); ($($obj_uniforms_decl:tt)*); ($($rc_uniforms_decl:tt)*);
-        ($($frm_buffers_decl:tt)*); ($($obj_buffers_decl:tt)*); ($($rc_buffers_decl:tt)*);
-        ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*);
-        ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*);
-        ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*);
+        ($($frm_uniforms_decl:tt)*); ($($obj_uniforms_decl:tt)*); ($($rc_uniforms_decl:tt)*); ($($texture_uniforms_decl:tt)*);
+        ($($frm_buffers_decl:tt)*); ($($obj_buffers_decl:tt)*); ($($rc_buffers_decl:tt)*); ($($texture_buffers_decl:tt)*);
+        ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*); ($($texture_uniforms_field:tt)*);
+        ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*); ($($texture_uniforms_build:tt)*);
+        ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*); ($($texture_uniforms_type:tt)*);
         ($($ordered_field:tt)*);
         (FrameUniform, $uniform:ident, $stage:path),
         $($rest:tt)*
@@ -48,22 +48,22 @@ macro_rules! create_graphic_pipeline_impl {
         // register a new frame uniform
         crate::create_graphic_pipeline_impl!(
             $(($shader_stage, $shader_code)),*;
-            ($($frm_uniforms_decl)* [<frame_uniform_ $uniform:snake>]: UniformBufferBuilder<$uniform>,); ($($obj_uniforms_decl)*); ($($rc_uniforms_decl)*);
-            ($($frm_buffers_decl)* [<frame_uniform_ $uniform:snake>]: UniformBuffer<$uniform>,); ($($obj_buffers_decl)*); ($($rc_buffers_decl)*);
-            ($($frm_uniforms_field)* [<frame_uniform_ $uniform:snake>]); ($($obj_uniforms_field)*); ($($rc_uniforms_field)*);
-            ($($frm_uniforms_build)* [<frame_uniform_ $uniform:snake>]: UniformBufferBuilder::new($stage.into(), vulkanalia::vk::DescriptorType::UNIFORM_BUFFER),); ($($obj_uniforms_build)*); ($($rc_uniforms_build)*);
-            ($($frm_uniforms_type)* $uniform); ($($obj_uniforms_type)*); ($($rc_uniforms_type)*);
+            ($($frm_uniforms_decl)* [<frame_uniform_ $uniform:snake>]: UniformBufferBuilder<$uniform>,); ($($obj_uniforms_decl)*); ($($rc_uniforms_decl)*); ($($texture_uniforms_decl)*);
+            ($($frm_buffers_decl)* [<frame_uniform_ $uniform:snake>]: UniformBuffer<$uniform>,); ($($obj_buffers_decl)*); ($($rc_buffers_decl)*); ($($texture_buffers_decl)*);
+            ($($frm_uniforms_field)* [<frame_uniform_ $uniform:snake>]); ($($obj_uniforms_field)*); ($($rc_uniforms_field)*); ($($texture_uniforms_field)*);
+            ($($frm_uniforms_build)* [<frame_uniform_ $uniform:snake>]: UniformBufferBuilder::new($stage.into(), vulkanalia::vk::DescriptorType::UNIFORM_BUFFER),); ($($obj_uniforms_build)*); ($($rc_uniforms_build)*); ($($texture_uniforms_build)*);
+            ($($frm_uniforms_type)* $uniform); ($($obj_uniforms_type)*); ($($rc_uniforms_type)*); ($($texture_uniforms_type)*);
             ($($ordered_field)* [<frame_uniform_ $uniform:snake>]);
             $($rest)*
         )
     };
     (
         $(($shader_stage:path, $shader_code:ident)),*;
-        ($($frm_uniforms_decl:tt)*); ($($obj_uniforms_decl:tt)*); ($($rc_uniforms_decl:tt)*);
-        ($($frm_buffers_decl:tt)*); ($($obj_buffers_decl:tt)*); ($($rc_buffers_decl:tt)*);
-        ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*);
-        ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*);
-        ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*);
+        ($($frm_uniforms_decl:tt)*); ($($obj_uniforms_decl:tt)*); ($($rc_uniforms_decl:tt)*); ($($texture_uniforms_decl:tt)*);
+        ($($frm_buffers_decl:tt)*); ($($obj_buffers_decl:tt)*); ($($rc_buffers_decl:tt)*); ($($texture_buffers_decl:tt)*);
+        ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*); ($($texture_uniforms_field:tt)*);
+        ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*); ($($texture_uniforms_build:tt)*);
+        ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*); ($($texture_uniforms_type:tt)*);
         ($($ordered_field:tt)*);
         (ObjectUniform, $uniform:ident, $stage:path),
         $($rest:tt)*
@@ -71,22 +71,22 @@ macro_rules! create_graphic_pipeline_impl {
         // register a new renderable object uniform
         crate::create_graphic_pipeline_impl!(
             $(($shader_stage, $shader_code)),*;
-            ($($frm_uniforms_decl)*); ($($obj_uniforms_decl)* [<object_uniform_ $uniform:snake>]: UniformBufferBuilder<$uniform>,); ($($rc_uniforms_decl)*);
-            ($($frm_buffers_decl)*); ($($obj_buffers_decl)* [<object_uniform_ $uniform:snake>]: UniformBuffer<$uniform>,); ($($rc_buffers_decl)*);
-            ($($frm_uniforms_field)*); ($($obj_uniforms_field)* [<object_uniform_ $uniform:snake>]); ($($rc_uniforms_field)*);
-            ($($frm_uniforms_build)*); ($($obj_uniforms_build)* [<object_uniform_ $uniform:snake>]: UniformBufferBuilder::new($stage.into(), vulkanalia::vk::DescriptorType::STORAGE_BUFFER),); ($($rc_uniforms_build)*);
-            ($($frm_uniforms_type)*); ($($obj_uniforms_type)* $uniform); ($($rc_uniforms_type)*);
+            ($($frm_uniforms_decl)*); ($($obj_uniforms_decl)* [<object_uniform_ $uniform:snake>]: UniformBufferBuilder<$uniform>,); ($($rc_uniforms_decl)*); ($($texture_uniforms_decl)*);
+            ($($frm_buffers_decl)*); ($($obj_buffers_decl)* [<object_uniform_ $uniform:snake>]: UniformBuffer<$uniform>,); ($($rc_buffers_decl)*); ($($texture_buffers_decl)*);
+            ($($frm_uniforms_field)*); ($($obj_uniforms_field)* [<object_uniform_ $uniform:snake>]); ($($rc_uniforms_field)*); ($($texture_uniforms_field)*);
+            ($($frm_uniforms_build)*); ($($obj_uniforms_build)* [<object_uniform_ $uniform:snake>]: UniformBufferBuilder::new($stage.into(), vulkanalia::vk::DescriptorType::STORAGE_BUFFER),); ($($rc_uniforms_build)*); ($($texture_uniforms_build)*);
+            ($($frm_uniforms_type)*); ($($obj_uniforms_type)* $uniform); ($($rc_uniforms_type)*); ($($texture_uniforms_type)*);
             ($($ordered_field)* [<object_uniform_ $uniform:snake>]);
             $($rest)*
         )
     };
     (
         $(($shader_stage:path, $shader_code:ident)),*;
-        ($($frm_uniforms_decl:tt)*); ($($obj_uniforms_decl:tt)*); ($($rc_uniforms_decl:tt)*);
-        ($($frm_buffers_decl:tt)*); ($($obj_buffers_decl:tt)*); ($($rc_buffers_decl:tt)*);
-        ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*);
-        ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*);
-        ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*);
+        ($($frm_uniforms_decl:tt)*); ($($obj_uniforms_decl:tt)*); ($($rc_uniforms_decl:tt)*); ($($texture_uniforms_decl:tt)*);
+        ($($frm_buffers_decl:tt)*); ($($obj_buffers_decl:tt)*); ($($rc_buffers_decl:tt)*); ($($texture_buffers_decl:tt)*);
+        ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*); ($($texture_uniforms_field:tt)*);
+        ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*); ($($texture_uniforms_build:tt)*);
+        ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*); ($($texture_uniforms_type:tt)*);
         ($($ordered_field:tt)*);
         (RenderableComponent, $uniform:ident, $stage:path),
         $($rest:tt)*
@@ -95,12 +95,41 @@ macro_rules! create_graphic_pipeline_impl {
         {
             crate::create_graphic_pipeline_impl!(
                 $(($shader_stage, $shader_code)),*;
-                ($($frm_uniforms_decl)*); ($($obj_uniforms_decl)*); ($($rc_uniforms_decl)* [<renderable_comp_uniform_ $uniform:snake>]: UniformBufferBuilder<$uniform>,);
-                ($($frm_buffers_decl)*); ($($obj_buffers_decl)*); ($($rc_buffers_decl)* [<renderable_comp_uniform_ $uniform:snake>]: UniformBuffer<$uniform>,);
-                ($($frm_uniforms_field)*); ($($obj_uniforms_field)*); ($($rc_uniforms_field)* [<renderable_comp_uniform_ $uniform:snake>]);
-                ($($frm_uniforms_build)*); ($($obj_uniforms_build)*); ($($rc_uniforms_build)* [<renderable_comp_uniform_ $uniform:snake>]: UniformBufferBuilder::new($stage.into(), vulkanalia::vk::DescriptorType::STORAGE_BUFFER),);
-                ($($frm_uniforms_type)*); ($($obj_uniforms_type)*); ($($rc_uniforms_type)* $uniform);
+                ($($frm_uniforms_decl)*); ($($obj_uniforms_decl)*); ($($rc_uniforms_decl)* [<renderable_comp_uniform_ $uniform:snake>]: UniformBufferBuilder<$uniform>,); ($($texture_uniforms_decl)*);
+                ($($frm_buffers_decl)*); ($($obj_buffers_decl)*); ($($rc_buffers_decl)* [<renderable_comp_uniform_ $uniform:snake>]: UniformBuffer<$uniform>,); ($($texture_buffers_decl)*);
+                ($($frm_uniforms_field)*); ($($obj_uniforms_field)*); ($($rc_uniforms_field)* [<renderable_comp_uniform_ $uniform:snake>]); ($($texture_uniforms_field)*);
+                ($($frm_uniforms_build)*); ($($obj_uniforms_build)*); ($($rc_uniforms_build)* [<renderable_comp_uniform_ $uniform:snake>]: UniformBufferBuilder::new($stage.into(), vulkanalia::vk::DescriptorType::STORAGE_BUFFER),); ($($texture_uniforms_build)*);
+                ($($frm_uniforms_type)*); ($($obj_uniforms_type)*); ($($rc_uniforms_type)* $uniform); ($($texture_uniforms_type)*);
                 ($($ordered_field)* [<renderable_comp_uniform_ $uniform:snake>]);
+                $($rest)*
+            )
+        }
+    };
+    (
+        $(($shader_stage:path, $shader_code:ident)),*;
+        ($($frm_uniforms_decl:tt)*); ($($obj_uniforms_decl:tt)*); ($($rc_uniforms_decl:tt)*); ($($texture_uniforms_decl:tt)*);
+        ($($frm_buffers_decl:tt)*); ($($obj_buffers_decl:tt)*); ($($rc_buffers_decl:tt)*); ($($texture_buffers_decl:tt)*);
+        ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*); ($($texture_uniforms_field:tt)*);
+        ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*); ($($texture_uniforms_build:tt)*);
+        ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*); ($($texture_uniforms_type:tt)*);
+        ($($ordered_field:tt)*);
+        (TexturesUniform, $stage:path),
+        $($rest:tt)*
+    ) => {
+        // register a new renderable object uniform
+        {
+            use crate::engine::renderer::graphic_pipeline::uniform::textures_uniform::{
+                TextureUniformBuilder,
+                TextureUniform,
+            };
+            crate::create_graphic_pipeline_impl!(
+                $(($shader_stage, $shader_code)),*;
+                ($($frm_uniforms_decl)*); ($($obj_uniforms_decl)*); ($($rc_uniforms_decl)*); ($($texture_uniforms_decl)* textures_uniform: TextureUniformBuilder,);
+                ($($frm_buffers_decl)*); ($($obj_buffers_decl)*); ($($rc_buffers_decl)*); ($($texture_buffers_decl)* textures_uniform: TextureUniform,);
+                ($($frm_uniforms_field)*); ($($obj_uniforms_field)*); ($($rc_uniforms_field)*); ($($texture_uniforms_field)* textures_uniform);
+                ($($frm_uniforms_build)*); ($($obj_uniforms_build)*); ($($rc_uniforms_build)*); ($($texture_uniforms_build)* textures_uniform: TextureUniformBuilder::new($stage.into()),);
+                ($($frm_uniforms_type)*); ($($obj_uniforms_type)*); ($($rc_uniforms_type)*); ($($texture_uniforms_type)*);
+                ($($ordered_field)* textures_uniform);
                 $($rest)*
             )
         }
@@ -108,11 +137,11 @@ macro_rules! create_graphic_pipeline_impl {
     // ========== Macro expansion with properly built fields ==========
     (
         $(($shader_stage:path, $shader_code:ident)),*;
-        ($($frm_uniforms_decl:tt)*); ($($obj_uniforms_decl:tt)*); ($($rc_uniforms_decl:tt)*);
-        ($($frm_buffers_decl:tt)*); ($($obj_buffers_decl:tt)*); ($($rc_buffers_decl:tt)*);
-        ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*);
-        ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*);
-        ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*);
+        ($($frm_uniforms_decl:tt)*); ($($obj_uniforms_decl:tt)*); ($($rc_uniforms_decl:tt)*); ($($texture_uniforms_decl:tt)*);
+        ($($frm_buffers_decl:tt)*); ($($obj_buffers_decl:tt)*); ($($rc_buffers_decl:tt)*); ($($texture_buffers_decl:tt)*);
+        ($($frm_uniforms_field:tt)*); ($($obj_uniforms_field:tt)*); ($($rc_uniforms_field:tt)*); ($($texture_uniforms_field:tt)*);
+        ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*); ($($texture_uniforms_build:tt)*);
+        ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*); ($($texture_uniforms_type:tt)*);
         ($($ordered_field:tt)*);
     ) => {
         { paste::paste! { // we filled our tt with paste syntax, time to unpack it
@@ -183,6 +212,7 @@ macro_rules! create_graphic_pipeline_impl {
                 $($frm_buffers_decl)*
                 $($obj_buffers_decl)*
                 $($rc_buffers_decl)*
+                $($texture_buffers_decl)*
             }
 
             impl GraphicPipeline {
@@ -198,6 +228,7 @@ macro_rules! create_graphic_pipeline_impl {
                     $($frm_buffers_decl)*
                     $($obj_buffers_decl)*
                     $($rc_buffers_decl)*
+                    $($texture_buffers_decl)*
                 ) -> PResult<GraphicPipeline> {
             
                     let vertex_input_state = vulkanalia::vk::PipelineVertexInputStateCreateInfo::builder()
@@ -317,6 +348,7 @@ macro_rules! create_graphic_pipeline_impl {
                         $($frm_uniforms_field,)*
                         $($obj_uniforms_field,)*
                         $($rc_uniforms_field,)*
+                        $($texture_uniforms_field,)*
                         pipeline,
                         pipeline_layout,
                         vk_descriptor_pool,
@@ -392,7 +424,9 @@ macro_rules! create_graphic_pipeline_impl {
                     image_index: usize,
                 ) -> PResult<()> {
                     // map all the buffers
-                    $(self.$ordered_field.map(vk_device, image_index)?;)*
+                    $(self.$frm_uniforms_field.map(vk_device, image_index)?;)*
+                    $(self.$obj_uniforms_field.map(vk_device, image_index)?;)*
+                    $(self.$rc_uniforms_field.map(vk_device, image_index)?;)*
                     // frame uniforms
                     $(
                         self.$frm_uniforms_field.update_buffer(0, image_index, $frm_uniforms_type::get_uniform(components));
@@ -412,7 +446,9 @@ macro_rules! create_graphic_pipeline_impl {
                         $(self.$obj_uniforms_field.update_buffer(uniform_buffer_offset, image_index, <$obj_uniforms_type as ObjectUniform>::get_uniform($obj_uniforms_field));)*
                     }
                     // unmap all the buffers
-                    $(self.$ordered_field.unmap(vk_device, image_index);)*
+                    $(self.$frm_uniforms_field.unmap(vk_device, image_index);)*
+                    $(self.$obj_uniforms_field.unmap(vk_device, image_index);)*
+                    $(self.$rc_uniforms_field.unmap(vk_device, image_index);)*
                 
                     Ok(())
                 }
@@ -532,6 +568,24 @@ macro_rules! create_graphic_pipeline_impl {
                 
                     Ok(())
                 }
+
+                fn reload_textures(
+                    &mut self,
+                    #[allow(unused_variables)]
+                    vk_device: &vulkanalia::Device,
+                    #[allow(unused_variables)]
+                    image_index: usize,
+                    #[allow(unused_variables)]
+                    textures: &crate::engine::resources::texture_library::TextureLibrary,
+                ) -> PResult<()> {
+                    $(self.$texture_uniforms_field.populate_descriptor_sets(
+                        vk_device,
+                        image_index,
+                        self.vk_descriptor_pool,
+                        textures,
+                    )?;)*
+                    Ok(())
+                }
             
                 fn destroy(
                     &mut self,
@@ -554,6 +608,7 @@ macro_rules! create_graphic_pipeline_impl {
                 $($frm_uniforms_decl)*
                 $($obj_uniforms_decl)*
                 $($rc_uniforms_decl)*
+                $($texture_uniforms_decl)*
             }
 
             impl GraphicPipelineBuilder {
@@ -610,6 +665,7 @@ macro_rules! create_graphic_pipeline_impl {
                         $($frm_uniforms_field,)*
                         $($obj_uniforms_field,)*
                         $($rc_uniforms_field,)*
+                        $($texture_uniforms_field,)*
                     )
                 }
             }
@@ -635,6 +691,7 @@ macro_rules! create_graphic_pipeline_impl {
                 $($frm_uniforms_build)*
                 $($obj_uniforms_build)*
                 $($rc_uniforms_build)*
+                $($texture_uniforms_build)*
             }
         } }
     }
@@ -680,11 +737,11 @@ macro_rules! create_graphic_pipeline {
     ) => {
         crate::create_graphic_pipeline_impl!(
             $(($shader_stage, $shader_code)),*;
-            (); (); (); // uniforms declaration
-            (); (); (); // built buffers declaration
-            (); (); (); // uniforms field
-            (); (); (); // uniforms build
-            (); (); (); // uniforms types
+            (); (); (); (); // uniforms declaration
+            (); (); (); (); // built buffers declaration
+            (); (); (); (); // uniforms field
+            (); (); (); (); // uniforms build
+            (); (); (); (); // uniforms types
             (); // ordered fields
             $($uniform_data)*
         )

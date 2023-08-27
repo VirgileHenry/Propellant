@@ -41,6 +41,8 @@ pub trait VulkanRenderer {
     fn request_scene_rebuild(&mut self);
     /// The engine is sending a flag to rebuild the command buffer.
     fn request_command_buffer_rebuild(&mut self);
+    /// The engine is sending a flag to reload the textures.
+    fn request_textures_reload(&mut self);
     /// Destroy the current rendering pipeline.
     fn recreation_cleanup(&mut self, vk_device: &vulkanalia::Device);
     /// Clean up of all the vulkan resources.
@@ -51,6 +53,7 @@ pub trait VulkanRenderer {
 enum SyncingFlag {
     SceneRebuild,
     CommandBufferRebuild,
+    ReloadTextures,
 }
 
 impl SyncingFlag {
@@ -60,6 +63,7 @@ impl SyncingFlag {
         match (self, other) {
             (SyncingFlag::CommandBufferRebuild, SyncingFlag::CommandBufferRebuild) => true,
             (SyncingFlag::SceneRebuild, SyncingFlag::SceneRebuild) => true,
+            (SyncingFlag::ReloadTextures, SyncingFlag::ReloadTextures) => true,
             (SyncingFlag::SceneRebuild, SyncingFlag::CommandBufferRebuild) => true,
             _ => false,
         }
@@ -160,13 +164,23 @@ impl DefaultVulkanRenderer {
     ) -> PResult<()> {
         match flag {
             SyncingFlag::SceneRebuild => self.scene_recreation(vk_interface, components, current_frame)?,
-            SyncingFlag::CommandBufferRebuild =>  match components.get_singleton::<PropellantResources>() {
+            SyncingFlag::CommandBufferRebuild => match components.get_singleton::<PropellantResources>() {
                 Some(resource_lib) => {
                     self.rendering_pipeline.register_draw_commands(
                         &vk_interface.device,
                         &resource_lib,
                         current_frame
                     )?;
+                },
+                None => {
+                    if PROPELLANT_DEBUG_FEATURES {
+                        println!("[PROPELLANT DEBUG] Re-register draw commands flag found, but no resource lib found.");
+                    }
+                }
+            },
+            SyncingFlag::ReloadTextures => match components.get_singleton::<PropellantResources>() {
+                Some(resource_lib) => {
+                    self.rendering_pipeline.reload_textures(&vk_interface.device, current_frame, resource_lib.textures())?;
                 },
                 None => {
                     if PROPELLANT_DEBUG_FEATURES {
@@ -315,6 +329,10 @@ impl VulkanRenderer for DefaultVulkanRenderer {
     
     fn request_command_buffer_rebuild(&mut self) {
         self.syncing_state.add_flag(SyncingFlag::CommandBufferRebuild, self.rendering_pipeline.swapchain_image_count())
+    }
+
+    fn request_textures_reload(&mut self) {
+        self.syncing_state.add_flag(SyncingFlag::ReloadTextures, self.rendering_pipeline.swapchain_image_count())
     }
 
     fn recreation_cleanup(&mut self, vk_device: &vulkanalia::Device) {

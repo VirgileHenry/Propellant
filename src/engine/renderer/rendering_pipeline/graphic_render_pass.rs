@@ -1,5 +1,6 @@
 use crate::engine::renderer::graphic_pipeline::GraphicPipelineInterface;
 use crate::engine::renderer::graphic_pipeline::graphic_pipeline_builder::GraphicPipelineBuilderInterface;
+use crate::engine::resources::texture_library::TextureLibrary;
 use crate::{PropellantResources, FinalRenderTargetBuilder};
 use crate::engine::{errors::PResult, window::vulkan::swapchain_interface::SwapchainInterface};
 
@@ -109,6 +110,22 @@ impl GraphicRenderpass {
     ) -> PResult<()> {
         for pipeline in self.pipelines.iter_mut().map(|(_k, v)| v) {
             pipeline.rebuild_rendering_map(components);
+        }
+        Ok(())
+    }
+
+    pub fn reload_textures(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+        image_index: usize,
+        textures: &TextureLibrary,
+    ) -> PResult<()> {
+        for pipeline in self.pipelines.iter_mut().map(|(_k, v)| v) {
+            pipeline.reload_textures(
+                vk_device,
+                image_index,
+                textures,
+            )?;
         }
         Ok(())
     }

@@ -37,6 +37,8 @@ impl PropellantEngine {
                             &mut vk_interface.transfer_manager,
                         )?;
                         vk_interface.check_and_process_memory_transfers()?;
+                        // todo : maybe check textures where changed ?
+                        window.renderer_mut().request_textures_reload();
                     },
                     None => println!("[PROPELLANT DEBUG] Resources loading requested, but no resources found."),
                 }

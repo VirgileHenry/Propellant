@@ -5,7 +5,7 @@ use crate::engine::{
     errors::PResult
 };
 
-use super::{input_context::InputContext, input_system::InputSystem};
+use super::input_context::InputContext;
 
 pub(crate) mod input_handler_builder;
 

@@ -8,7 +8,7 @@ use crate::{
             rendering_command_manager::RenderingCommandManager,
             rendering_sync::RenderingSync
         },
-        errors::PResult
+        errors::PResult, resources::texture_library::TextureLibrary
     },
     RenderingPipelineBuilder,
     PropellantResources,
@@ -190,6 +190,16 @@ impl RenderingPipeline {
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
     ) -> PResult<()> {
         self.graphic_render_pass.assert_uniform_buffer_sizes(image_index, vk_instance, vk_device, vk_physical_device)
+    }
+
+    #[inline]
+    pub fn reload_textures(
+        &mut self,
+        vk_device: &vulkanalia::Device,
+        image_index: usize,
+        textures: &TextureLibrary,
+    ) -> PResult<()> {
+        self.graphic_render_pass.reload_textures(vk_device, image_index, textures)
     }
 
     pub fn rendering_sync(&self) -> &RenderingSync<MAX_FRAMES_IN_FLIGHT> {
