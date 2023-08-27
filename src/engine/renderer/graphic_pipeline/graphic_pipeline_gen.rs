@@ -517,7 +517,7 @@ macro_rules! create_graphic_pipeline_impl {
                     for (
                         _,
                         $($rc_uniforms_field,)*
-                        $($obj_uniforms_field,)*                    
+                        _,
                     ) in components.query2d::<
                         $(<$rc_uniforms_type as ObjectUniform>::FromComponent,)*
                         $(<$obj_uniforms_type as ObjectUniform>::FromComponent,)*
@@ -540,7 +540,7 @@ macro_rules! create_graphic_pipeline_impl {
                     for (
                         _,
                         $($rc_uniforms_field,)*
-                        $($obj_uniforms_field,)*                    
+                        _,
                     ) in components.query2d_mut::<
                         $(<$rc_uniforms_type as ObjectUniform>::FromComponent,)*
                         $(<$obj_uniforms_type as ObjectUniform>::FromComponent,)*

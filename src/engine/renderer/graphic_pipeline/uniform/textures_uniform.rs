@@ -141,7 +141,7 @@ impl TextureUniform {
     pub fn populate_descriptor_sets(
         &mut self,
         vk_device: &vulkanalia::Device,
-        image_index: usize,
+        _image_index: usize,
         descriptor_pool: vulkanalia::vk::DescriptorPool,
         textures: &TextureLibrary,
     ) -> PResult<()> {
