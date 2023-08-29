@@ -15,6 +15,7 @@ use self::{
 #[cfg(feature = "inputs")]
 use self::inputs::input_system::InputSystem;
 
+pub(crate) mod animations;
 pub(crate) mod common_components;
 pub(crate) mod common_systems;
 pub(crate) mod consts;
