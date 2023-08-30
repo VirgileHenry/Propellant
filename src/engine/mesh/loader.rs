@@ -1,28 +1,28 @@
 use std::array::TryFromSliceError;
 
-use crate::{
-    Mesh,
-    engine::errors::{
-        PResult,
-        loading_errors::LoadingError
-    }
+use crate::engine::errors::{
+    PResult,
+    loading_errors::LoadingError
 };
 
-use super::vertex::Vertex;
+use super::{vertex::StaticVertex, Mesh};
 
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub enum MeshLoadingError {
     FileNotFound,
-    InvalidData,
+    InvalidData(TryFromSliceError),
     NotEnoughData,
 }
 
+pub trait Loadable {
+    fn load_from(data: &[u8]) -> Result<Self, TryFromSliceError> where Self: Sized;
+}
 
-impl Vertex {
-    pub fn load_from(data: &[u8]) -> Result<Vertex, TryFromSliceError> {
+impl Loadable for StaticVertex {
+    fn load_from(data: &[u8]) -> Result<StaticVertex, TryFromSliceError> {
         let size = std::mem::size_of::<f32>();
-        Ok(Vertex::new(
+        Ok(StaticVertex::new(
             f32::from_ne_bytes(data[0*size..1*size].try_into()?),
             f32::from_ne_bytes(data[1*size..2*size].try_into()?),
             f32::from_ne_bytes(data[2*size..3*size].try_into()?),
@@ -35,7 +35,19 @@ impl Vertex {
     }
 }
 
-impl Mesh {
+impl Loadable for u16 {
+    fn load_from(data: &[u8]) -> Result<u16, TryFromSliceError> {
+        Ok(u16::from_ne_bytes(data.try_into()?))
+    }
+}
+
+impl Loadable for u32 {
+    fn load_from(data: &[u8]) -> Result<u32, TryFromSliceError> {
+        Ok(u32::from_ne_bytes(data.try_into()?))
+    }
+}
+
+impl<V: Loadable, T: Loadable> Mesh<V, T> {
     /// Loads a mesh from raw bytes data.
     /// The expected format of the data is :
     /// 
@@ -51,7 +63,7 @@ impl Mesh {
     ///     - u32 (4 bytes) for the third vertex index
     /// 
     /// So for example, \[0u8; 8\] is an empty mesh (0 vertex, 0 triangle so no data behind.)
-    pub fn from_bytes(bytes: &[u8]) -> PResult<Mesh> {
+    pub fn from_bytes(bytes: &[u8]) -> PResult<Mesh<V, T>> {
 
         let mut buffer_offset = 0;
         // closure to read from our buffer and increment the offset.
@@ -71,20 +83,18 @@ impl Mesh {
     
         let mut vertices = Vec::with_capacity(vertex_count as usize);
         for _ in 0..vertex_count {
-            match Vertex::load_from(read_buffer(std::mem::size_of::<Vertex>())) {
+            match V::load_from(read_buffer(std::mem::size_of::<V>())) {
                 Ok(v) => vertices.push(v),
-                Err(_) => return Err(LoadingError::from(MeshLoadingError::InvalidData).into()),
+                Err(e) => return Err(LoadingError::from(MeshLoadingError::InvalidData(e)).into()),
             }
         }
     
         let mut triangles = Vec::with_capacity(3 * triangle_count as usize);
         for _ in 0..vertex_count {
-            triangles.push(
-                u32::from_ne_bytes(match read_buffer(4).try_into() {
-                    Ok(bytes) => bytes,
-                    Err(_) => return Err(LoadingError::from(MeshLoadingError::InvalidData).into()),
-                })
-            )
+            match T::load_from(read_buffer(std::mem::size_of::<T>())) {
+                Ok(t) => triangles.push(t),
+                Err(e) => return Err(LoadingError::from(MeshLoadingError::InvalidData(e)).into()),
+            }
         }
     
         Ok(Mesh::new(vertices, triangles))

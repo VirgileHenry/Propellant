@@ -1,4 +1,6 @@
-pub use self::vertex::Vertex;
+pub(crate) use self::vertex::StaticVertex;
+
+use super::errors::PResult;
 
 
 pub(crate) mod cube;
@@ -10,22 +12,48 @@ pub(crate) mod loader;
 #[cfg(feature = "ui")]
 pub(crate) mod ui_quad;
 
+
+type StaticMeshVertex = StaticVertex;
+type StaticMeshTriangle = u32;
+
 #[derive(Debug, Clone)]
-pub struct Mesh {
-    pub vertices: Vec<Vertex>,
-    pub triangles: Vec<u32>, // maybe u16 mesh to save memory ?
+pub enum MeshType {
+    Static(Mesh<StaticMeshVertex, StaticMeshTriangle>),
+    // Skinned(),
 }
 
-impl Mesh {
-    pub fn new(vertices: Vec<Vertex>, triangles: Vec<u32>) -> Mesh {
+impl MeshType {
+    pub fn static_mesh(vertices: Vec<StaticMeshVertex>, triangles: Vec<StaticMeshTriangle>) -> MeshType {
+        MeshType::Static(Mesh::new(vertices, triangles))
+    }
+
+    pub fn load_static_mesh(bytes: &[u8]) -> PResult<MeshType> {
+        Ok(MeshType::Static(Mesh::from_bytes(bytes)?))
+    }
+
+    pub fn buffer_size(&self) -> usize {
+        match self {
+            MeshType::Static(mesh) => mesh.vertices().len() * std::mem::size_of::<StaticVertex>() + mesh.triangles().len() * std::mem::size_of::<u32>(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Mesh<V, T> {
+    pub vertices: Vec<V>,
+    pub triangles: Vec<T>,
+}
+
+impl<V, T> Mesh<V, T> {
+    pub fn new(vertices: Vec<V>, triangles: Vec<T>) -> Mesh<V, T> {
         Mesh { vertices, triangles }
     }
 
-    pub fn vertices(&self) -> &Vec<Vertex> {
+    pub fn vertices(&self) -> &Vec<V> {
         &self.vertices
     }
 
-    pub fn triangles(&self) -> &Vec<u32> {
+    pub fn triangles(&self) -> &Vec<T> {
         &self.triangles
     }
 

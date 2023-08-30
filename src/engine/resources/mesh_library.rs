@@ -6,12 +6,13 @@ use crate::{
             vulkan_buffer::VulkanBuffer,
             transfer_command_manager::TransferCommandManager
         },
-        errors::PResult, mesh::vertex::Vertex
+        errors::PResult, mesh::{vertex::StaticVertex, MeshType}
     },
-    Mesh, id
+    id
 };
 
 use vulkanalia::vk::DeviceV1_0;
+
 
 /// Instance of a mesh on the gpu.
 #[derive(Debug)]
@@ -26,7 +27,7 @@ pub struct LoadedMesh {
 
 impl LoadedMesh {
     pub fn create(
-        mesh: Mesh,
+        mesh: MeshType,
         vk_instance: &vulkanalia::Instance,
         vk_device: &vulkanalia::Device,
         vk_physical_device: vulkanalia::vk::PhysicalDevice,
@@ -35,7 +36,7 @@ impl LoadedMesh {
         // we will use a single buffer for both vertex and index data.
         // [ VERTEX BUFFER | INDEX BUFFER ]
         // create a staging buffer for the buffer (on CPU / RAM)
-        let buffer_size = mesh.vertices().len() as u64 * std::mem::size_of::<Vertex>() as u64 + mesh.triangles().len() as u64 * std::mem::size_of::<u32>() as u64;
+        let buffer_size = mesh.buffer_size() as u64;
         let mut staging_buffer = VulkanBuffer::create(
             vk_instance, vk_device, vk_physical_device,
             buffer_size,
@@ -43,17 +44,21 @@ impl LoadedMesh {
             vulkanalia::vk::MemoryPropertyFlags::HOST_COHERENT | vulkanalia::vk::MemoryPropertyFlags::HOST_VISIBLE,
         )?;
         // copy the vertex data in the staging buffer
-        staging_buffer.map_data(
-            vk_device,
-            mesh.vertices(),
-            0,
-        )?;
+        match &mesh {
+            MeshType::Static(mesh) => staging_buffer.map_data(
+                vk_device,
+                mesh.vertices(),
+                0,
+            )?,
+        };
         // copy the index data in the staging buffer
-        staging_buffer.map_data(
-            vk_device,
-            mesh.triangles(),
-            mesh.vertices().len() as usize * std::mem::size_of::<Vertex>() as usize,
-        )?;
+        match &mesh {
+            MeshType::Static(mesh) => staging_buffer.map_data(
+                vk_device,
+                mesh.triangles(),
+                mesh.vertices().len() as usize * std::mem::size_of::<StaticVertex>() as usize,
+            )?,
+        };
         // create the buffer on the graphic card itself
         let buffer = VulkanBuffer::create(
             vk_instance, vk_device, vk_physical_device,
@@ -70,11 +75,17 @@ impl LoadedMesh {
             buffer_size,
         )?;
 
+        let index_count = match &mesh {
+            MeshType::Static(mesh) => mesh.triangles().len(),
+        };
+        let vertex_count = match &mesh {
+            MeshType::Static(mesh) => mesh.vertices().len(),
+        };
 
         Ok(LoadedMesh {
             buffer,
-            index_count: mesh.triangles().len(),
-            vertex_count: mesh.vertices().len(),
+            index_count,
+            vertex_count,
         })
     }
 
@@ -84,7 +95,7 @@ impl LoadedMesh {
         vk_command_buffer: vulkanalia::vk::CommandBuffer,
     ) {
         let buffers = [self.buffer.buffer()];
-        let offset = self.vertex_count as u64 * std::mem::size_of::<Vertex>() as u64;
+        let offset = self.vertex_count as u64 * std::mem::size_of::<StaticVertex>() as u64;
         unsafe {
             vk_device.cmd_bind_vertex_buffers(vk_command_buffer, 0, &buffers, &[0]);
             vk_device.cmd_bind_index_buffer(vk_command_buffer, self.buffer.buffer(), offset, vulkanalia::vk::IndexType::UINT32);
@@ -111,7 +122,7 @@ impl LoadedMesh {
 /// maybe specify this is a vulkan mesh lib?
 #[derive(Debug)]
 pub struct MeshLibrary {
-    loading_queue: HashMap<u64, Mesh>,
+    loading_queue: HashMap<u64, MeshType>,
     meshes: HashMap<u64, LoadedMesh>,
 }
 
@@ -126,11 +137,11 @@ impl MeshLibrary {
     #[cfg(feature = "ui")]
     pub fn with_ui_quad() -> MeshLibrary {
         let mut result = MeshLibrary::new();
-        result.register_mesh(id("ui_quad"), Mesh::ui_quad());
+        result.register_mesh(id("ui_quad"), MeshType::ui_quad());
         result
     }
 
-    pub fn register_mesh(&mut self, mesh_id: u64, mesh: Mesh) {
+    pub fn register_mesh(&mut self, mesh_id: u64, mesh: MeshType) {
         self.loading_queue.insert(mesh_id, mesh);
     }
 

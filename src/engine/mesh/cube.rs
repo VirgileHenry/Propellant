@@ -1,43 +1,43 @@
-use super::{Mesh, Vertex};
+use super::{MeshType, StaticVertex};
 
 
-impl Mesh {
-    pub fn cube(side_size: f32) -> Mesh {
+impl MeshType {
+    pub fn cube(side_size: f32) -> MeshType {
         let half_side_size = side_size / 2.;
-        Mesh {
-            vertices: vec![
+        MeshType::static_mesh(
+            vec![
                 // top
-                Vertex::new(-half_side_size, half_side_size, -half_side_size, 0.0, 1.0, 0.0, 0.25, 0.333),
-                Vertex::new(-half_side_size, half_side_size, half_side_size, 0.0, 1.0, 0.0, 0.25, 0.666),
-                Vertex::new(half_side_size, half_side_size, half_side_size, 0.0, 1.0, 0.0, 0.50, 0.333),
-                Vertex::new(half_side_size, half_side_size, -half_side_size, 0.0, 1.0, 0.0, 0.50, 0.666),
+                StaticVertex::new(-half_side_size, half_side_size, -half_side_size, 0.0, 1.0, 0.0, 0.25, 0.333),
+                StaticVertex::new(-half_side_size, half_side_size, half_side_size, 0.0, 1.0, 0.0, 0.25, 0.666),
+                StaticVertex::new(half_side_size, half_side_size, half_side_size, 0.0, 1.0, 0.0, 0.50, 0.333),
+                StaticVertex::new(half_side_size, half_side_size, -half_side_size, 0.0, 1.0, 0.0, 0.50, 0.666),
                 // front
-                Vertex::new(-half_side_size, -half_side_size, -half_side_size, 0.0, 0.0, -1.0, 0.25, 0.00),
-                Vertex::new(-half_side_size, half_side_size, -half_side_size, 0.0, 0.0, -1.0, 0.25, 0.333),
-                Vertex::new(half_side_size, half_side_size, -half_side_size, 0.0, 0.0, -1.0, 0.50, 0.333),
-                Vertex::new(half_side_size, -half_side_size, -half_side_size, 0.0, 0.0, -1.0, 0.50, 0.000),
+                StaticVertex::new(-half_side_size, -half_side_size, -half_side_size, 0.0, 0.0, -1.0, 0.25, 0.00),
+                StaticVertex::new(-half_side_size, half_side_size, -half_side_size, 0.0, 0.0, -1.0, 0.25, 0.333),
+                StaticVertex::new(half_side_size, half_side_size, -half_side_size, 0.0, 0.0, -1.0, 0.50, 0.333),
+                StaticVertex::new(half_side_size, -half_side_size, -half_side_size, 0.0, 0.0, -1.0, 0.50, 0.000),
                 // right
-                Vertex::new(half_side_size, -half_side_size, -half_side_size, 1.0, 0.0, 0.0, 0.75, 0.333),
-                Vertex::new(half_side_size, -half_side_size, half_side_size, 1.0, 0.0, 0.0, 0.75, 0.666),
-                Vertex::new(half_side_size, half_side_size, half_side_size, 1.0, 0.0, 0.0, 0.50, 0.666),
-                Vertex::new(half_side_size, half_side_size, -half_side_size, 1.0, 0.0, 0.0, 0.50, 0.333),
+                StaticVertex::new(half_side_size, -half_side_size, -half_side_size, 1.0, 0.0, 0.0, 0.75, 0.333),
+                StaticVertex::new(half_side_size, -half_side_size, half_side_size, 1.0, 0.0, 0.0, 0.75, 0.666),
+                StaticVertex::new(half_side_size, half_side_size, half_side_size, 1.0, 0.0, 0.0, 0.50, 0.666),
+                StaticVertex::new(half_side_size, half_side_size, -half_side_size, 1.0, 0.0, 0.0, 0.50, 0.333),
                 // bottom
-                Vertex::new(-half_side_size, -half_side_size, -half_side_size, 0.0, 1.0, 0.0, 1.00, 0.333),
-                Vertex::new(-half_side_size, -half_side_size, half_side_size, 0.0, 1.0, 0.0, 1.00, 0.666),
-                Vertex::new(half_side_size, -half_side_size, half_side_size, 0.0, 1.0, 0.0, 0.75, 0.666),
-                Vertex::new(half_side_size, -half_side_size, -half_side_size, 0.0, 1.0, 0.0, 0.75, 0.333),
+                StaticVertex::new(-half_side_size, -half_side_size, -half_side_size, 0.0, 1.0, 0.0, 1.00, 0.333),
+                StaticVertex::new(-half_side_size, -half_side_size, half_side_size, 0.0, 1.0, 0.0, 1.00, 0.666),
+                StaticVertex::new(half_side_size, -half_side_size, half_side_size, 0.0, 1.0, 0.0, 0.75, 0.666),
+                StaticVertex::new(half_side_size, -half_side_size, -half_side_size, 0.0, 1.0, 0.0, 0.75, 0.333),
                 // back
-                Vertex::new(-half_side_size, -half_side_size, half_side_size, 0.0, 0.0, 1.0, 0.25, 1.00),
-                Vertex::new(-half_side_size, half_side_size, half_side_size, 0.0, 0.0, 1.0, 0.25, 0.666),
-                Vertex::new(half_side_size, half_side_size, half_side_size, 0.0, 0.0, 1.0, 0.50, 0.666),
-                Vertex::new(half_side_size, -half_side_size, half_side_size, 0.0, 0.0, 1.0, 0.50, 1.00),
+                StaticVertex::new(-half_side_size, -half_side_size, half_side_size, 0.0, 0.0, 1.0, 0.25, 1.00),
+                StaticVertex::new(-half_side_size, half_side_size, half_side_size, 0.0, 0.0, 1.0, 0.25, 0.666),
+                StaticVertex::new(half_side_size, half_side_size, half_side_size, 0.0, 0.0, 1.0, 0.50, 0.666),
+                StaticVertex::new(half_side_size, -half_side_size, half_side_size, 0.0, 0.0, 1.0, 0.50, 1.00),
                 // left
-                Vertex::new(-half_side_size, -half_side_size, -half_side_size, -1.0, 0.0, 0.0, 0.00, 0.333),
-                Vertex::new(-half_side_size, -half_side_size, half_side_size, -1.0, 0.0, 0.0, 0.00, 0.666),
-                Vertex::new(-half_side_size, half_side_size, half_side_size, -1.0, 0.0, 0.0, 0.25, 0.666),
-                Vertex::new(-half_side_size, half_side_size, -half_side_size, -1.0, 0.0, 0.0, 0.25, 0.333),
+                StaticVertex::new(-half_side_size, -half_side_size, -half_side_size, -1.0, 0.0, 0.0, 0.00, 0.333),
+                StaticVertex::new(-half_side_size, -half_side_size, half_side_size, -1.0, 0.0, 0.0, 0.00, 0.666),
+                StaticVertex::new(-half_side_size, half_side_size, half_side_size, -1.0, 0.0, 0.0, 0.25, 0.666),
+                StaticVertex::new(-half_side_size, half_side_size, -half_side_size, -1.0, 0.0, 0.0, 0.25, 0.333),
             ],
-            triangles: vec![
+            vec![
                 0, 2, 1,    // top
                 0, 3, 2,
                 4, 6, 5,    // front
@@ -51,6 +51,6 @@ impl Mesh {
                 20, 22, 21, //left
                 20, 23, 22,
             ],
-        }
+        )
     }
 }

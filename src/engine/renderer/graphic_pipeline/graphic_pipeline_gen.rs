@@ -152,7 +152,7 @@ macro_rules! create_graphic_pipeline_impl {
             use vulkanalia::vk::HasBuilder;
             use vulkanalia::vk::DeviceV1_0;
             use crate::engine::errors::PResult;
-            use crate::engine::mesh::vertex::Vertex;
+            use crate::engine::mesh::vertex::StaticVertex;
             use super::GraphicPipelineInterface;
 
 
@@ -436,7 +436,7 @@ macro_rules! create_graphic_pipeline_impl {
                     for (
                         _,
                         $($rc_uniforms_field,)*
-                        $($obj_uniforms_field,)*                    
+                        $($obj_uniforms_field,)*
                     ) in components.query2d::<
                         $(<$rc_uniforms_type as ObjectUniform>::FromComponent,)*
                         $(<$obj_uniforms_type as ObjectUniform>::FromComponent,)*
@@ -650,8 +650,8 @@ macro_rules! create_graphic_pipeline_impl {
                     let pipeline_layout = unsafe { vk_device.create_pipeline_layout(&layout_info, None)? };
                     
                     // set the vertex input state
-                    let vertex_binding_description = vec![Vertex::binding_description()];
-                    let vertex_attribute_description = Vertex::attribute_description();
+                    let vertex_binding_description = vec![StaticVertex::binding_description()];
+                    let vertex_attribute_description = StaticVertex::attribute_description();
                     
                     GraphicPipeline::create(
                         vk_device, 

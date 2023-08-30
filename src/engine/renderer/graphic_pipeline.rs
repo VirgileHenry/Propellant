@@ -12,6 +12,8 @@ use self::graphic_pipeline_state::GraphicPipelineCreationState;
 pub(crate) mod graphic_pipeline_builder;
 pub(crate) mod graphic_pipeline_gen;
 pub(crate) mod graphic_pipeline_state;
+#[allow(unused)] // todo remove
+pub(crate) mod graphic_pipeline_settings;
 pub(crate) mod renderable_component;
 pub(crate) mod uniform;
 

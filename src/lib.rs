@@ -7,9 +7,8 @@ pub use engine::{
     common_components::camera::Camera,
     common_systems::fps_limiter::FpsLimiter,
     mesh::{
-        Mesh,
+        MeshType,
         mesh_renderer::InstancedMeshRenderer,
-        Vertex,
     },
     material::{
         phong_material::PhongMaterial,

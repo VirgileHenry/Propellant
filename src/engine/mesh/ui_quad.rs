@@ -1,17 +1,16 @@
-use crate::Mesh;
 
-use super::vertex::Vertex;
+use super::{vertex::StaticVertex, MeshType};
 
 
-impl Mesh {
-    pub fn ui_quad() -> Mesh {
+impl MeshType {
+    pub fn ui_quad() -> MeshType {
         let vertices = vec![
-            Vertex::new(-1., -1., 1., 0., 0., 0., 0., 0.),
-            Vertex::new( 1., -1., 1., 0., 0., 0., 1., 0.),
-            Vertex::new( 1.,  1., 1., 0., 0., 0., 1., 1.),
-            Vertex::new(-1.,  1., 1., 0., 0., 0., 0., 1.),
+            StaticVertex::new(-1., -1., 1., 0., 0., 0., 0., 0.),
+            StaticVertex::new( 1., -1., 1., 0., 0., 0., 1., 0.),
+            StaticVertex::new( 1.,  1., 1., 0., 0., 0., 1., 1.),
+            StaticVertex::new(-1.,  1., 1., 0., 0., 0., 0., 1.),
         ];
         let indices = vec![0, 1, 2, 2, 3, 0];
-        Mesh::new(vertices, indices)
+        MeshType::static_mesh(vertices, indices)
     }
 }
