@@ -5,8 +5,8 @@ use propellant::*;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut resources = PropellantResources::default();
-    resources.meshes_mut().register_mesh(id("quad"), Mesh::flat_quad(2.0));
-    resources.meshes_mut().register_mesh(id("cube"), Mesh::cube(0.6));
+    resources.meshes_mut().register_mesh(id("quad"), MeshType::flat_quad(2.0));
+    resources.meshes_mut().register_mesh(id("cube"), MeshType::cube(0.6));
 
     let mut engine = PropellantEngine::builder()
         .with_resources(resources);

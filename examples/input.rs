@@ -130,7 +130,7 @@ fn main() {
         }));
 
     let mut resources = PropellantResources::default();
-    resources.meshes_mut().register_mesh(id("cube"), Mesh::cube(1.0));
+    resources.meshes_mut().register_mesh(id("cube"), MeshType::cube(1.0));
 
     let mut engine = PropellantEngine::builder()
         .with_resources(resources)

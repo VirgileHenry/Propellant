@@ -7,8 +7,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut resources = PropellantResources::default();
     
-    resources.meshes_mut().register_mesh(id("quad"), Mesh::flat_quad(10.0));
-    resources.meshes_mut().register_mesh(id("cat"), Mesh::from_bytes(include_bytes!("model/cat.gmesh"))?);
+    resources.meshes_mut().register_mesh(id("quad"), MeshType::flat_quad(10.0));
+    resources.meshes_mut().register_mesh(id("cat"), MeshType::load_static_mesh(include_bytes!("model/cat.gmesh"))?);
     
     let quad_texture_index = resources.textures_mut().register_texture(id("quad"), include_bytes!("model/texture.jpg"))?;
     let cat_texture_index = resources.textures_mut().register_texture(id("cat"), include_bytes!("model/cat_texture.png"))?;

@@ -6,10 +6,10 @@ use rand::Rng;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut resources = PropellantResources::default();
-    resources.meshes_mut().register_mesh(id("cube1"), Mesh::cube(0.01));
-    resources.meshes_mut().register_mesh(id("cube2"), Mesh::cube(0.02));
-    resources.meshes_mut().register_mesh(id("cube3"), Mesh::cube(0.03));
-    resources.meshes_mut().register_mesh(id("cube4"), Mesh::cube(0.05));
+    resources.meshes_mut().register_mesh(id("cube1"), MeshType::cube(0.01));
+    resources.meshes_mut().register_mesh(id("cube2"), MeshType::cube(0.02));
+    resources.meshes_mut().register_mesh(id("cube3"), MeshType::cube(0.03));
+    resources.meshes_mut().register_mesh(id("cube4"), MeshType::cube(0.05));
 
     let mut engine = PropellantEngine::builder()
         .with_resources(resources);

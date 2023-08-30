@@ -8,7 +8,7 @@ use propellant::*;
 fn main() {
 
     let mut resources = PropellantResources::default();
-    resources.meshes_mut().register_mesh(id("cube"), Mesh::cube(1.0));
+    resources.meshes_mut().register_mesh(id("cube"), MeshType::cube(1.0));
 
     let window = PropellantWindow::builder()
         .with_title("Custom Pipeline".to_string())
