@@ -13,17 +13,19 @@ pub(crate) mod loader;
 pub(crate) mod ui_quad;
 
 
-type StaticMeshVertex = StaticVertex;
-type StaticMeshTriangle = u32;
+pub(crate) type StaticMeshVertexType = StaticVertex;
+pub(crate) type StaticMeshTriangleType = u32;
+
+pub type StaticMesh = Mesh<StaticMeshVertexType, StaticMeshTriangleType>;
 
 #[derive(Debug, Clone)]
 pub enum MeshType {
-    Static(Mesh<StaticMeshVertex, StaticMeshTriangle>),
+    Static(Mesh<StaticMeshVertexType, StaticMeshTriangleType>),
     // Skinned(),
 }
 
 impl MeshType {
-    pub fn static_mesh(vertices: Vec<StaticMeshVertex>, triangles: Vec<StaticMeshTriangle>) -> MeshType {
+    pub fn static_mesh(vertices: Vec<StaticMeshVertexType>, triangles: Vec<StaticMeshTriangleType>) -> MeshType {
         MeshType::Static(Mesh::new(vertices, triangles))
     }
 
@@ -33,7 +35,7 @@ impl MeshType {
 
     pub fn buffer_size(&self) -> usize {
         match self {
-            MeshType::Static(mesh) => mesh.vertices().len() * std::mem::size_of::<StaticVertex>() + mesh.triangles().len() * std::mem::size_of::<u32>(),
+            MeshType::Static(mesh) => mesh.vertices().len() * std::mem::size_of::<StaticMeshVertexType>() + mesh.triangles().len() * std::mem::size_of::<StaticMeshTriangleType>(),
         }
     }
 }

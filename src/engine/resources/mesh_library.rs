@@ -6,7 +6,7 @@ use crate::{
             vulkan_buffer::VulkanBuffer,
             transfer_command_manager::TransferCommandManager
         },
-        errors::PResult, mesh::{vertex::StaticVertex, MeshType}
+        errors::PResult, mesh::{vertex::StaticVertex, MeshType, StaticMeshVertexType}
     },
     id
 };
@@ -56,7 +56,7 @@ impl LoadedMesh {
             MeshType::Static(mesh) => staging_buffer.map_data(
                 vk_device,
                 mesh.triangles(),
-                mesh.vertices().len() as usize * std::mem::size_of::<StaticVertex>() as usize,
+                mesh.vertices().len() * std::mem::size_of::<StaticMeshVertexType>(),
             )?,
         };
         // create the buffer on the graphic card itself

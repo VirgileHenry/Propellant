@@ -1,10 +1,10 @@
 use crate::engine::consts::PROPELLANT_DEBUG_FEATURES;
 
-use super::{MeshType, StaticVertex};
+use super::{MeshType, StaticVertex, StaticMeshTriangleType};
 
 
 impl MeshType {
-    pub fn uv_sphere(radius: f32, definition: u32) -> MeshType {
+    pub fn uv_sphere(radius: f32, definition: StaticMeshTriangleType) -> MeshType {
         // create the vertices data for the sphere
         if PROPELLANT_DEBUG_FEATURES {
             if definition < 3 {
