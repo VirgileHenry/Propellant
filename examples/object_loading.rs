@@ -56,28 +56,28 @@ impl Updatable for ObjectLoader {
         let _entity = match self.counter % 4 {
             0 => create_entity!(components;
                 Transform::origin().translated(offset),
-                InstancedMeshRenderer::new(
+                InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(
                     id("cube1"),
                     PhongMaterial::default().colored(glam::vec3(0.6, 0., 0.))
                 )
             ),
             1 => create_entity!(components;
                 Transform::origin().translated(offset),
-                InstancedMeshRenderer::new(
+                InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(
                     id("cube2"),
                     PhongMaterial::default().colored(glam::vec3(0.6, 0.6, 0.))
                 )
             ),
             2 => create_entity!(components;
                 Transform::origin().translated(offset),
-                InstancedMeshRenderer::new(
+                InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(
                     id("cube3"),
                     PhongMaterial::default().colored(glam::vec3(0.6, 0., 0.6))
                 )
             ),
             _ => create_entity!(components;
                 Transform::origin().translated(offset),
-                InstancedMeshRenderer::new(
+                InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(
                     id("cube4"),
                     PhongMaterial::default().colored(glam::vec3(0., 0.6, 0.6))
                 )

@@ -20,10 +20,10 @@ pub trait GraphicPipelineBuilderInterface {
 
 pub fn default_phong_pipeline() -> impl GraphicPipelineBuilderInterface {
     use crate::CameraUniformObject;
-use crate::MainDirectionnalLight;
-use crate::ModelMatrixUniformObject;
-use crate::PhongMaterial;
-use crate::create_graphic_pipeline;
+    use crate::MainDirectionnalLight;
+    use crate::ModelMatrixUniformObject;
+    use crate::PhongMaterial;
+    use crate::create_graphic_pipeline;
     use crate::engine::renderer::shaders::DEFAULT_FRAG;
     use crate::engine::renderer::shaders::DEFAULT_VERT;
     use super::renderable_component::RenderableComponent;

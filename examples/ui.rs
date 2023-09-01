@@ -32,14 +32,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ));
     let _quad = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(0., -1., 0.)),
-        InstancedMeshRenderer::new(
+        InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(
             id("quad"),
             PhongMaterial::default().textured(quad_texture_index)
         )
     );
     let _cat = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(0., -1., 0.)),
-        InstancedMeshRenderer::new(
+        InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(
             id("cat"),
             PhongMaterial::default().colored(glam::vec3(1., 1., 1.)).textured(cat_texture_index)
         )
@@ -153,7 +153,7 @@ impl Rotater {
 
 impl Updatable for Rotater {
     fn update(&mut self, components: &mut foundry::ComponentTable, delta: f32) {
-        for (_entity, tf, _mr) in components.query2d_mut::<Transform, InstancedMeshRenderer<PhongMaterial>>() {
+        for (_entity, tf, _mr) in components.query2d_mut::<Transform, InstancedMeshRenderer<PhongMaterial, StaticMesh>>() {
             tf.rotate(glam::Quat::from_rotation_y(delta * 0.1));
         }
     }

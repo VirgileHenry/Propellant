@@ -38,15 +38,21 @@ impl MeshType {
             MeshType::Static(mesh) => mesh.vertices().len() * std::mem::size_of::<StaticMeshVertexType>() + mesh.triangles().len() * std::mem::size_of::<StaticMeshTriangleType>(),
         }
     }
+
+    pub fn index_type(&self) -> vulkanalia::vk::IndexType {
+        match self {
+            MeshType::Static(_) => StaticMeshTriangleType::to_vulkan_index_type(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
-pub struct Mesh<V, T> {
+pub struct Mesh<V, T: ToVulkanIntSize> {
     pub vertices: Vec<V>,
     pub triangles: Vec<T>,
 }
 
-impl<V, T> Mesh<V, T> {
+impl<V, T: ToVulkanIntSize> Mesh<V, T> {
     pub fn new(vertices: Vec<V>, triangles: Vec<T>) -> Mesh<V, T> {
         Mesh { vertices, triangles }
     }
@@ -59,4 +65,21 @@ impl<V, T> Mesh<V, T> {
         &self.triangles
     }
 
+}
+
+
+pub trait ToVulkanIntSize {
+    fn to_vulkan_index_type() -> vulkanalia::vk::IndexType;
+}
+
+impl ToVulkanIntSize for u16 {
+    fn to_vulkan_index_type() -> vulkanalia::vk::IndexType {
+        vulkanalia::vk::IndexType::UINT16
+    }
+}
+
+impl ToVulkanIntSize for u32 {
+    fn to_vulkan_index_type() -> vulkanalia::vk::IndexType {
+        vulkanalia::vk::IndexType::UINT32
+    }
 }

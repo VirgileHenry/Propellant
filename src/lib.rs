@@ -9,6 +9,7 @@ pub use engine::{
     mesh::{
         MeshType,
         mesh_renderer::InstancedMeshRenderer,
+        StaticMesh,
     },
     material::{
         phong_material::PhongMaterial,

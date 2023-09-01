@@ -1,6 +1,9 @@
 use foundry::AsAny;
 
-use crate::{engine::renderer::graphic_pipeline::{uniform::object_uniform::ObjectUniform, renderable_component::RenderableComponent}, InstancedMeshRenderer};
+use crate::{
+    engine::renderer::graphic_pipeline::renderable_component::RenderableComponent,
+    InstancedMeshRenderer
+};
 
 use super::colored_texture::ColoredTexture;
 
@@ -24,23 +27,22 @@ impl PhongMaterial {
     }
 }
 
-impl ObjectUniform for PhongMaterial {
-    type FromComponent = InstancedMeshRenderer<PhongMaterial>;
-    fn get_uniform(component: &Self::FromComponent) -> Self {
+impl RenderableComponent for PhongMaterial {
+    type FromComponent<Mesh> = InstancedMeshRenderer<PhongMaterial, Mesh>;
+
+    fn get_uniform<Mesh>(component: &Self::FromComponent<Mesh>) -> Self {
         component.material().clone()
     }
-}
 
-impl RenderableComponent for PhongMaterial {
-    fn mesh_id(component: &Self::FromComponent) -> u64 {
+    fn mesh_id<Mesh>(component: &Self::FromComponent<Mesh>) -> u64 {
         component.mesh_id()
     }
 
-    fn set_uniform_buffer_index(component: &mut Self::FromComponent, index: usize) {
+    fn set_uniform_buffer_index<Mesh>(component: &mut Self::FromComponent<Mesh>, index: usize) {
         component.set_uniform_buffer_offset(index);
     }
 
-    fn uniform_buffer_index(component: &Self::FromComponent) -> usize {
+    fn uniform_buffer_index<Mesh>(component: &Self::FromComponent<Mesh>) -> usize {
         component.uniform_buffer_offset()
     }
 }

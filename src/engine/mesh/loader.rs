@@ -5,7 +5,7 @@ use crate::engine::errors::{
     loading_errors::LoadingError
 };
 
-use super::{vertex::StaticVertex, Mesh};
+use super::{vertex::StaticVertex, Mesh, ToVulkanIntSize};
 
 
 #[derive(Debug, Clone, Copy)]
@@ -47,7 +47,7 @@ impl Loadable for u32 {
     }
 }
 
-impl<V: Loadable, T: Loadable> Mesh<V, T> {
+impl<V: Loadable, T: Loadable + ToVulkanIntSize> Mesh<V, T> {
     /// Loads a mesh from raw bytes data.
     /// The expected format of the data is :
     /// 

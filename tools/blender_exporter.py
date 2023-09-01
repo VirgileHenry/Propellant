@@ -30,7 +30,7 @@ def write_mesh_to_file(context, filepath):
         vertex_length = len(mesh.vertices)
         triangles_length = sum([1 for face in mesh.polygons if len(face.vertices) == 3])
         # compute vertices
-        smooth_shading = True
+        smooth_shading = False
         if smooth_shading:
             header = array('L', [vertex_length, triangles_length]) # L is unsigned long, so u32
             vertices = [[v.co[0], v.co[1], v.co[2], v.normal[0], v.normal[1], v.normal[2], 0, 0] for v in mesh.vertices]
@@ -52,14 +52,14 @@ def write_mesh_to_file(context, filepath):
                 temp_vertices[loop.vertex_index][6] = uv_layer[loop.index].uv[0]
                 temp_vertices[loop.vertex_index][7] = uv_layer[loop.index].uv[1]
             # compute triangles
-            temp_triangles = array('L', concatenate([[mesh.loops[i].vertex_index for i in f.loop_indices] for f in mesh.polygons if len(f.vertices) == 3]))
+            temp_triangles = array('I', concatenate([[mesh.loops[i].vertex_index for i in f.loop_indices] for f in mesh.polygons if len(f.vertices) == 3]))
             vertices = [temp_vertices[i].copy() for i in temp_triangles]
             # compute normals for each face
             for i in range(0, len(vertices), 3):
                 n = compute_normals(vertices[i:i+3])
                 for j in range(i, i+3):
                     vertices[j][3:6] = n[::]
-            triangles_data = array('L', [i for i in range(len(vertices))])
+            triangles_data = array('I', [i for i in range(len(vertices))])
         for i in range(len(vertices)):
             vertices[i] = apply_transform(vertices[i])
         vertex_data = array('f', concatenate(vertices))

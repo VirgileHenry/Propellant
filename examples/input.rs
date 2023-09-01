@@ -39,7 +39,7 @@ impl InputContext for InputContext1 {
     fn update(&mut self, components: &mut foundry::ComponentTable, delta: f32) {
         // if space is being pressed, rotate the cubes.
         if self.space_pressed {
-            for (_entitiy, transform, _) in components.query2d_mut::<Transform, InstancedMeshRenderer<PhongMaterial>>() {
+            for (_entitiy, transform, _) in components.query2d_mut::<Transform, InstancedMeshRenderer<PhongMaterial, StaticMesh>>() {
                 transform.rotate(glam::Quat::from_rotation_y(delta));
             }
         }
@@ -91,7 +91,7 @@ impl InputContext for InputContext2 {
     fn update(&mut self, components: &mut foundry::ComponentTable, delta: f32) {
         // if space is being pressed, rotate the cubes.
         if self.space_pressed {
-            for (_entitiy, transform, _) in components.query2d_mut::<Transform, InstancedMeshRenderer<PhongMaterial>>() {
+            for (_entitiy, transform, _) in components.query2d_mut::<Transform, InstancedMeshRenderer<PhongMaterial, StaticMesh>>() {
                 transform.rotate(glam::Quat::from_rotation_y(-delta));
             }
         }
@@ -150,14 +150,14 @@ fn main() {
 
     let _cube = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(-1., 1., 0.)),
-        InstancedMeshRenderer::new(
+        InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(
             id("cube"),
             PhongMaterial::default().colored(glam::vec3(0.6, 0., 0.))
         )
     );
     let _cube = create_entity!(engine.world_mut();
         Transform::origin().translated(glam::vec3(2., 0., 0.)),
-        InstancedMeshRenderer::new(
+        InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(
             id("cube"),
             PhongMaterial::default().colored(glam::vec3(0., 0.6, 0.))
         )

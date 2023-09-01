@@ -88,7 +88,7 @@ macro_rules! create_graphic_pipeline_impl {
         ($($frm_uniforms_build:tt)*); ($($obj_uniforms_build:tt)*); ($($rc_uniforms_build:tt)*); ($($texture_uniforms_build:tt)*);
         ($($frm_uniforms_type:tt)*); ($($obj_uniforms_type:tt)*); ($($rc_uniforms_type:tt)*); ($($texture_uniforms_type:tt)*);
         ($($ordered_field:tt)*);
-        (RenderableComponent, $uniform:ident, $stage:path),
+        (RenderableComponent, $uniform:ty, $stage:path),
         $($rest:tt)*
     ) => {
         // register a new renderable object uniform
@@ -154,6 +154,7 @@ macro_rules! create_graphic_pipeline_impl {
             use crate::engine::errors::PResult;
             use crate::engine::mesh::vertex::StaticVertex;
             use super::GraphicPipelineInterface;
+            use crate::StaticMesh;
 
 
             // ========== Some helper funcs ==========
@@ -438,11 +439,11 @@ macro_rules! create_graphic_pipeline_impl {
                         $($rc_uniforms_field,)*
                         $($obj_uniforms_field,)*
                     ) in components.query2d::<
-                        $(<$rc_uniforms_type as ObjectUniform>::FromComponent,)*
+                        $(<$rc_uniforms_type as RenderableComponent>::FromComponent<StaticMesh>,)*
                         $(<$obj_uniforms_type as ObjectUniform>::FromComponent,)*
                     >() {
-                        $(let uniform_buffer_offset = <$rc_uniforms_type as RenderableComponent>::uniform_buffer_index($rc_uniforms_field);)*
-                        $(self.$rc_uniforms_field.update_buffer(uniform_buffer_offset, image_index, <$rc_uniforms_type as ObjectUniform>::get_uniform($rc_uniforms_field));)*
+                        $(let uniform_buffer_offset = <$rc_uniforms_type as RenderableComponent>::uniform_buffer_index::<StaticMesh>($rc_uniforms_field);)*
+                        $(self.$rc_uniforms_field.update_buffer(uniform_buffer_offset, image_index, <$rc_uniforms_type as RenderableComponent>::get_uniform::<StaticMesh>($rc_uniforms_field));)*
                         $(self.$obj_uniforms_field.update_buffer(uniform_buffer_offset, image_index, <$obj_uniforms_type as ObjectUniform>::get_uniform($obj_uniforms_field));)*
                     }
                     // unmap all the buffers
@@ -519,13 +520,13 @@ macro_rules! create_graphic_pipeline_impl {
                         $($rc_uniforms_field,)*
                         _,
                     ) in components.query2d::<
-                        $(<$rc_uniforms_type as ObjectUniform>::FromComponent,)*
+                        $(<$rc_uniforms_type as RenderableComponent>::FromComponent<StaticMesh>,)*
                         $(<$obj_uniforms_type as ObjectUniform>::FromComponent,)*
                     >() {
                         $(
-                            match map.get_mut(&<$rc_uniforms_type as RenderableComponent>::mesh_id($rc_uniforms_field)) {
+                            match map.get_mut(&<$rc_uniforms_type as RenderableComponent>::mesh_id::<StaticMesh>($rc_uniforms_field)) {
                                 Some((instance_count, _, _)) => *instance_count += 1,
-                                None => {map.insert(<$rc_uniforms_type as RenderableComponent>::mesh_id($rc_uniforms_field), (1, 0, 0));},
+                                None => {map.insert(<$rc_uniforms_type as RenderableComponent>::mesh_id::<StaticMesh>($rc_uniforms_field), (1, 0, 0));},
                             }
                         )*
                     }
@@ -542,12 +543,12 @@ macro_rules! create_graphic_pipeline_impl {
                         $($rc_uniforms_field,)*
                         _,
                     ) in components.query2d_mut::<
-                        $(<$rc_uniforms_type as ObjectUniform>::FromComponent,)*
+                        $(<$rc_uniforms_type as RenderableComponent>::FromComponent<StaticMesh>,)*
                         $(<$obj_uniforms_type as ObjectUniform>::FromComponent,)*
                     >() {
                         $(
-                            let (_, mesh_offset, counter) = map.get_mut(&<$rc_uniforms_type as RenderableComponent>::mesh_id($rc_uniforms_field)).unwrap();
-                            <$rc_uniforms_type as RenderableComponent>::set_uniform_buffer_index($rc_uniforms_field, *mesh_offset + *counter);
+                            let (_, mesh_offset, counter) = map.get_mut(&<$rc_uniforms_type as RenderableComponent>::mesh_id::<StaticMesh>($rc_uniforms_field)).unwrap();
+                            <$rc_uniforms_type as RenderableComponent>::set_uniform_buffer_index::<StaticMesh>($rc_uniforms_field, *mesh_offset + *counter);
                             *counter += 1;
                         )*
                     }

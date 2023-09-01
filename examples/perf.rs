@@ -18,7 +18,7 @@ fn main() {
     );
     let _cubes = create_entities!(engine.world_mut(); 100_000,
         |i| Transform::origin().translated(glam::vec3(0., 0., -(i as f32))).scaled(glam::vec3(1./ (i as f32 + 1.), 1./ (i as f32 + 1.), 1./ (i as f32 + 1.))),
-        |_| InstancedMeshRenderer::new(id("cube"), PhongMaterial::default())
+        |_| InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(id("cube"), PhongMaterial::default())
     );
 
     engine.world_mut().register_system(System::new(FPSCounter{timer: -3., frames: 0}, foundry::UpdateFrequency::PerFrame), id("fps_counter"));

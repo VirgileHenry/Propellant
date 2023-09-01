@@ -25,14 +25,14 @@ fn main() {
     let _cube = create_entity!(engine.world_mut();
         cube1_tf,
         RotatingObject,
-        InstancedMeshRenderer::new(
+        InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(
             id("cube"),
             PhongMaterial::default().colored(glam::vec3(0.6, 0., 0.))
         )
     );
     let _cube = create_entity!(engine.world_mut();
         cube2_tf,
-        InstancedMeshRenderer::new(
+        InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(
             id("cube"),
             PhongMaterial::default().colored(glam::vec3(0., 0.6, 0.))
         )

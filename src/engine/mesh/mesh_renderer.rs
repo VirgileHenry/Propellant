@@ -2,18 +2,20 @@
 pub(crate) mod ui_mesh_renderer;
 
 /// Component to render a Mesh.
-pub struct InstancedMeshRenderer<Material> {
+pub struct InstancedMeshRenderer<Material, Mesh> {
+    mesh_type: std::marker::PhantomData<Mesh>,
     mesh_id: u64,
     material: Material,
     uniform_buffer_offset: usize,
 }
 
-impl<Material> InstancedMeshRenderer<Material> {
+impl<Material, Mesh> InstancedMeshRenderer<Material, Mesh> {
     pub fn new(
         mesh_id: u64,
         material: Material,
-    ) -> InstancedMeshRenderer<Material> {
+    ) -> InstancedMeshRenderer<Material, Mesh> {
         InstancedMeshRenderer {
+            mesh_type: std::marker::PhantomData,
             mesh_id,
             material,
             uniform_buffer_offset: 0,

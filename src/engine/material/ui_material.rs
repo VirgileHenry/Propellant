@@ -1,6 +1,11 @@
 use foundry::AsAny;
 
-use crate::{ColoredTexture, engine::renderer::graphic_pipeline::{renderable_component::RenderableComponent, uniform::object_uniform::ObjectUniform}, InstancedMeshRenderer, id};
+use crate::{
+    ColoredTexture,
+    engine::renderer::graphic_pipeline::renderable_component::RenderableComponent,
+    InstancedMeshRenderer,
+    id, StaticMesh
+};
 
 
 #[allow(unused)]
@@ -30,28 +35,27 @@ impl UiMaterial {
         }
     }
 
-    pub fn to_mesh_renderer(self) -> InstancedMeshRenderer<UiMaterial> {
-        InstancedMeshRenderer::new(id("ui_quad"), self)
-    }
-}
-
-impl ObjectUniform for UiMaterial {
-    type FromComponent = InstancedMeshRenderer<UiMaterial>;
-    fn get_uniform(component: &Self::FromComponent) -> Self {
-        component.material().clone()
+    pub fn to_mesh_renderer(self) -> InstancedMeshRenderer<UiMaterial, StaticMesh> {
+        InstancedMeshRenderer::<UiMaterial, StaticMesh>::new(id("ui_quad"), self)
     }
 }
 
 impl RenderableComponent for UiMaterial {
-    fn mesh_id(component: &Self::FromComponent) -> u64 {
+    type FromComponent<Mesh> = InstancedMeshRenderer<UiMaterial, Mesh>;
+
+    fn get_uniform<Mesh>(component: &Self::FromComponent<Mesh>) -> Self {
+        component.material().clone()
+    }
+
+    fn mesh_id<Mesh>(component: &Self::FromComponent<Mesh>) -> u64 {
         component.mesh_id()
     }
 
-    fn set_uniform_buffer_index(component: &mut Self::FromComponent, index: usize) {
+    fn set_uniform_buffer_index<Mesh>(component: &mut Self::FromComponent<Mesh>, index: usize) {
         component.set_uniform_buffer_offset(index);
     }
 
-    fn uniform_buffer_index(component: &Self::FromComponent) -> usize {
+    fn uniform_buffer_index<Mesh>(component: &Self::FromComponent<Mesh>) -> usize {
         component.uniform_buffer_offset()
     }
 }

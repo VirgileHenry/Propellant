@@ -23,6 +23,8 @@ pub struct LoadedMesh {
     index_count: usize,
     /// number of vertices
     vertex_count: usize,
+    /// type of int used for this mesh
+    index_type: vulkanalia::vk::IndexType,
 }
 
 impl LoadedMesh {
@@ -82,10 +84,13 @@ impl LoadedMesh {
             MeshType::Static(mesh) => mesh.vertices().len(),
         };
 
+        let index_type = mesh.index_type();
+
         Ok(LoadedMesh {
             buffer,
             index_count,
             vertex_count,
+            index_type,
         })
     }
 
@@ -96,9 +101,10 @@ impl LoadedMesh {
     ) {
         let buffers = [self.buffer.buffer()];
         let offset = self.vertex_count as u64 * std::mem::size_of::<StaticVertex>() as u64;
+
         unsafe {
             vk_device.cmd_bind_vertex_buffers(vk_command_buffer, 0, &buffers, &[0]);
-            vk_device.cmd_bind_index_buffer(vk_command_buffer, self.buffer.buffer(), offset, vulkanalia::vk::IndexType::UINT32);
+            vk_device.cmd_bind_index_buffer(vk_command_buffer, self.buffer.buffer(), offset, self.index_type);
         }
     }
 
