@@ -154,6 +154,7 @@ macro_rules! create_graphic_pipeline_impl {
             use crate::engine::errors::PResult;
             use crate::engine::mesh::vertex::StaticVertex;
             use super::GraphicPipelineInterface;
+            use crate::engine::mesh::vertex::VulkanVertex;
             use crate::StaticMesh;
 
 

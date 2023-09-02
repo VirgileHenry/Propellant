@@ -164,6 +164,13 @@ impl TextureLibrary {
         Ok(index)
     }
 
+    pub fn register_built_texture(&mut self, texture_id: u64, texture: ImageBuffer<Rgba<u8>, Vec<u8>>) -> PResult<u32> {
+        let index = self.next_texture_index;
+        self.next_texture_index += 1;
+        self.loading_queue.insert(texture_id, (texture, index));
+        Ok(index)
+    }
+
     pub fn load_textures(
         &mut self,
         vk_instance: &vulkanalia::Instance,

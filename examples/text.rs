@@ -10,8 +10,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     resources.meshes_mut().register_mesh(id("quad"), MeshType::flat_quad(10.0));
     resources.meshes_mut().register_mesh(id("cat"), MeshType::load_static_mesh(include_bytes!("model/cat.gmesh"))?);
     
-    let quad_texture_index = resources.textures_mut().register_texture(id("quad"), include_bytes!("model/texture.jpg"))?;
     let cat_texture_index = resources.textures_mut().register_texture(id("cat"), include_bytes!("model/cat_texture.png"))?;
+    let font_atlas_index = resources.load_font(id("font"), include_bytes!("text/font.ttf"))?;
 
     let inputs = InputHandler::builder()
         .with_starting_ui_context();
@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Transform::origin().translated(glam::vec3(0., -1., 0.)),
         InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(
             id("quad"),
-            PhongMaterial::default().textured(quad_texture_index)
+            PhongMaterial::default().textured(font_atlas_index)
         )
     );
     let _cat = create_entity!(engine.world_mut();

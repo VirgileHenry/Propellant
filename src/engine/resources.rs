@@ -1,6 +1,6 @@
 use crate::resource_loading::RequireResourcesLoadingFlag;
 
-use self::{mesh_library::MeshLibrary, texture_library::TextureLibrary};
+use self::{mesh_library::MeshLibrary, texture_library::TextureLibrary, font_library::FontLibrary};
 use super::{
     window::vulkan::transfer_command_manager::TransferCommandManager,
     errors::PResult
@@ -8,11 +8,13 @@ use super::{
 
 pub(crate) mod mesh_library;
 pub(crate) mod texture_library;
+pub(crate) mod font_library;
 
 /// Holds all the resources that are required by the user, 3D models, textures, etc.
 pub struct PropellantResources {
     meshes: MeshLibrary,
     textures: TextureLibrary,
+    fonts: FontLibrary,
 }
 
 #[cfg(feature = "ui")]
@@ -21,6 +23,7 @@ impl Default for PropellantResources {
         PropellantResources {
             meshes: MeshLibrary::with_ui_quad(),
             textures: TextureLibrary::new(),
+            fonts: FontLibrary::new(),
         }
     }
 }
@@ -31,6 +34,7 @@ impl Default for PropellantResources {
         PropellantResources {
             meshes: MeshLibrary::new(),
             textures: TextureLibrary::new(),
+            fonts: FontLibrary::new(),
         }
     }
 }
@@ -71,6 +75,18 @@ impl PropellantResources {
 
     pub fn textures_mut(&mut self) -> &mut TextureLibrary {
         &mut self.textures
+    }
+
+    pub fn fonts(&self) -> &FontLibrary {
+        &self.fonts
+    }
+
+    pub fn fonts_mut(&mut self) -> &mut FontLibrary {
+        &mut self.fonts
+    }
+
+    pub fn load_font(&mut self, id: u64, bytes: &[u8]) -> PResult<u32> {
+        self.fonts.load_font(id, bytes, &mut self.textures)
     }
 
     pub fn destroy(&mut self, vk_device: &vulkanalia::Device) {

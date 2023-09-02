@@ -16,7 +16,7 @@ fn main() {
         Transform::origin().translated(glam::vec3(0., 3., -4.)),
         Camera::main_perspective(800., 450., 0.1, 100., 1.5)
     );
-    let _cubes = create_entities!(engine.world_mut(); 100_000,
+    let _cubes = create_entities!(engine.world_mut(); 10_000,
         |i| Transform::origin().translated(glam::vec3(0., 0., -(i as f32))).scaled(glam::vec3(1./ (i as f32 + 1.), 1./ (i as f32 + 1.), 1./ (i as f32 + 1.))),
         |_| InstancedMeshRenderer::<PhongMaterial, StaticMesh>::new(id("cube"), PhongMaterial::default())
     );

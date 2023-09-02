@@ -164,21 +164,14 @@ impl From<RenderingPipelineBuilder<RPBSReady>> for RPBSReady {
     }
 }
 
-#[cfg(feature = "ui")]
 impl Default for RenderingPipelineBuilder<RPBSReady> {
     fn default() -> Self {
-        RenderingPipelineBuilder::new()
-            .with_graphic_pipeline(id("default"), default_phong_pipeline())
-            .with_graphic_pipeline(id("ui-default"), default_ui_pipeline())
-            .with_final_rt(FinalRenderTargetBuilder::default())
-    }
-}
+        let renderer = RenderingPipelineBuilder::new()
+            .with_graphic_pipeline(id("default"), default_phong_pipeline());
 
-#[cfg(not(feature = "ui"))]
-impl Default for RenderingPipelineBuilder<RPBSReady> {
-    fn default() -> Self {
-        RenderingPipelineBuilder::new()
-            .with_graphic_pipeline(id("default"), default_phong_pipeline())
-            .with_final_rt(FinalRenderTargetBuilder::default())
+        #[cfg(feature = "ui")]
+        let renderer = renderer.with_graphic_pipeline(id("ui-default"), default_ui_pipeline());
+            
+        renderer.with_final_rt(FinalRenderTargetBuilder::default())
     }
 }

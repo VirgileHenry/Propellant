@@ -1,5 +1,7 @@
 use vulkanalia::vk::HasBuilder;
 
+use super::VulkanVertex;
+
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct StaticVertex {
@@ -16,9 +18,12 @@ impl StaticVertex {
             uv: glam::Vec2::new(u, v),
         }
     }
+}
 
+
+impl VulkanVertex for StaticVertex {
     /// Tells to vulkan how to pass this data to the vertex shader.
-    pub fn binding_description() -> vulkanalia::vk::VertexInputBindingDescription {
+    fn binding_description() -> vulkanalia::vk::VertexInputBindingDescription {
         vulkanalia::vk::VertexInputBindingDescription::builder()
             .binding(0)
             .stride(std::mem::size_of::<StaticVertex>() as u32)
@@ -28,7 +33,7 @@ impl StaticVertex {
 
     /// Tells the attribute descriptions to vulkan.
     /// There are three of them, as for now: position, normal and uv.
-    pub fn attribute_description() -> Vec<vulkanalia::vk::VertexInputAttributeDescription> {
+    fn attribute_description() -> Vec<vulkanalia::vk::VertexInputAttributeDescription> {
         let pos = vulkanalia::vk::VertexInputAttributeDescription::builder()
             .binding(0)
             .location(0)
