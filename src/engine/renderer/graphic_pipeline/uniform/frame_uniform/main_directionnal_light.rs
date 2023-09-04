@@ -16,26 +16,24 @@ pub struct MainDirectionnalLight {
 }
 
 impl FrameUniform for MainDirectionnalLight {
-    fn get_uniform(components: &ComponentTable) -> Self {
+    fn set_uniform(components: &ComponentTable, write_to_buf: &mut dyn FnMut(&[Self])) {
         match components.get_singleton::<DirectionnalLight>() {
-            Some(main_light) => MainDirectionnalLight {
+            Some(main_light) => write_to_buf(&[MainDirectionnalLight {
                 direction: main_light.direction,
                 _padd_0: 0.0,
                 ambiant_color: main_light.ambiant_color,
                 _padd_1: 0.0,
                 direct_color: main_light.direct_color,
                 _padd_2: 0.0
-            },
-            None => {
-                MainDirectionnalLight {
-                    direction: glam::Vec3::NEG_Y,
-                    _padd_0: 0.0,
-                    ambiant_color: glam::Vec3::ZERO,
-                    _padd_1: 0.0,
-                    direct_color: glam::Vec3::ZERO,
-                    _padd_2: 0.0
-                }
-            },
+            }]),
+            None => write_to_buf(&[MainDirectionnalLight {
+                direction: glam::Vec3::NEG_Y,
+                _padd_0: 0.0,
+                ambiant_color: glam::Vec3::ZERO,
+                _padd_1: 0.0,
+                direct_color: glam::Vec3::ZERO,
+                _padd_2: 0.0
+            }]),
         }
     }
 }

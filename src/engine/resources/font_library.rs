@@ -12,7 +12,7 @@ pub(crate) mod glyph_coords;
 const ATLAS_CHAR_SIZE: u32 = 16;
 const MAX_LOADED_CHAR: u32 = ATLAS_CHAR_SIZE * ATLAS_CHAR_SIZE;
 
-
+#[derive(Debug, Clone)]
 pub struct FontLibrary {
     fonts: HashMap<u32, FontMap>,
 }
@@ -22,6 +22,10 @@ impl FontLibrary {
         Self {
             fonts: HashMap::new(),
         }
+    }
+
+    pub fn font(&self, id: u32) -> Option<&FontMap> {
+        self.fonts.get(&id)
     }
 
     pub fn load_font(&mut self, id: u64, font: &[u8], texture_lib: &mut TextureLibrary) -> PResult<u32> {
@@ -60,9 +64,11 @@ impl FontLibrary {
             ));
         }
 
+        let unknown_glyph = glyphs.get(&'?').unwrap().clone();
+
         let atlas_id = texture_lib.register_built_texture(id, texture)?;
 
-        let font_map = FontMap::new(atlas_id, glyphs);
+        let font_map = FontMap::new(atlas_id, glyphs, unknown_glyph, glyph_size);
         self.fonts.insert(atlas_id, font_map);
 
         Ok(atlas_id)

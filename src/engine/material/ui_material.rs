@@ -43,8 +43,10 @@ impl UiMaterial {
 impl RenderableComponent for UiMaterial {
     type FromComponent<Mesh> = InstancedMeshRenderer<UiMaterial, Mesh>;
 
-    fn get_uniform<Mesh>(component: &Self::FromComponent<Mesh>) -> Self {
-        component.material().clone()
+    fn set_uniform<Mesh>(component: &Self::FromComponent<Mesh>, write_to_buf: &mut dyn FnMut(&[Self], usize), instance_count: usize) {
+        for i in 0..instance_count {
+            write_to_buf(&[component.material().clone()], i);
+        }
     }
 
     fn mesh_id<Mesh>(component: &Self::FromComponent<Mesh>) -> u64 {
@@ -57,5 +59,9 @@ impl RenderableComponent for UiMaterial {
 
     fn uniform_buffer_index<Mesh>(component: &Self::FromComponent<Mesh>) -> usize {
         component.uniform_buffer_offset()
+    }
+
+    fn instance_count<Mesh>(_component: &Self::FromComponent<Mesh>) -> usize {
+        1
     }
 }

@@ -1,4 +1,4 @@
-use crate::{PropellantEngine, PropellantResources};
+use crate::{PropellantEngine, PropellantResources, UiTextRenderer};
 use self::resource_loading::RequireResourcesLoadingFlag;
 
 use super::{errors::PResult, ui::{ui_resolution::UiResolution, ui_transform::UiTransform}, consts::PROPELLANT_DEBUG_FEATURES};
@@ -56,6 +56,14 @@ impl PropellantEngine {
                 };
                 for (_, ui_tf) in self.world.query1d_mut::<UiTransform>() {
                     ui_tf.set_ui_resolution(resolution);
+                }
+                // temp: rebuild text here
+                let fonts = self.world.get_singleton::<PropellantResources>().unwrap().fonts().clone();
+                let ui_res = self.world.get_singleton::<UiResolution>().unwrap().clone();
+
+                for (_, tf, tr) in self.world.query2d_mut::<UiTransform, UiTextRenderer>() {
+                    let font = fonts.font(tr.font()).unwrap();
+                    tr.rebuild_text(tf, &font, ui_res);
                 }
             }
         }

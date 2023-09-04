@@ -10,9 +10,11 @@ pub struct ModelMatrixUniformObject {
 
 impl ObjectUniform for ModelMatrixUniformObject {
     type FromComponent = Transform;
-    fn get_uniform(transform: &Transform) -> Self {
-        ModelMatrixUniformObject {
-            model: transform.world_pos(),
+    fn set_uniform(transform: &Self::FromComponent, write_to_buf: &mut dyn FnMut(&[Self], usize), instance_count: usize) {
+        for i in 0..instance_count {
+            write_to_buf(&[ModelMatrixUniformObject {
+                model: transform.world_pos(),
+            }], i);
         }
     }
 }

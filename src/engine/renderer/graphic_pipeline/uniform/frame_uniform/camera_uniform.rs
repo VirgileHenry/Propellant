@@ -1,3 +1,5 @@
+use foundry::ComponentTable;
+
 use crate::{
     Transform,
     Camera,
@@ -14,19 +16,21 @@ pub struct CameraUniformObject {
 }
 
 impl FrameUniform for CameraUniformObject {
-    fn get_uniform(components: &foundry::ComponentTable) -> Self {
+    fn set_uniform(components: &ComponentTable, write_to_buf: &mut dyn FnMut(&[Self])) {
+        // todo : we could write the raw matrix here ?
         for (_, tf, cam) in components.query2d::<Transform, Camera>() {
             if cam.is_main() {
-                return CameraUniformObject {
+                write_to_buf(&[CameraUniformObject {
                     proj: cam.projection_matrix(),
                     view:  tf.world_pos(),
-                };
+                }]);
+                return;
             }
         }
 
-        CameraUniformObject {
+        write_to_buf(&[CameraUniformObject {
             proj: glam::Mat4::ZERO,
             view: glam::Mat4::ZERO,
-        }
+        }]);
     }
 }

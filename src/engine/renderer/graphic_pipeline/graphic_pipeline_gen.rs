@@ -431,7 +431,7 @@ macro_rules! create_graphic_pipeline_impl {
                     $(self.$rc_uniforms_field.map(vk_device, image_index)?;)*
                     // frame uniforms
                     $(
-                        self.$frm_uniforms_field.update_buffer(0, image_index, $frm_uniforms_type::get_uniform(components));
+                        $frm_uniforms_type::set_uniform(components, &mut |comp| self.$frm_uniforms_field.update_buffer(0, image_index, comp));
                     )*
                     // object uniforms
                     // TODO : hard coded query 2D here, but this depends on the number of object + resources uniforms.
@@ -444,8 +444,17 @@ macro_rules! create_graphic_pipeline_impl {
                         $(<$obj_uniforms_type as ObjectUniform>::FromComponent,)*
                     >() {
                         $(let uniform_buffer_offset = <$rc_uniforms_type as RenderableComponent>::uniform_buffer_index::<StaticMesh>($rc_uniforms_field);)*
-                        $(self.$rc_uniforms_field.update_buffer(uniform_buffer_offset, image_index, <$rc_uniforms_type as RenderableComponent>::get_uniform::<StaticMesh>($rc_uniforms_field));)*
-                        $(self.$obj_uniforms_field.update_buffer(uniform_buffer_offset, image_index, <$obj_uniforms_type as ObjectUniform>::get_uniform($obj_uniforms_field));)*
+                        $(let instance_count = <$rc_uniforms_type as RenderableComponent>::instance_count::<StaticMesh>($rc_uniforms_field);)*
+                        $(<$rc_uniforms_type as RenderableComponent>::set_uniform::<StaticMesh>(
+                            $rc_uniforms_field,
+                            &mut |comp, instance_offset| self.$rc_uniforms_field.update_buffer(uniform_buffer_offset + instance_offset, image_index, comp),
+                            instance_count
+                        );)*
+                        $(<$obj_uniforms_type as ObjectUniform>::set_uniform(
+                            $obj_uniforms_field,
+                            &mut |comp, instance_offset| self.$obj_uniforms_field.update_buffer(uniform_buffer_offset + instance_offset, image_index, comp),
+                            instance_count
+                        );)*
                     }
                     // unmap all the buffers
                     $(self.$frm_uniforms_field.unmap(vk_device, image_index);)*
@@ -525,9 +534,10 @@ macro_rules! create_graphic_pipeline_impl {
                         $(<$obj_uniforms_type as ObjectUniform>::FromComponent,)*
                     >() {
                         $(
+                            let added_instance_count = <$rc_uniforms_type as RenderableComponent>::instance_count::<StaticMesh>($rc_uniforms_field);
                             match map.get_mut(&<$rc_uniforms_type as RenderableComponent>::mesh_id::<StaticMesh>($rc_uniforms_field)) {
-                                Some((instance_count, _, _)) => *instance_count += 1,
-                                None => {map.insert(<$rc_uniforms_type as RenderableComponent>::mesh_id::<StaticMesh>($rc_uniforms_field), (1, 0, 0));},
+                                Some((instance_count, _, _)) => *instance_count += added_instance_count,
+                                None => {map.insert(<$rc_uniforms_type as RenderableComponent>::mesh_id::<StaticMesh>($rc_uniforms_field), (added_instance_count, 0, 0));},
                             }
                         )*
                     }
@@ -550,7 +560,7 @@ macro_rules! create_graphic_pipeline_impl {
                         $(
                             let (_, mesh_offset, counter) = map.get_mut(&<$rc_uniforms_type as RenderableComponent>::mesh_id::<StaticMesh>($rc_uniforms_field)).unwrap();
                             <$rc_uniforms_type as RenderableComponent>::set_uniform_buffer_index::<StaticMesh>($rc_uniforms_field, *mesh_offset + *counter);
-                            *counter += 1;
+                            *counter += <$rc_uniforms_type as RenderableComponent>::instance_count::<StaticMesh>($rc_uniforms_field);
                         )*
                     }
                 }

@@ -7,8 +7,9 @@ pub(crate) mod main_directionnal_light;
 
 /// handle around a per frame uniform
 /// It acts as the layer between our raw uniform buffer and a more abstract uniform object.
-pub trait FrameUniform: Debug {
-    /// Get the uniform to send to the gpu for the components
-    fn get_uniform(components: &ComponentTable) -> Self;
+pub trait FrameUniform: Debug + Sized {
+    /// Set the uniform to the gpu buffer.
+    /// The write_to_buf function is a closure sending data to the buffer, and should be called with the according data.
+    fn set_uniform(components: &ComponentTable, write_to_buf: &mut dyn FnMut(&[Self]));
 }
 

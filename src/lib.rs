@@ -53,6 +53,7 @@ pub use engine::{
         UiTransform,
         UiAnchor,
     },
+    ui::text::text_renderer::UiTextRenderer,
 };
 
 #[cfg(feature = "inputs")]

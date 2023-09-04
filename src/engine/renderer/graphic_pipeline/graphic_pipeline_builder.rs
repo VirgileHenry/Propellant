@@ -61,6 +61,30 @@ use crate::create_graphic_pipeline;
         // provide the uniforms
         (RenderableComponent, UiMaterial, ShaderStage::Fragment), // ui draws on ui material
         (ObjectUniform, UiPosUniformObject, ShaderStage::Vertex), // ui uniforms
+        (TexturesUniform, ShaderStage::Fragment), // textures
+    )
+}
+
+
+#[cfg(feature = "ui")]
+pub fn text_pipeline() -> impl GraphicPipelineBuilderInterface {
+    use crate::create_graphic_pipeline;
+    use crate::engine::renderer::shaders::{UI_TEXT_FRAG, UI_TEXT_VERT};
+    use super::renderable_component::RenderableComponent;
+    use super::uniform::object_uniform::ObjectUniform;
+    use crate::engine::ui::text::character_renderer::CharacterRenderer;
+    // create a new pipeline with the macro
+    use crate::engine::renderer::graphic_pipeline::uniform::object_uniform::ui_model_uniform::UiPosUniformObject;
+    use crate::ShaderStage;
+    use crate::engine::renderer::graphic_pipeline::GraphicPipelineCreationState;
+    create_graphic_pipeline!(
+        // provide the shaders
+        (ShaderStage::Vertex, UI_TEXT_VERT), // ui vert shader
+        (ShaderStage::Fragment, UI_TEXT_FRAG); // ui frag shader
+        // provide the uniforms
+        (RenderableComponent, CharacterRenderer, ShaderStage::Vertex), // ui draws on ui material
+        (ObjectUniform, UiPosUniformObject, ShaderStage::Vertex), // ui uniforms
+        (TexturesUniform, ShaderStage::Fragment), // textures
     )
 }
 

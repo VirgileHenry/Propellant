@@ -61,7 +61,9 @@ impl Default for UiPosUniformObject {
 
 impl ObjectUniform for UiPosUniformObject {
     type FromComponent = UiTransform;
-    fn get_uniform(transform: &UiTransform) -> Self {
-        transform.get_pos()
+    fn set_uniform(transform: &Self::FromComponent, write_to_buf: &mut dyn FnMut(&[Self], usize), instance_count: usize) {
+        for i in 0..instance_count {
+            write_to_buf(&[transform.get_pos()], i);
+        }
     }
 }

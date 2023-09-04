@@ -2,7 +2,7 @@
 use crate::{engine::{
     errors::PResult,
     window::vulkan::queues::QueueFamilyIndices,
-    renderer::graphic_pipeline::graphic_pipeline_builder::{GraphicPipelineBuilderInterface, default_phong_pipeline},
+    renderer::graphic_pipeline::graphic_pipeline_builder::{GraphicPipelineBuilderInterface, default_phong_pipeline, text_pipeline},
 }, id};
 
 #[cfg(feature = "ui")]
@@ -171,6 +171,7 @@ impl Default for RenderingPipelineBuilder<RPBSReady> {
 
         #[cfg(feature = "ui")]
         let renderer = renderer.with_graphic_pipeline(id("ui-default"), default_ui_pipeline());
+        let renderer = renderer.with_graphic_pipeline(id("text"), text_pipeline());
             
         renderer.with_final_rt(FinalRenderTargetBuilder::default())
     }

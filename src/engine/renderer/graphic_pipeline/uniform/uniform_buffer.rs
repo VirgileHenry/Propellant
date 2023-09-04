@@ -132,7 +132,7 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         &mut self,
         buffer_index: usize,
         image_index: usize,
-        data: T, // maybe &[T] ?
+        data: &[T], // maybe &[T] ?
     ) {
         // compute the offset in bytes
         let byte_offset = std::mem::size_of::<T>() * buffer_index;
@@ -142,7 +142,7 @@ impl<T: Debug + 'static> UniformBuffer<T> {
         match self.buffer_state {
             UniformBufferMemoryState::Mapped(mem) => self.sets_and_buffers[image_index].1.write(
                 unsafe {mem.add(byte_offset)},
-                std::slice::from_ref(&data)
+                data
             ),
             _ => {/* buffer might be of size 0 and uninit, it's ok */}
         }

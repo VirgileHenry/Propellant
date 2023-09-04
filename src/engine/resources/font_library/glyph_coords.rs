@@ -16,11 +16,11 @@ impl GlyphData {
     pub fn from(metrics: &fontdue::Metrics, texture_size: (u32, u32), pos: (u32, u32)) -> Self {
         let min_uv = (
             pos.0 as f32 / texture_size.0 as f32,
-            pos.1 as f32 / texture_size.1 as f32
+            pos.1 as f32 / texture_size.1 as f32,
         );
         let max_uv = (
-            min_uv.0 + metrics.width as f32 / texture_size.0 as f32,
-            min_uv.1 + metrics.height as f32 / texture_size.1 as f32
+            min_uv.0 + (metrics.width as f32 / texture_size.0 as f32),
+            min_uv.1 + (metrics.height as f32 / texture_size.1 as f32),
         );
         Self {
             min_uv: glam::Vec2::new(min_uv.0, min_uv.1),
