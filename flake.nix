@@ -22,6 +22,10 @@
             # WINIT_UNIX_BACKEND=wayland
             wayland
 
+            # vulkan thingies
+            cmake
+            python3
+
             # pure vulkan stuff
             pkgs.vulkan-headers
             pkgs.vulkan-loader
@@ -35,7 +39,8 @@
             pkgs.shaderc.dev
             pkgs.shaderc.lib    
           ];
-          LD_LIBRARY_PATH="${pkgs.vulkan-loader}/lib:${pkgs.shaderc.lib}/lib:${pkgs.shaderc.dev}/lib";
+          LD_LIBRARY_PATH="${pkgs.vulkan-loader}/lib:${pkgs.shaderc.lib}/lib:${pkgs.shaderc.dev}/lib:${lib.makeLibraryPath buildInputs}";
+          VK_LAYER_PATH="${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
           VULKAN_LIB_DIR="${pkgs.shaderc.dev}/lib";
           RUST_BACKTRACE=1;
           CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG=true;
