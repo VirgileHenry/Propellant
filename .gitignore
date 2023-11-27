@@ -4,3 +4,4 @@
 
 # my build tools
 .envrc
+.direnv/
